@@ -1,4 +1,5 @@
 from abc import abstractmethod, ABC
+from dataclasses import field
 from typing import Any
 
 from ppsim.utils.strings import stringify
@@ -6,6 +7,9 @@ from ppsim.utils.strings import stringify
 
 class DataType(ABC):
     """Abstract class that defines a datatype which has a unique key used for comparison."""
+
+    plant: Any = field(kw_only=True, default=None)
+    """The plant that contains the datatype or None if the datatype is not linked to any plant."""
 
     @property
     @abstractmethod

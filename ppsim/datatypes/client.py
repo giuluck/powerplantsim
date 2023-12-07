@@ -3,8 +3,9 @@ from typing import Callable, Set
 
 import numpy as np
 import pandas as pd
+from descriptors import classproperty
 
-from ppsim.datatypes.node import Node, Nodes
+from ppsim.datatypes.node import Node
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False)
@@ -20,9 +21,17 @@ class Client(Node):
     _variance: Callable[[np.random.Generator, pd.Series], float] = field(kw_only=True)
     """A function f(rng, series) -> variance describing the variance model of true demands."""
 
-    kind: Nodes = field(init=False, kw_only=True, default=Nodes.CLIENT)
-    commodity_in: bool = field(init=False, kw_only=True, default=True)
-    commodity_out: bool = field(init=False, kw_only=True, default=False)
+    @classproperty
+    def kind(self) -> str:
+        return 'client'
+
+    @classproperty
+    def commodity_in(self) -> bool:
+        return True
+
+    @classproperty
+    def commodity_out(self) -> bool:
+        return False
 
     @property
     def commodities_in(self) -> Set[str]:

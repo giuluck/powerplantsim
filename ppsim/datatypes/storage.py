@@ -1,5 +1,7 @@
 from dataclasses import dataclass, field
-from typing import Set, Callable, Any
+from typing import Set
+
+from descriptors import classproperty
 
 from ppsim.datatypes.node import Node
 
@@ -8,27 +10,35 @@ from ppsim.datatypes.node import Node
 class Storage(Node):
     """A node in the plant that stores certain commodities."""
 
-    _capacity: Callable[[Any, str], float] = field(kw_only=True)
-    """A function f(state, commodity) -> capacity which returns the maximal storing capacity of each commodity."""
+    commodity: str = field(kw_only=True)
+    """The commodity stored by the machine."""
+
+    capacity: float = field(kw_only=True)
+    """The storage capacity, which must be a strictly positive number."""
+
+    dissipation: float = field(kw_only=True)
+    """The dissipation rate of the storage at every time unit, which must be a float in [0, 1]."""
+
+    def __post_init__(self):
+        assert self.capacity > 0.0, f"Capacity should be strictly positive, got {self.capacity}"
+        assert 0.0 <= self.dissipation <= 1.0, f"Dissipation should be in range [0, 1], got {self.dissipation}"
+
+    @classproperty
+    def kind(self) -> str:
+        return 'storage'
+
+    @classproperty
+    def commodity_in(self) -> bool:
+        return True
+
+    @classproperty
+    def commodity_out(self) -> bool:
+        return True
 
     @property
     def commodities_in(self) -> Set[str]:
-        raise NotImplementedError()
+        return {self.commodity}
 
     @property
     def commodities_out(self) -> Set[str]:
-        raise NotImplementedError()
-
-    def capacity(self, state: Any, commodity: str) -> float:
-        """Returns the storage capacity of a certain commodity in the given state.
-
-        :param state:
-            The state identifier.
-
-        :param commodity:
-            The commodity identifier.
-
-        :return:
-            The storage capacity of the machine for the given commodity in the given state.
-        """
-        return self._capacity(state, commodity)
+        return {self.commodity}

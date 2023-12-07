@@ -1,10 +1,11 @@
 from dataclasses import dataclass, field
-from typing import Dict, Set, Optional
+from typing import Dict, Set, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+from descriptors import classproperty
 
-from ppsim.datatypes.node import Node, Nodes
+from ppsim.datatypes.node import Node
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False)
@@ -18,21 +19,34 @@ class Machine(Node):
     """A pandas dataframe where the index is a series of floating point values that indicate the input commodity flow,
     while the columns should be named after the output commodity and contain the respective output flows."""
 
-    discrete_setpoint: bool = field(kw_only=True, default=False)
+    discrete_setpoint: bool = field(kw_only=True)
     """Whether the setpoint is discrete or continuous."""
 
-    cost: float = field(kw_only=True, default=0.0)
-    """The cost for operating the machine (cost is discarded when the machine is off)."""
+    max_starting: Optional[Tuple[int, int]] = field(kw_only=True)
+    """A tuple <N, T> where N is the maximal number of times that the machine can be switched on in T units."""
 
-    kind: Nodes = field(init=False, kw_only=True, default=Nodes.MACHINE)
-    commodity_in: bool = field(init=False, kw_only=True, default=True)
-    commodity_out: bool = field(init=False, kw_only=True, default=True)
+    cost: float = field(kw_only=True)
+    """The cost for operating the machine (cost is discarded when the machine is off)."""
 
     def __post_init__(self):
         # sort setpoint
         self.setpoint.sort_index(inplace=True)
         # check that set points are non-negative (the first one is enough since it is sorted)
-        assert self.setpoint.index[0] > 0.0, "Setpoints represent flows, hence they must be strictly positive"
+        assert self.setpoint.index[0] > 0.0, f"Setpoints should be strictly positive, got {self.setpoint.index[0]}"
+        # check non-negative cost
+        assert self.cost >= 0.0, f"The operating cost of the machine must be non-negative, got {self.cost}"
+
+    @classproperty
+    def kind(self) -> str:
+        return 'machine'
+
+    @classproperty
+    def commodity_in(self) -> bool:
+        return True
+
+    @classproperty
+    def commodity_out(self) -> bool:
+        return True
 
     @property
     def commodities_in(self) -> Set[str]:

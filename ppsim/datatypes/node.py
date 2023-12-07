@@ -1,20 +1,10 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from enum import Enum
 from typing import Set
 
+from descriptors import classproperty
+
 from ppsim.datatypes.datatype import DataType
-
-
-class Nodes(Enum):
-    """Enum class for node types."""
-    SUPPLIER = 'supplier'
-    CLIENT = 'client'
-    MACHINE = 'machine'
-    STORAGE = 'storage'
-
-    def __repr__(self) -> str:
-        return self.value.upper()
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False)
@@ -24,23 +14,23 @@ class Node(DataType, ABC):
     name: str = field()
     """The name of the node."""
 
-    kind: Nodes = field(kw_only=True)
-    """The node type."""
-
-    commodity_in: bool = field(kw_only=True)
-    """Whether the node accepts input commodities."""
-
-    commodity_out: bool = field(kw_only=True)
-    """Whether the node accepts output commodities."""
-
-    @property
-    def key(self) -> str:
-        return self.name
-
-    @property
-    def type(self) -> str:
+    @classproperty
+    @abstractmethod
+    def kind(self) -> str:
         """The node type."""
-        return self.kind.value
+        pass
+
+    @classproperty
+    @abstractmethod
+    def commodity_in(self) -> bool:
+        """Whether the node accepts input commodities."""
+        pass
+
+    @classproperty
+    @abstractmethod
+    def commodity_out(self) -> bool:
+        """Whether the node accepts output commodities."""
+        pass
 
     @property
     @abstractmethod
@@ -53,6 +43,10 @@ class Node(DataType, ABC):
     def commodities_out(self) -> Set[str]:
         """The set of output commodities that is returned."""
         pass
+
+    @property
+    def key(self) -> str:
+        return self.name
 
     def _instance(self, other) -> bool:
         return isinstance(other, Node)
