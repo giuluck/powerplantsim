@@ -2,7 +2,7 @@ from abc import abstractmethod, ABC
 from dataclasses import dataclass
 from typing import Any
 
-from ppsim.utils.strings import stringify
+from ppsim import utils
 
 
 @dataclass()
@@ -11,7 +11,7 @@ class DataType(ABC):
     pass
 
 
-@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False)
+@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True)
 class InternalDataType(ABC):
     """Abstract class that defines a datatype which is not exposed to the user and has a unique key for comparison."""
 
@@ -38,4 +38,4 @@ class InternalDataType(ABC):
         return hash(self.key)
 
     def __repr__(self) -> str:
-        return stringify(value=self.key)
+        return utils.stringify(value=self.key)

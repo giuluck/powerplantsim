@@ -21,7 +21,7 @@ class Node(DataType):
     """The set of output commodities that is returned (can be more than one)."""
 
 
-@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False)
+@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True)
 class InternalNode(InternalDataType, ABC):
     """Data class for an abstract node in the plant which is not exposed to the user."""
 

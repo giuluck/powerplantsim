@@ -16,7 +16,7 @@ class Supplier(Node):
     """The series of (predicted) prices."""
 
 
-@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False)
+@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True)
 class InternalSupplier(InternalNode):
     """A node in the plant that can supply a unique commodity and is not exposed to the user."""
 

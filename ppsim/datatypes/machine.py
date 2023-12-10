@@ -26,7 +26,7 @@ class Machine(Node):
     """The cost for operating the machine (cost is discarded when the machine is off)."""
 
 
-@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False)
+@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True)
 class InternalMachine(InternalNode):
     """A node in the plant that converts certain commodities in other and is not exposed to the user."""
 
@@ -47,8 +47,9 @@ class InternalMachine(InternalNode):
     """The cost for operating the machine (cost is discarded when the machine is off)."""
 
     def __post_init__(self):
-        # sort setpoint
+        # sort setpoint and rename index
         self.setpoint.sort_index(inplace=True)
+        self.setpoint.index.rename(name='setpoint', inplace=True)
         # check that set points are strictly positive (the first one is enough since it is sorted)
         assert self.setpoint.index[0] > 0.0, f"Setpoints should be strictly positive, got {self.setpoint.index[0]}"
         # check that the corresponding output flows are non-negative (take the minimum value for each column)

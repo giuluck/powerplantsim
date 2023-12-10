@@ -95,7 +95,7 @@ class TestEdge(TestDataType):
 
     def test_properties(self):
         self.assertIsInstance(EDGE.key, InternalEdge.EdgeID, msg="Wrong edge key type stored")
-        self.assertTupleEqual(tuple(EDGE.key), ('m', 's1', 'out_com_1'), msg="Wrong edge key stored")
+        self.assertTupleEqual(EDGE.key.tuple, ('m', 's1'), msg="Wrong edge key stored")
 
     def test_exposed(self):
         e = EDGE.exposed

@@ -16,7 +16,7 @@ class Client(Node):
     """The series of (predicted) demands."""
 
 
-@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False)
+@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True)
 class InternalClient(InternalNode):
     """A node in the plant that asks for a unique commodity and is not exposed to the user.."""
 

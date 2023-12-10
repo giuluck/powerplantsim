@@ -1,8 +1,8 @@
-from collections import namedtuple
 from dataclasses import dataclass, field
 
 from ppsim.datatypes.datatype import InternalDataType, DataType
 from ppsim.datatypes.node import InternalNode, Node
+from ppsim.utils import NamedTuple
 
 
 @dataclass()
@@ -30,12 +30,14 @@ class Edge(DataType):
         return self.destination.commodity_in
 
 
-@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False)
+@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True)
 class InternalEdge(InternalDataType):
     """An edge in the plant which is not exposed to the user."""
 
-    EdgeID = namedtuple('EdgeID', 'source destination commodity')
-    """Named tuple for edge identification."""
+    @dataclass(frozen=True, unsafe_hash=True, slots=True)
+    class EdgeID(NamedTuple):
+        source: str = field()
+        destination: str = field()
 
     source: InternalNode = field(kw_only=True)
     """The source node."""
@@ -54,9 +56,9 @@ class InternalEdge(InternalDataType):
 
     def __post_init__(self):
         assert self.min_flow >= 0, f"The minimum flow cannot be negative, got {self.min_flow}"
-        assert self.max_flow >= self.min_flow,\
+        assert self.max_flow >= self.min_flow, \
             f"The maximum flow cannot be lower than the minimum, got {self.max_flow} < {self.min_flow}"
-        assert self.destination.commodity_in is not None,\
+        assert self.destination.commodity_in is not None, \
             f"Destination node {self.destination.name} does not accept any input commodity, but it should"
         assert self.commodity in self.source.commodities_out, \
             f"Source node should return {self.commodity}, but it returns {self.source.commodities_out} only"
@@ -84,7 +86,7 @@ class InternalEdge(InternalDataType):
 
     @property
     def key(self) -> EdgeID:
-        return InternalEdge.EdgeID(source=self.source.key, destination=self.destination.key, commodity=self.commodity)
+        return InternalEdge.EdgeID(source=self.source.name, destination=self.destination.name)
 
     @property
     def exposed(self) -> Edge:
