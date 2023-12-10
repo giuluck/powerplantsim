@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Callable, Set
+from typing import Callable, Set, Optional
 
 import numpy as np
 import pandas as pd
@@ -26,24 +26,16 @@ class InternalSupplier(InternalNode):
     prices: pd.Series = field(kw_only=True)
     """The series of (predicted) prices."""
 
-    _variance: Callable[[np.random.Generator, pd.Series], float] = field(kw_only=True)
+    variance_fn: Callable[[np.random.Generator, pd.Series], float] = field(kw_only=True)
     """A function f(rng, series) -> variance describing the variance model of true prices."""
 
     @classproperty
     def kind(self) -> str:
         return 'supplier'
 
-    @classproperty
-    def commodity_in(self) -> bool:
-        return False
-
-    @classproperty
-    def commodity_out(self) -> bool:
-        return True
-
     @property
-    def commodities_in(self) -> Set[str]:
-        return set()
+    def commodity_in(self) -> Optional[str]:
+        return None
 
     @property
     def commodities_out(self) -> Set[str]:
@@ -67,13 +59,13 @@ class InternalSupplier(InternalNode):
             For an input series with length L, the true price will be eventually computed as:
                 true = self.prices[L] + <eps>
         """
-        return self._variance(rng, series)
+        return self.variance_fn(rng, series)
 
     @property
     def exposed(self) -> Supplier:
         return Supplier(
             name=self.name,
-            commodities_in=self.commodities_in,
+            commodity_in=self.commodity_in,
             commodities_out=self.commodities_out,
             prices=self.prices.copy(deep=True)
         )

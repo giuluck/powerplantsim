@@ -7,7 +7,7 @@ class TestSupplier(TestDataType):
         name='s',
         commodity='s_com',
         prices=TestDataType.SERIES_1,
-        _variance=TestDataType.VARIANCE_1
+        variance_fn=TestDataType.VARIANCE_1
     )
 
     def test_checks(self):
@@ -15,18 +15,16 @@ class TestSupplier(TestDataType):
 
     def test_hashing(self):
         # test equal hash
-        s_equal = InternalSupplier(name='s', commodity='s_com_2', prices=self.SERIES_2, _variance=self.VARIANCE_2)
+        s_equal = InternalSupplier(name='s', commodity='s_com_2', prices=self.SERIES_2, variance_fn=self.VARIANCE_2)
         self.assertEqual(self.SUPPLIER, s_equal, msg="Nodes with the same name should be considered equal")
         # test different hash
-        s_diff = InternalSupplier(name='sd', commodity='s_com', prices=self.SERIES_1, _variance=self.VARIANCE_1)
+        s_diff = InternalSupplier(name='sd', commodity='s_com', prices=self.SERIES_1, variance_fn=self.VARIANCE_1)
         self.assertNotEqual(self.SUPPLIER, s_diff, msg="Nodes with different names should be considered different")
 
     def test_properties(self):
         self.assertEqual(self.SUPPLIER.key, 's', msg="Wrong supplier key name stored")
         self.assertEqual(self.SUPPLIER.kind, 'supplier', msg="Supplier node is not labelled as supplier")
-        self.assertFalse(self.SUPPLIER.commodity_in, msg="Supplier node should not have input commodities")
-        self.assertTrue(self.SUPPLIER.commodity_out, msg="Supplier node should have output commodities")
-        self.assertSetEqual(self.SUPPLIER.commodities_in, set(), msg="Wrong supplier inputs stored")
+        self.assertIsNone(self.SUPPLIER.commodity_in, msg="Wrong supplier inputs stored")
         self.assertSetEqual(self.SUPPLIER.commodities_out, {'s_com'}, msg="Wrong supplier outputs stored")
 
     def test_operations(self):
@@ -37,7 +35,7 @@ class TestSupplier(TestDataType):
         self.assertIsInstance(s, Supplier, msg="Wrong exposed type")
         # test stored information
         self.assertEqual(s.name, 's', msg="Wrong exposed name")
-        self.assertSetEqual(s.commodities_in, set(), msg="Wrong exposed inputs")
+        self.assertIsNone(s.commodity_in, msg="Wrong exposed inputs")
         self.assertSetEqual(s.commodities_out, {'s_com'}, msg="Wrong exposed outputs")
         self.assertListEqual(list(s.prices), list(self.SERIES_1), msg='Wrong exposed demands')
         # test immutability of mutable types

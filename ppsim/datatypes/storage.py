@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Set
+from typing import Set, Optional
 
 from descriptors import classproperty
 
@@ -38,17 +38,9 @@ class InternalStorage(InternalNode):
     def kind(self) -> str:
         return 'storage'
 
-    @classproperty
-    def commodity_in(self) -> bool:
-        return True
-
-    @classproperty
-    def commodity_out(self) -> bool:
-        return True
-
     @property
-    def commodities_in(self) -> Set[str]:
-        return {self.commodity}
+    def commodity_in(self) -> Optional[str]:
+        return self.commodity
 
     @property
     def commodities_out(self) -> Set[str]:
@@ -58,7 +50,7 @@ class InternalStorage(InternalNode):
     def exposed(self) -> Storage:
         return Storage(
             name=self.name,
-            commodities_in=self.commodities_in,
+            commodity_in=self.commodity_in,
             commodities_out=self.commodities_out,
             capacity=self.capacity,
             dissipation=self.dissipation

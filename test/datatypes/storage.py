@@ -32,9 +32,7 @@ class TestStorage(TestDataType):
     def test_properties(self):
         self.assertEqual(self.STORAGE.key, 's', msg="Wrong storage key name stored")
         self.assertEqual(self.STORAGE.kind, 'storage', msg="Storage node is not labelled as supplier")
-        self.assertTrue(self.STORAGE.commodity_in, msg="Storage node should have input commodities")
-        self.assertTrue(self.STORAGE.commodity_out, msg="Storage node should have output commodities")
-        self.assertSetEqual(self.STORAGE.commodities_in, {'s_com'}, msg="Wrong storage inputs stored")
+        self.assertEqual(self.STORAGE.commodity_in, 's_com', msg="Wrong storage inputs stored")
         self.assertSetEqual(self.STORAGE.commodities_out, {'s_com'}, msg="Wrong storage outputs stored")
 
     def test_operations(self):
@@ -45,7 +43,7 @@ class TestStorage(TestDataType):
         self.assertIsInstance(s, Storage, msg="Wrong exposed type")
         # test stored information
         self.assertEqual(s.name, 's', msg="Wrong exposed name")
-        self.assertSetEqual(s.commodities_in, {'s_com'}, msg="Wrong exposed inputs")
+        self.assertEqual(s.commodity_in, 's_com', msg="Wrong exposed inputs")
         self.assertSetEqual(s.commodities_out, {'s_com'}, msg="Wrong exposed outputs")
         self.assertEqual(s.capacity, 100.0, msg='Wrong exposed capacity')
         self.assertEqual(s.dissipation, 1.0, msg='Wrong exposed dissipation')

@@ -58,17 +58,9 @@ class InternalMachine(InternalNode):
     def kind(self) -> str:
         return 'machine'
 
-    @classproperty
-    def commodity_in(self) -> bool:
-        return True
-
-    @classproperty
-    def commodity_out(self) -> bool:
-        return True
-
     @property
-    def commodities_in(self) -> Set[str]:
-        return {self.commodity}
+    def commodity_in(self) -> Optional[str]:
+        return self.commodity
 
     @property
     def commodities_out(self) -> Set[str]:
@@ -101,7 +93,7 @@ class InternalMachine(InternalNode):
     def exposed(self) -> Machine:
         return Machine(
             name=self.name,
-            commodities_in=self.commodities_in,
+            commodity_in=self.commodity_in,
             commodities_out=self.commodities_out,
             setpoint=self.setpoint.copy(deep=True),
             discrete_setpoint=self.discrete_setpoint,

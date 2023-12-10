@@ -71,9 +71,7 @@ class TestMachine(TestDataType):
     def test_properties(self):
         self.assertEqual(self.MACHINE.key, 'm', msg="Wrong machine key name stored")
         self.assertEqual(self.MACHINE.kind, 'machine', msg="Machine node is not labelled as machine")
-        self.assertTrue(self.MACHINE.commodity_in, msg="Machine node should have input commodities")
-        self.assertTrue(self.MACHINE.commodity_out, msg="Machine node should have output commodities")
-        self.assertSetEqual(self.MACHINE.commodities_in, {'in_com'}, msg="Wrong machine inputs stored")
+        self.assertEqual(self.MACHINE.commodity_in, 'in_com', msg="Wrong machine inputs stored")
         self.assertSetEqual(
             self.MACHINE.commodities_out,
             {'out_com_1', 'out_com_2'},
@@ -128,7 +126,7 @@ class TestMachine(TestDataType):
         self.assertIsInstance(m, Machine, msg="Wrong exposed type")
         # test stored information
         self.assertEqual(m.name, 'm', msg="Wrong exposed name")
-        self.assertSetEqual(m.commodities_in, {'in_com'}, msg="Wrong exposed inputs")
+        self.assertEqual(m.commodity_in, 'in_com', msg="Wrong exposed inputs")
         self.assertSetEqual(m.commodities_out, {'out_com_1', 'out_com_2'}, msg="Wrong exposed outputs")
         self.assertDictEqual(m.setpoint.to_dict(), self.SETPOINT.to_dict(), msg='Wrong exposed setpoint')
         self.assertEqual(m.cost, 0.0, msg='Wrong exposed cost')

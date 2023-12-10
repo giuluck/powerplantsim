@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Set
+from typing import Set, Optional
 
 from descriptors import classproperty
 
@@ -14,11 +14,11 @@ class Node(DataType):
     name: str = field(kw_only=True)
     """The name of the node."""
 
-    commodities_in: Set[str] = field(kw_only=True)
-    """The set of input commodities that is accepted."""
+    commodity_in: Optional[str] = field(kw_only=True)
+    """The (optional) input commodities that is accepted (can be at most one)."""
 
     commodities_out: Set[str] = field(kw_only=True)
-    """The set of output commodities that is returned."""
+    """The set of output commodities that is returned (can be more than one)."""
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False)
@@ -34,28 +34,16 @@ class InternalNode(InternalDataType, ABC):
         """The node type."""
         pass
 
-    @classproperty
-    @abstractmethod
-    def commodity_in(self) -> bool:
-        """Whether the node accepts input commodities."""
-        pass
-
-    @classproperty
-    @abstractmethod
-    def commodity_out(self) -> bool:
-        """Whether the node accepts output commodities."""
-        pass
-
     @property
     @abstractmethod
-    def commodities_in(self) -> Set[str]:
-        """The set of input commodities that is accepted."""
+    def commodity_in(self) -> Optional[str]:
+        """The (optional) input commodities that is accepted (can be at most one)."""
         pass
 
     @property
     @abstractmethod
     def commodities_out(self) -> Set[str]:
-        """The set of output commodities that is returned."""
+        """The set of output commodities that is returned (can be more than one)."""
         pass
 
     @property
