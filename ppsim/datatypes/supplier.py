@@ -59,7 +59,7 @@ class InternalSupplier(InternalNode):
             For an input series with length L, the true price will be eventually computed as:
                 true = self.prices[L] + <eps>
         """
-        return self.variance_fn(rng, series)
+        return VARIANCE_fn(rng, series)
 
     @property
     def exposed(self) -> Supplier:

@@ -59,7 +59,7 @@ class InternalClient(InternalNode):
             For an input series with length L, the true demand will be eventually computed as:
                 true = self.demands[L] + <eps>
         """
-        return self.variance_fn(rng, series)
+        return VARIANCE_fn(rng, series)
 
     @property
     def exposed(self) -> Client:

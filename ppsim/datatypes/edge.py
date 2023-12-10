@@ -15,9 +15,6 @@ class Edge(DataType):
     destination: Node = field(kw_only=True)
     """The destination node."""
 
-    commodity: str = field(kw_only=True)
-    """The type of commodity that flows in the edge."""
-
     min_flow: float = field(kw_only=True)
     """The minimal flow of commodity."""
 
@@ -26,6 +23,11 @@ class Edge(DataType):
 
     integer: bool = field(kw_only=True)
     """Whether the flow must be integer or not."""
+
+    @property
+    def commodity(self) -> str:
+        """The type of commodity that flows in the edge."""
+        return self.destination.commodity_in
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False)
@@ -41,9 +43,6 @@ class InternalEdge(InternalDataType):
     destination: InternalNode = field(kw_only=True)
     """The destination node."""
 
-    commodity: str = field(kw_only=True)
-    """The type of commodity that flows in the edge."""
-
     min_flow: float = field(kw_only=True)
     """The minimal flow of commodity."""
 
@@ -55,11 +54,12 @@ class InternalEdge(InternalDataType):
 
     def __post_init__(self):
         assert self.min_flow >= 0, f"The minimum flow cannot be negative, got {self.min_flow}"
-        assert self.max_flow >= self.min_flow, f"The maximum flow cannot be lower than the minimum, got {self.max_flow}"
+        assert self.max_flow >= self.min_flow,\
+            f"The maximum flow cannot be lower than the minimum, got {self.max_flow} < {self.min_flow}"
+        assert self.destination.commodity_in is not None,\
+            f"Destination node {self.destination.name} does not accept any input commodity, but it should"
         assert self.commodity in self.source.commodities_out, \
             f"Source node should return {self.commodity}, but it returns {self.source.commodities_out} only"
-        assert self.commodity in self.destination.commodities_in, \
-            f"Destination node should accept {self.commodity}, but it accepts {self.destination.commodities_in} only"
 
     def check(self, flow: float) -> bool:
         """Checks that the given flow falls within the range of the edge and respects optional integrality constraints.
@@ -78,6 +78,11 @@ class InternalEdge(InternalDataType):
         return bounds and integrality
 
     @property
+    def commodity(self) -> str:
+        """The type of commodity that flows in the edge, which can be uniquely determined by the destination input."""
+        return self.destination.commodity_in
+
+    @property
     def key(self) -> EdgeID:
         return InternalEdge.EdgeID(source=self.source.key, destination=self.destination.key, commodity=self.commodity)
 
@@ -86,7 +91,6 @@ class InternalEdge(InternalDataType):
         return Edge(
             source=self.source.exposed,
             destination=self.destination.exposed,
-            commodity=self.commodity,
             min_flow=self.min_flow,
             max_flow=self.max_flow,
             integer=self.integer

@@ -49,8 +49,12 @@ class InternalMachine(InternalNode):
     def __post_init__(self):
         # sort setpoint
         self.setpoint.sort_index(inplace=True)
-        # check that set points are non-negative (the first one is enough since it is sorted)
+        # check that set points are strictly positive (the first one is enough since it is sorted)
         assert self.setpoint.index[0] > 0.0, f"Setpoints should be strictly positive, got {self.setpoint.index[0]}"
+        # check that the corresponding output flows are non-negative (take the minimum value for each column)
+        for c in self.setpoint.columns:
+            lb = self.setpoint[c].min()
+            assert lb >= 0.0, f"Output flows should be non-negative, got {c}: {lb}"
         # check non-negative cost
         assert self.cost >= 0.0, f"The operating cost of the machine must be non-negative, got {self.cost}"
 
@@ -85,8 +89,8 @@ class InternalMachine(InternalNode):
             assert flow in index, f"Unsupported flow {flow} for discrete setpoint {list(index)}"
             return self.setpoint.loc[flow].to_dict()
         # check correctness of continuous setpoint and return output by interpolating the flow over the output column
-        minimum, maximum = index[[0, -1]]
-        assert minimum <= flow <= maximum, f"Unsupported flow {flow} for discrete setpoint {minimum} < flow < {maximum}"
+        lb, ub = index[[0, -1]]
+        assert lb <= flow <= ub, f"Unsupported flow {flow} for continuous setpoint {lb} <= flow <= {ub}"
         return {col: np.interp(flow, xp=index, fp=self.setpoint[col]) for col in self.setpoint.columns}
 
     @property
