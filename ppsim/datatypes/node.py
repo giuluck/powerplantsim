@@ -28,6 +28,12 @@ class InternalNode(InternalDataType, ABC):
     name: str = field(kw_only=True)
     """The name of the node."""
 
+    parents: list = field(kw_only=True, init=False, default_factory=lambda: [])
+    """A list containing all the parent nodes."""
+
+    children: list = field(kw_only=True, init=False, default_factory=lambda: [])
+    """A list containing all the children nodes."""
+
     @classproperty
     @abstractmethod
     def kind(self) -> str:

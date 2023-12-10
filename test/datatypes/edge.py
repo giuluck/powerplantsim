@@ -31,8 +31,8 @@ EDGE = InternalEdge(
 
 MIN_FLOW_EXCEPTION = lambda v: f"The minimum flow cannot be negative, got {v}"
 MAX_FLOW_EXCEPTION = lambda v_min, v_max: f"The maximum flow cannot be lower than the minimum, got {v_max} < {v_min}"
-EMPTY_DESTINATION_EXCEPTION = lambda v: f"Destination node {v} does not accept any input commodity, but it should"
-INCONSISTENT_SOURCE_EXCEPTION = lambda c, s: f"Source node should return {c}, but it returns {s} only"
+EMPTY_DESTINATION_EXCEPTION = lambda v: f"Destination node '{v}' does not accept any input commodity, but it should"
+INCONSISTENT_SOURCE_EXCEPTION = lambda n, c, s: f"Source node '{n}' should return commodity '{c}', but it returns {s}"
 
 
 class TestEdge(TestDataType):
@@ -69,7 +69,7 @@ class TestEdge(TestDataType):
             InternalEdge(source=STORAGE_1, destination=MACHINE, min_flow=0.0, max_flow=100.0, integer=False)
         self.assertEqual(
             str(e.exception),
-            INCONSISTENT_SOURCE_EXCEPTION('in_com', {'out_com_1'}),
+            INCONSISTENT_SOURCE_EXCEPTION('s1', 'in_com', {'out_com_1'}),
             msg='Wrong exception message returned for wrong source commodity on edge'
         )
 

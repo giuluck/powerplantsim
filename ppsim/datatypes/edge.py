@@ -59,9 +59,10 @@ class InternalEdge(InternalDataType):
         assert self.max_flow >= self.min_flow, \
             f"The maximum flow cannot be lower than the minimum, got {self.max_flow} < {self.min_flow}"
         assert self.destination.commodity_in is not None, \
-            f"Destination node {self.destination.name} does not accept any input commodity, but it should"
+            f"Destination node '{self.destination.name}' does not accept any input commodity, but it should"
         assert self.commodity in self.source.commodities_out, \
-            f"Source node should return {self.commodity}, but it returns {self.source.commodities_out} only"
+            f"Source node '{self.source.name}' should return commodity '{self.commodity}', " \
+            f"but it returns {self.source.commodities_out}"
 
     def check(self, flow: float) -> bool:
         """Checks that the given flow falls within the range of the edge and respects optional integrality constraints.

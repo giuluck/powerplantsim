@@ -19,7 +19,7 @@ NODE_STYLES: Dict[str, StyleInfo] = {
     'supplier': StyleInfo(color='#FFEAB8', shape='>'),
     'client': StyleInfo(color='#A6DEAE', shape='<'),
     'machine': StyleInfo(color='#FF700A', shape='o'),
-    'storage': StyleInfo(color='#36325b', shape='s')
+    'storage': StyleInfo(color='#ABA5E8', shape='s')
 }
 """Default dictionary of nodes style information."""
 

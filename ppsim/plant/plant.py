@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Tuple, Callable, Iterable, Set
+from typing import Optional, Dict, Tuple, Callable, Iterable, Set, List
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -131,7 +131,7 @@ class Plant:
 
     def _check_and_update(self,
                           node: InternalNode,
-                          parent: Optional[str],
+                          parents: None | str | List[str],
                           min_flow: Optional[float],
                           max_flow: Optional[float],
                           integer: Optional[bool]):
@@ -143,12 +143,22 @@ class Plant:
         # append the node to the graph and to the designed internal data structure
         self._nodes[node.name] = node
         # if the node is not a source (supplier), retrieve the node parent and check that is exists
-        if parent is not None:
+        if parents is None:
+            return
+        parents = [parents] if isinstance(parents, str) else parents
+        assert len(parents) > 0, f"{node.kind.title()} node must have at least one parent"
+        for parent in parents:
             parent = self._nodes.get(parent)
             assert parent is not None, f"Parent node {parent} has not been added yet"
+            assert node.commodity_in in parent.commodities_out,\
+                f"Parent node '{parent.name}' should return commodity '{node.commodity_in}', " \
+                f"but it returns {parent.commodities_out}"
             # create an edge instance using the parent as source and the new node as destination
             edge = InternalEdge(source=parent, destination=node, min_flow=min_flow, max_flow=max_flow, integer=integer)
             self._edges[(parent.name, node.name)] = edge
+            # append parent and children to the respective lists
+            parent.children.append(node)
+            node.parents.append(parent)
 
     def add_supplier(self,
                      name: str,
@@ -186,13 +196,13 @@ class Plant:
         prices = pd.Series(prices, dtype=float, index=self._horizon)
         # create an internal supplier node and add it to the internal data structure and the graph
         supplier = InternalSupplier(name=name, commodity=commodity, prices=prices, variance_fn=variance)
-        self._check_and_update(node=supplier, parent=None, min_flow=None, max_flow=None, integer=None)
+        self._check_and_update(node=supplier, parents=None, min_flow=None, max_flow=None, integer=None)
         return supplier.exposed
 
     def add_client(self,
                    name: str,
                    commodity: str,
-                   parent: str,
+                   parents: str | List[str],
                    demands: float | list | np.ndarray | pd.Series,
                    variance: Callable[[np.random.Generator, pd.Series], float] = lambda rng, series: 0.0) -> Client:
         """Adds a client node to the plant topology.
@@ -203,8 +213,8 @@ class Plant:
         :param commodity:
             The identifier of the commodity that it requests, which must have been registered before.
 
-        :param parent:
-            The identifier of the parent node that is connected with the input of this client node.
+        :param parents:
+            The identifier of the parent nodes that are connected with the input of this client node.
 
         :param demands:
             The vector of (predicted) demands for the commodity during the time horizon, or a float if the demands are
@@ -229,13 +239,13 @@ class Plant:
         demands = pd.Series(demands, dtype=float, index=self._horizon)
         # create an internal client node and add it to the internal data structure and the graph
         client = InternalClient(name=name, commodity=commodity, demands=demands, variance_fn=variance)
-        self._check_and_update(node=client, parent=parent, min_flow=0.0, max_flow=float('inf'), integer=False)
+        self._check_and_update(node=client, parents=parents, min_flow=0.0, max_flow=float('inf'), integer=False)
         return client.exposed
 
     def add_machine(self,
                     name: str,
                     commodity: str,
-                    parent: str,
+                    parents: str | List[str],
                     setpoint: Dict[str, Iterable[float]] | pd.DataFrame,
                     discrete_setpoint: bool = False,
                     max_starting: Optional[Tuple[int, int]] = None,
@@ -251,8 +261,8 @@ class Plant:
         :param commodity:
             The input commodity of the machine.
 
-        :param parent:
-            The identifier of the parent node that is connected with the input of this client node.
+        :param parents:
+            The identifier of the parent nodes that are connected with the input of this machine node.
 
         :param setpoint:
             Either a dictionary of type {'setpoint': [...], <output_commodity_i>: [...], ...} where 'setpoint'
@@ -294,13 +304,13 @@ class Plant:
             max_starting=max_starting,
             cost=cost
         )
-        self._check_and_update(node=machine, parent=parent, min_flow=min_flow, max_flow=max_flow, integer=integer)
+        self._check_and_update(node=machine, parents=parents, min_flow=min_flow, max_flow=max_flow, integer=integer)
         return machine.exposed
 
     def add_storage(self,
                     name: str,
                     commodity: str,
-                    parent: str,
+                    parents: str | List[str],
                     capacity: float = float('inf'),
                     dissipation: float = 0.0,
                     min_flow: float = 0.0,
@@ -314,8 +324,8 @@ class Plant:
         :param commodity:
             The commodity stored by the storage node.
 
-        :param parent:
-            The identifier of the parent node that is connected with the input of this client node.
+        :param parents:
+            The identifier of the parent nodes that are connected with the input of this storage node.
 
         :param capacity:
             The storage capacity, which must be a strictly positive number.
@@ -337,7 +347,7 @@ class Plant:
         """
         # create an internal machine node and add it to the internal data structure and the graph
         storage = InternalStorage(name=name, commodity=commodity, capacity=capacity, dissipation=dissipation)
-        self._check_and_update(node=storage, parent=parent, min_flow=min_flow, max_flow=max_flow, integer=integer)
+        self._check_and_update(node=storage, parents=parents, min_flow=min_flow, max_flow=max_flow, integer=integer)
         return storage.exposed
 
     def draw(self,
