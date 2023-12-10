@@ -1,21 +1,44 @@
 from collections import namedtuple
 from dataclasses import dataclass, field
 
-from ppsim.datatypes.datatype import DataType
-from ppsim.datatypes.node import Node
+from ppsim.datatypes.datatype import InternalDataType, DataType
+from ppsim.datatypes.node import InternalNode, Node
 
 
-@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False)
+@dataclass()
 class Edge(DataType):
-    """An edge in the plant."""
-
-    EdgeID = namedtuple('EdgeID', 'source destination commodity')
-    """Named tuple for edge identification."""
+    """An edge in the plant which can be exposed to the user."""
 
     source: Node = field(kw_only=True)
     """The source node."""
 
     destination: Node = field(kw_only=True)
+    """The destination node."""
+
+    commodity: str = field(kw_only=True)
+    """The type of commodity that flows in the edge."""
+
+    min_flow: float = field(kw_only=True)
+    """The minimal flow of commodity."""
+
+    max_flow: float = field(kw_only=True)
+    """The maximal flow of commodity."""
+
+    integer: bool = field(kw_only=True)
+    """Whether the flow must be integer or not."""
+
+
+@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False)
+class InternalEdge(InternalDataType):
+    """An edge in the plant which is not exposed to the user."""
+
+    EdgeID = namedtuple('EdgeID', 'source destination commodity')
+    """Named tuple for edge identification."""
+
+    source: InternalNode = field(kw_only=True)
+    """The source node."""
+
+    destination: InternalNode = field(kw_only=True)
     """The destination node."""
 
     commodity: str = field(kw_only=True)
@@ -56,4 +79,15 @@ class Edge(DataType):
 
     @property
     def key(self) -> EdgeID:
-        return Edge.EdgeID(source=self.source.key, destination=self.destination.key, commodity=self.commodity)
+        return InternalEdge.EdgeID(source=self.source.key, destination=self.destination.key, commodity=self.commodity)
+
+    @property
+    def exposed(self) -> Edge:
+        return Edge(
+            source=self.source.exposed,
+            destination=self.destination.exposed,
+            commodity=self.commodity,
+            min_flow=self.min_flow,
+            max_flow=self.max_flow,
+            integer=self.integer
+        )

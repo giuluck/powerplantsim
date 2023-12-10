@@ -5,12 +5,30 @@ import numpy as np
 import pandas as pd
 from descriptors import classproperty
 
-from ppsim.datatypes.node import Node
+from ppsim.datatypes.node import InternalNode, Node
+
+
+@dataclass()
+class Machine(Node):
+    """A node in the plant that converts certain commodities in other and can be exposed to the user."""
+
+    setpoint: pd.DataFrame = field(kw_only=True)
+    """A pandas dataframe where the index is a series of floating point values that indicate the input commodity flow,
+    while the columns should be named after the output commodity and contain the respective output flows."""
+
+    discrete_setpoint: bool = field(kw_only=True)
+    """Whether the setpoint is discrete or continuous."""
+
+    max_starting: Optional[Tuple[int, int]] = field(kw_only=True)
+    """A tuple <N, T> where N is the maximal number of times that the machine can be switched on in T units."""
+
+    cost: float = field(kw_only=True)
+    """The cost for operating the machine (cost is discarded when the machine is off)."""
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False)
-class Machine(Node):
-    """A node in the plant that converts certain commodities in other."""
+class InternalMachine(InternalNode):
+    """A node in the plant that converts certain commodities in other and is not exposed to the user."""
 
     commodity: str = field(kw_only=True)
     """The input commodity of the machine."""
@@ -78,3 +96,15 @@ class Machine(Node):
         minimum, maximum = index[[0, -1]]
         assert minimum <= flow <= maximum, f"Unsupported flow {flow} for discrete setpoint {minimum} < flow < {maximum}"
         return {col: np.interp(flow, xp=index, fp=self.setpoint[col]) for col in self.setpoint.columns}
+
+    @property
+    def exposed(self) -> Machine:
+        return Machine(
+            name=self.name,
+            commodities_in=self.commodities_in,
+            commodities_out=self.commodities_out,
+            setpoint=self.setpoint.copy(deep=True),
+            discrete_setpoint=self.discrete_setpoint,
+            max_starting=self.max_starting,
+            cost=self.cost
+        )

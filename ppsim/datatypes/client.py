@@ -5,12 +5,20 @@ import numpy as np
 import pandas as pd
 from descriptors import classproperty
 
-from ppsim.datatypes.node import Node
+from ppsim.datatypes.node import InternalNode, Node
+
+
+@dataclass()
+class Client(Node):
+    """A node in the plant that asks for a unique commodity and can be exposed to the user."""
+
+    demands: pd.Series = field(kw_only=True)
+    """The series of (predicted) demands."""
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False)
-class Client(Node):
-    """A node in the plant that asks for a unique commodity."""
+class InternalClient(InternalNode):
+    """A node in the plant that asks for a unique commodity and is not exposed to the user.."""
 
     commodity: str = field(kw_only=True)
     """The identifier of the commodity asked by the node."""
@@ -60,3 +68,12 @@ class Client(Node):
                 true = self.demands[L] + <eps>
         """
         return self._variance(rng, series)
+
+    @property
+    def exposed(self) -> Client:
+        return Client(
+            name=self.name,
+            commodities_in=self.commodities_in,
+            commodities_out=self.commodities_out,
+            demands=self.demands.copy(deep=True)
+        )

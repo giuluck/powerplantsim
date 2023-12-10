@@ -1,6 +1,6 @@
-from ppsim.datatypes.client import Client
-from ppsim.datatypes.edge import Edge
-from ppsim.datatypes.machine import Machine
-from ppsim.datatypes.node import Node
-from ppsim.datatypes.storage import Storage
-from ppsim.datatypes.supplier import Supplier
+from ppsim.datatypes.client import InternalClient, Client
+from ppsim.datatypes.edge import InternalEdge, Edge
+from ppsim.datatypes.machine import InternalMachine, Machine
+from ppsim.datatypes.node import InternalNode, Node
+from ppsim.datatypes.storage import InternalStorage, Storage
+from ppsim.datatypes.supplier import InternalSupplier, Supplier

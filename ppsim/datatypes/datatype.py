@@ -1,20 +1,30 @@
 from abc import abstractmethod, ABC
-from dataclasses import field
+from dataclasses import dataclass
 from typing import Any
 
 from ppsim.utils.strings import stringify
 
 
+@dataclass()
 class DataType(ABC):
-    """Abstract class that defines a datatype which has a unique key used for comparison."""
+    """Abstract class that defines a datatype which can be exposed to the user."""
+    pass
 
-    plant: Any = field(kw_only=True, default=None)
-    """The plant that contains the datatype or None if the datatype is not linked to any plant."""
+
+@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False)
+class InternalDataType(ABC):
+    """Abstract class that defines a datatype which is not exposed to the user and has a unique key for comparison."""
 
     @property
     @abstractmethod
     def key(self) -> Any:
         """An identifier of the object."""
+        pass
+
+    @property
+    @abstractmethod
+    def exposed(self) -> DataType:
+        """The public datatype that can be exposed to the user."""
         pass
 
     def _instance(self, other) -> bool:

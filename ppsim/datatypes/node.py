@@ -4,14 +4,28 @@ from typing import Set
 
 from descriptors import classproperty
 
-from ppsim.datatypes.datatype import DataType
+from ppsim.datatypes.datatype import InternalDataType, DataType
+
+
+@dataclass()
+class Node(DataType):
+    """Public data class for an abstract node in the plant which can be exposed to the user."""
+
+    name: str = field(kw_only=True)
+    """The name of the node."""
+
+    commodities_in: Set[str] = field(kw_only=True)
+    """The set of input commodities that is accepted."""
+
+    commodities_out: Set[str] = field(kw_only=True)
+    """The set of output commodities that is returned."""
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False)
-class Node(DataType, ABC):
-    """Data class for an abstract node in the plant."""
+class InternalNode(InternalDataType, ABC):
+    """Data class for an abstract node in the plant which is not exposed to the user."""
 
-    name: str = field()
+    name: str = field(kw_only=True)
     """The name of the node."""
 
     @classproperty
@@ -45,8 +59,13 @@ class Node(DataType, ABC):
         pass
 
     @property
+    @abstractmethod
+    def exposed(self) -> Node:
+        pass
+
+    @property
     def key(self) -> str:
         return self.name
 
     def _instance(self, other) -> bool:
-        return isinstance(other, Node)
+        return isinstance(other, InternalNode)
