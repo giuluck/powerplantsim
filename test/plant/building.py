@@ -4,12 +4,13 @@ import numpy as np
 import pandas as pd
 
 from ppsim import Plant
+from ppsim.datatypes import Purchaser, Customer
 
 PLANT = Plant(horizon=3)
-PLANT.add_supplier(name='sup', commodity='in', prices=1.)
+PLANT.add_supplier(name='sup', commodity='in', predictions=1.)
 PLANT.add_machine(name='mac', parents='sup', commodity='in', setpoint={'setpoint': [1.], 'out': [1.]})
 PLANT.add_storage(name='sto', parents='mac', commodity='out')
-PLANT.add_client(name='cli', parents=['mac', 'sto'], commodity='out', demands=1.)
+PLANT.add_client(name='cli', parents=['mac', 'sto'], commodity='out', predictions=1.)
 
 NAME_CONFLICT_EXCEPTION = lambda k, n: f"There is already a {k} node '{n}', please use another identifier"
 PARENT_COMMODITY_EXCEPTION = lambda n, i, o: f"Parent node '{n}' should return commodity '{i}', but it returns {o}"
@@ -23,7 +24,7 @@ class TestPlantBuilding(unittest.TestCase):
         # test node name conflicts
         for kind, name in {(k, n) for k, node in p.nodes(indexed=True).items() for n in node.keys()}:
             with self.assertRaises(AssertionError, msg="Name conflict for new supplier should raise exception") as e:
-                p.add_supplier(name=name, commodity='in', prices=1.)
+                p.add_supplier(name=name, commodity='in', predictions=1.)
             self.assertEqual(
                 str(e.exception),
                 NAME_CONFLICT_EXCEPTION(kind, name),
@@ -33,7 +34,7 @@ class TestPlantBuilding(unittest.TestCase):
         prices = [2., 2., 2.]
         tests = [2., prices, np.array(prices), pd.Series(prices)]
         for i, prc in enumerate(tests):
-            s = p.add_supplier(name=f'sup_{i}', commodity='in', prices=prc)
+            s = p.add_supplier(name=f'sup_{i}', commodity='in', predictions=prc)
             self.assertEqual(s.name, f'sup_{i}', msg="Wrong name for supplier")
             self.assertIsNone(s.commodity_in, msg="Wrong input commodity for supplier")
             self.assertSetEqual(s.commodities_out, {'in'}, msg="Wrong output commodity for supplier")
@@ -45,7 +46,7 @@ class TestPlantBuilding(unittest.TestCase):
         # test node name conflicts
         for kind, name in {(k, n) for k, node in p.nodes(indexed=True).items() for n in node.keys()}:
             with self.assertRaises(AssertionError, msg="Name conflict for new client should raise exception") as e:
-                p.add_client(name=name, commodity='out', parents='mac', demands=1.)
+                p.add_client(name=name, commodity='out', parents='mac', predictions=1.)
             self.assertEqual(
                 str(e.exception),
                 NAME_CONFLICT_EXCEPTION(kind, name),
@@ -53,44 +54,47 @@ class TestPlantBuilding(unittest.TestCase):
             )
         # test parents
         with self.assertRaises(AssertionError, msg="Unknown parent for client should raise exception") as e:
-            p.add_client(name='parent_unk', commodity='out', parents='unk', demands=1.)
+            p.add_client(name='parent_unk', commodity='out', parents='unk', predictions=1.)
         self.assertEqual(
             str(e.exception),
             PARENT_UNKNOWN_EXCEPTION('unk'),
             msg='Wrong exception message returned for unknown parent'
         )
         with self.assertRaises(AssertionError, msg="Wrong parent commodity for client should raise exception") as e:
-            p.add_client(name='parent_com', commodity='in', parents='mac', demands=1.)
+            p.add_client(name='parent_com', commodity='in', parents='mac', predictions=1.)
         self.assertEqual(
             str(e.exception),
             PARENT_COMMODITY_EXCEPTION('mac', 'in', {'out'}),
             msg='Wrong exception message returned for wrong parent commodity'
         )
         with self.assertRaises(AssertionError, msg="Empty parent list for client should raise exception") as e:
-            p.add_client(name='parent_emp', commodity='out', parents=[], demands=1.)
+            p.add_client(name='parent_emp', commodity='out', parents=[], predictions=1.)
         self.assertEqual(
             str(e.exception),
             EMPTY_PARENTS_EXCEPTION('Client'),
             msg='Wrong exception message returned for empty parent list'
         )
-        p.add_client(name='single', commodity='out', parents='mac', demands=1.)
+        p.add_client(name='single', commodity='out', parents='mac', predictions=1.)
         edges = p.edges(destinations='single').set_index('source')['commodity'].to_dict()
         self.assertDictEqual(edges, {'mac': 'out'}, msg='Wrong edges stored for client with single parent')
-        p.add_client(name='multiple', commodity='out', parents=['mac', 'sto'], demands=1.)
+        p.add_client(name='multiple', commodity='out', parents=['mac', 'sto'], predictions=1.)
         edges = p.edges(destinations='multiple').set_index('source')['commodity'].to_dict()
         self.assertDictEqual(edges, {'mac': 'out', 'sto': 'out'}, msg='Wrong edges stored for client with many parents')
         # test client properties (and input)
         demands = [2., 2., 2.]
         tests = [2., demands, np.array(demands), pd.Series(demands)]
         for i, dmn in enumerate(tests):
-            c = p.add_client(name=f'cli_{i}', commodity='out', parents='mac', demands=dmn)
-            self.assertEqual(c.name, f'cli_{i}', msg="Wrong name for client")
-            self.assertEqual(c.commodity_in, 'out', msg="Wrong input commodity for client")
-            self.assertSetEqual(c.commodities_out, set(), msg="Wrong output commodity for client")
-            self.assertListEqual(list(c.demands.index), list(p.horizon), msg="Wrong demands index for client")
-            self.assertListEqual(list(c.demands.values), demands, msg="Wrong demands for client")
+            for pur in [True, False]:
+                klass, kind = (Purchaser, 'purchaser') if pur else (Customer, 'customer')
+                c = p.add_client(name=f'{kind}_{i}', commodity='out', parents='mac', predictions=dmn, purchaser=pur)
+                self.assertIsInstance(c, klass, msg=f"Wrong exposed type for {kind}")
+                self.assertEqual(c.name, f'{kind}_{i}', msg=f"Wrong name for {kind}")
+                self.assertEqual(c.commodity_in, 'out', msg=f"Wrong input commodity for {kind}")
+                self.assertSetEqual(c.commodities_out, set(), msg=f"Wrong output commodity for {kind}")
+                self.assertListEqual(list(c.predictions.index), list(p.horizon), msg=f"Wrong demands index for {kind}")
+                self.assertListEqual(list(c.predictions.values), demands, msg=f"Wrong demands for {kind}")
         # test edge properties
-        p.add_client(name='c', commodity='out', parents='mac', demands=1.)
+        p.add_client(name='c', commodity='out', parents='mac', predictions=1.)
         e = p.edges(destinations='c')['edge'].values[0]
         self.assertEqual(e.source.name, 'mac', msg="Wrong source name stored in edge built from client")
         self.assertEqual(e.destination.name, 'c', msg="Wrong destination name stored in edge built from client")

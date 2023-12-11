@@ -13,7 +13,7 @@ MACHINE = InternalMachine(
 SUPPLIER = InternalSupplier(
     name='s',
     commodity='in_com',
-    prices=SERIES_1,
+    predictions=SERIES_1,
     variance_fn=VARIANCE_1
 )
 

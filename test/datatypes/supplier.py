@@ -4,7 +4,7 @@ from test.datatypes.datatype import TestDataType, SERIES_1, SERIES_2, VARIANCE_1
 SUPPLIER = InternalSupplier(
     name='s',
     commodity='s_com',
-    prices=SERIES_1,
+    predictions=SERIES_1,
     variance_fn=VARIANCE_1
 )
 
@@ -16,10 +16,10 @@ class TestSupplier(TestDataType):
 
     def test_hashing(self):
         # test equal hash
-        s_equal = InternalSupplier(name='s', commodity='s_com_2', prices=SERIES_2, variance_fn=VARIANCE_2)
+        s_equal = InternalSupplier(name='s', commodity='s_com_2', predictions=SERIES_2, variance_fn=VARIANCE_2)
         self.assertEqual(SUPPLIER, s_equal, msg="Nodes with the same name should be considered equal")
         # test different hash
-        s_diff = InternalSupplier(name='sd', commodity='s_com', prices=SERIES_1, variance_fn=VARIANCE_1)
+        s_diff = InternalSupplier(name='sd', commodity='s_com', predictions=SERIES_1, variance_fn=VARIANCE_1)
         self.assertNotEqual(SUPPLIER, s_diff, msg="Nodes with different names should be considered different")
 
     def test_properties(self):
@@ -39,4 +39,4 @@ class TestSupplier(TestDataType):
         # test immutability of mutable types
         s.prices[0] = 5.0
         self.assertEqual(s.prices[0], 5.0, msg="Exposed prices should be mutable")
-        self.assertEqual(SUPPLIER.prices[0], 3.0, msg="Internal prices should be immutable")
+        self.assertEqual(SUPPLIER.predictions[0], 3.0, msg="Internal prices should be immutable")

@@ -7,7 +7,7 @@ import pandas as pd
 
 from ppsim import utils
 from ppsim.datatypes import InternalNode, InternalClient, InternalMachine, InternalSupplier, InternalEdge, \
-    InternalStorage, Supplier, Client, Machine, Storage, Node
+    InternalStorage, Supplier, Client, Machine, Storage, Node, InternalPurchaser, InternalCustomer
 from ppsim.plant import drawing
 
 
@@ -180,7 +180,7 @@ class Plant:
     def add_supplier(self,
                      name: str,
                      commodity: str,
-                     prices: float | list | np.ndarray | pd.Series,
+                     predictions: float | list | np.ndarray | pd.Series,
                      variance: Callable[[np.random.Generator, pd.Series], float] = lambda rng, series: 0.0) -> Supplier:
         """Adds a supplier node to the plant topology.
 
@@ -190,10 +190,10 @@ class Plant:
         :param commodity:
             The identifier of the commodity that it supplies, which must have been registered before.
 
-        :param prices:
-            The vector of (predicted) prices for the commodity during the time horizon, or a float if the predictions
-            are constant throughout the simulation. If an iterable is passed, it must have the same length of the time
-            horizon.
+        :param predictions:
+            The vector of predicted selling prices for the commodity during the time horizon, or a float if the
+            predictions are constant throughout the simulation. If an iterable is passed, it must have the same length
+            of the time horizon.
 
         :param variance:
             A function f(<rng>, <series>) -> <variance> which defines the variance model of the true prices
@@ -210,9 +210,9 @@ class Plant:
             The added supplier node.
         """
         # convert prices to a standard format (pd.Series)
-        prices = pd.Series(prices, dtype=float, index=self._horizon)
+        predictions = pd.Series(predictions, dtype=float, index=self._horizon)
         # create an internal supplier node and add it to the internal data structure and the graph
-        supplier = InternalSupplier(name=name, commodity=commodity, prices=prices, variance_fn=variance)
+        supplier = InternalSupplier(name=name, commodity=commodity, predictions=predictions, variance_fn=variance)
         self._check_and_update(node=supplier, parents=None, min_flow=None, max_flow=None, integer=None)
         return supplier.exposed
 
@@ -220,7 +220,8 @@ class Plant:
                    name: str,
                    commodity: str,
                    parents: str | List[str],
-                   demands: float | list | np.ndarray | pd.Series,
+                   predictions: float | list | np.ndarray | pd.Series,
+                   purchaser: bool = False,
                    variance: Callable[[np.random.Generator, pd.Series], float] = lambda rng, series: 0.0) -> Client:
         """Adds a client node to the plant topology.
 
@@ -233,10 +234,14 @@ class Plant:
         :param parents:
             The identifier of the parent nodes that are connected with the input of this client node.
 
-        :param demands:
-            The vector of (predicted) demands for the commodity during the time horizon, or a float if the demands are
-            constant throughout the simulation. If an iterable is passed, it must have the same length of the time
-            horizon.
+        :param predictions:
+            Either the vector of predicted buying prices (in case the client node is a purchaser) or the vector of
+            predicted demands (in case the client is a customer). If a float is passed, the predictions are constant
+            throughout the simulation. If an iterable is passed, it must have the same length of the time horizon.
+
+        :param purchaser:
+            Whether the client node buys the commodity at a given price (series = prices) or requires that an exact
+            amount of commodities is sent to it according to its demands (series = demands).
 
         :param variance:
             A function f(<rng>, <series>) -> <variance> which defines the variance model of the true demands
@@ -253,9 +258,12 @@ class Plant:
             The added client node.
         """
         # convert demands to a standard format (pd.Series)
-        demands = pd.Series(demands, dtype=float, index=self._horizon)
-        # create an internal client node and add it to the internal data structure and the graph
-        client = InternalClient(name=name, commodity=commodity, demands=demands, variance_fn=variance)
+        predictions = pd.Series(predictions, dtype=float, index=self._horizon)
+        # create an internal client node (with specified type) and add it to the internal data structure and the graph
+        if purchaser:
+            client = InternalPurchaser(name=name, commodity=commodity, predictions=predictions, variance_fn=variance)
+        else:
+            client = InternalCustomer(name=name, commodity=commodity, predictions=predictions, variance_fn=variance)
         self._check_and_update(node=client, parents=parents, min_flow=0.0, max_flow=float('inf'), integer=False)
         return client.exposed
 
@@ -375,7 +383,8 @@ class Plant:
              edge_shapes: str | Dict[str, str] = 'solid',
              node_size: float = 30,
              edge_width: float = 2,
-             legend: bool = True):
+             legend: bool = True,
+             longest_path: bool = True):
         """Draws the plant topology.
 
         :param figsize:
@@ -405,12 +414,15 @@ class Plant:
 
         :param legend:
             Whether to plot a legend or not.
+
+        :param longest_path:
+            Whether or not to use the Dijkstra algorithm with negative unitary cost to get the longest path.
         """
         # retrieve plant info, build the figure, and compute node positions
         nodes = self.nodes(indexed=True)
         graph = self.graph(attributes=False)
         _, ax = plt.subplots(nrows=1, ncols=1, figsize=figsize, tight_layout=True)
-        pos = drawing.get_node_positions(graph=graph, sources=nodes['supplier'].keys())
+        pos = drawing.get_node_positions(graph=graph, sources=nodes['supplier'].keys(), longest_path=longest_path)
         # retrieve nodes' styling information and draw them accordingly
         labels = []
         styles = drawing.get_node_style(colors=node_colors, markers=node_markers)

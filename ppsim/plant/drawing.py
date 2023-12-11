@@ -18,16 +18,17 @@ class StyleInfo(NamedTuple):
 NODE_STYLES: Dict[str, StyleInfo] = {
     'supplier': StyleInfo(color='#FFEAB8', shape='>'),
     'client': StyleInfo(color='#A6DEAE', shape='<'),
+    'buyer': StyleInfo(color='#A6DEAE', shape='<'),
     'machine': StyleInfo(color='#FF700A', shape='o'),
     'storage': StyleInfo(color='#ABA5E8', shape='s')
 }
 """Default dictionary of nodes style information."""
 
 
-def get_node_positions(graph: nx.DiGraph, sources: Iterable[str]) -> dict:
-    """Traverse the graph from the sources using breadth-first search and label each node with a progressive number the
-    position of the nodes is eventually obtained by layering them respectively to the computed number so that sources
-    will be on the left and sinks on the right.
+def get_node_positions(graph: nx.DiGraph, sources: Iterable[str], longest_path: bool) -> dict:
+    """Traverse the graph from the sources and label each node with a progressive number the position of the nodes is
+    eventually obtained by layering them respectively to the computed number so that sources will be on the left and
+    sinks on the right.
 
     :param graph:
         The networkx DiGraph instance.
@@ -35,12 +36,17 @@ def get_node_positions(graph: nx.DiGraph, sources: Iterable[str]) -> dict:
     :param sources:
         The iterable of source nodes.
 
+    :param longest_path:
+        Whether or not to use the Dijkstra algorithm with negative unitary cost to get the longest path.
+
     :return:
         A dictionary of node positions.
     """
-    for it, nodes in enumerate(nx.bfs_layers(graph, sources=sources)):
-        for node in nodes:
-            graph.nodes[node]['layer'] = it
+    graph = graph.copy()
+    weight = -1 if longest_path else 1
+    nx.set_edge_attributes(graph, values=weight, name='weight')
+    for node, layer in nx.multi_source_dijkstra_path_length(graph, sources=sources, weight='weight').items():
+        graph.nodes[node]['layer'] = weight * layer
     return nx.multipartite_layout(graph, subset_key='layer')
 
 

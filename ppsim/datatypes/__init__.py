@@ -1,4 +1,4 @@
-from ppsim.datatypes.client import InternalClient, Client
+from ppsim.datatypes.client import InternalClient, InternalCustomer, InternalPurchaser, Client, Customer, Purchaser
 from ppsim.datatypes.edge import InternalEdge, Edge
 from ppsim.datatypes.machine import InternalMachine, Machine
 from ppsim.datatypes.node import InternalNode, Node

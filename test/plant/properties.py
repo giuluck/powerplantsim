@@ -4,20 +4,20 @@ import numpy as np
 import pandas as pd
 
 from ppsim import Plant
-from ppsim.datatypes import Supplier, Machine, Client, Storage, Edge
+from ppsim.datatypes import Supplier, Machine, Storage, Edge, Customer
 
 PLANT_1 = Plant(horizon=24)
-PLANT_1.add_supplier(name='sup', commodity='in', prices=1.)
+PLANT_1.add_supplier(name='sup', commodity='in', predictions=1.)
 
 PLANT_2 = Plant(horizon=24)
-PLANT_2.add_supplier(name='sup', commodity='in', prices=1.)
+PLANT_2.add_supplier(name='sup', commodity='in', predictions=1.)
 PLANT_2.add_machine(name='mac', parents='sup', commodity='in', setpoint={'setpoint': [1.], 'out': [1.]})
 PLANT_2.add_storage(name='sto', parents='mac', commodity='out')
-PLANT_2.add_client(name='cli', parents=['mac', 'sto'], commodity='out', demands=1.)
+PLANT_2.add_client(name='cli', parents=['mac', 'sto'], commodity='out', predictions=1.)
 
 SERIES = pd.Series(1., index=PLANT_1.horizon)
 SETPOINT = pd.DataFrame(data=[1.], columns=['out'], index=[1.])
-SUPPLIER = Supplier(name='sup', commodity_in=None, commodities_out={'in'}, prices=SERIES)
+SUPPLIER = Supplier(name='sup', commodity_in=None, commodities_out={'in'}, predictions=SERIES)
 MACHINE = Machine(
     name='mac',
     commodity_in='in',
@@ -28,7 +28,7 @@ MACHINE = Machine(
     cost=0.0
 )
 STORAGE = Storage(name='sto', commodity_in='out', commodities_out={'out'}, capacity=float('inf'), dissipation=0.0)
-CLIENT = Client(name='cli', commodity_in='out', commodities_out=set(), demands=SERIES)
+CLIENT = Customer(name='cli', commodity_in='out', commodities_out=set(), predictions=SERIES)
 
 EDGE_1 = Edge(source=SUPPLIER, destination=MACHINE, min_flow=0.0, max_flow=float('inf'), integer=False)
 EDGE_2 = Edge(source=MACHINE, destination=STORAGE, min_flow=0.0, max_flow=float('inf'), integer=False)
