@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Tuple, Callable, Iterable, Set, List, Any
+from typing import Optional, Dict, Tuple, Callable, Iterable, Set, List
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -131,7 +131,7 @@ class Plant:
             g.add_edges_from(self._edges.keys())
         return g
 
-    def copy(self) -> Any:
+    def copy(self):
         """Copies the plant object.
 
         :return:
@@ -163,9 +163,9 @@ class Plant:
             return
         parents = [parents] if isinstance(parents, str) else parents
         assert len(parents) > 0, f"{node.kind.title()} node must have at least one parent"
-        for parent in parents:
-            parent = self._nodes.get(parent)
-            assert parent is not None, f"Parent node {parent} has not been added yet"
+        for name in parents:
+            parent = self._nodes.get(name)
+            assert parent is not None, f"Parent node '{name}' has not been added yet"
             assert node.commodity_in in parent.commodities_out, \
                 f"Parent node '{parent.name}' should return commodity '{node.commodity_in}', " \
                 f"but it returns {parent.commodities_out}"

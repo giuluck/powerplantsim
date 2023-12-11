@@ -4,7 +4,7 @@ from typing import Any, Dict, Tuple, List
 
 @dataclass(frozen=True, unsafe_hash=True, slots=True)
 class NamedTuple:
-    def __getitem__(self, item: Any) -> Any:
+    def __getitem__(self, item: Any):
         if isinstance(item, int):
             item = self.__slots__[item]
         return getattr(self, item)

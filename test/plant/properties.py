@@ -43,10 +43,10 @@ class TestPlantProperties(unittest.TestCase):
         """Tests an empty plant."""
         # create reference horizon [0, 1, ..., 23]
         horizon = [i for i in range(24)]
-        # build five different plants with different input types and check that the horizon is like the reference index
+        # build five different plants with different input types and check that the horizon is like the reference
         tests = [24, horizon, np.array(horizon), pd.Series(horizon), pd.Index(horizon)]
-        for t in tests:
-            p = Plant(horizon=t)
+        for hrz in tests:
+            p = Plant(horizon=hrz)
             self.assertIsInstance(p.horizon, pd.Index, msg=f"Horizon should be of type pd.index, got {type(p.horizon)}")
             self.assertListEqual(list(p.horizon), horizon, msg=f"Horizon should be [0, ..., 23], got {list(p.horizon)}")
         # test sanity check for negative integer

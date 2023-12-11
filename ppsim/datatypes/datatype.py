@@ -55,7 +55,7 @@ class InternalDataType(ABC):
 
     @property
     @abstractmethod
-    def key(self) -> Any:
+    def key(self):
         """An identifier of the object."""
         pass
 

@@ -21,7 +21,7 @@ def get_filtering_function(user_input: Optional) -> Callable[[Any], bool]:
         return lambda d: d == user_input
 
 
-def get_matching_object(matcher: Optional, index: Any, default: Any) -> Any:
+def get_matching_object(matcher: Optional, index: Any, default: Any):
     """Uses a matching strategy to return a matching object.
 
     :param matcher:
