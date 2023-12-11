@@ -7,11 +7,11 @@ from descriptors import classproperty
 from ppsim.datatypes.datatype import InternalDataType, DataType
 
 
-@dataclass()
+@dataclass(repr=False, eq=False, slots=True)
 class Node(DataType):
     """Public data class for an abstract node in the plant which can be exposed to the user."""
 
-    name: str = field(kw_only=True)
+    name: str = field(kw_only=True, repr=True)
     """The name of the node."""
 
     commodity_in: Optional[str] = field(kw_only=True)
@@ -20,8 +20,11 @@ class Node(DataType):
     commodities_out: Set[str] = field(kw_only=True)
     """The set of output commodities that is returned (can be more than one)."""
 
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(name='{self.name}')"
 
-@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True)
+
+@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
 class InternalNode(InternalDataType, ABC):
     """Data class for an abstract node in the plant which is not exposed to the user."""
 

@@ -8,7 +8,7 @@ from descriptors import classproperty
 from ppsim.datatypes.node import InternalNode, Node
 
 
-@dataclass()
+@dataclass(repr=False, eq=False, slots=True)
 class Machine(Node):
     """A node in the plant that converts certain commodities in other and can be exposed to the user."""
 
@@ -26,7 +26,7 @@ class Machine(Node):
     """The cost for operating the machine (cost is discarded when the machine is off)."""
 
 
-@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True)
+@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
 class InternalMachine(InternalNode):
     """A node in the plant that converts certain commodities in other and is not exposed to the user."""
 

@@ -5,7 +5,7 @@ from ppsim.datatypes.node import InternalNode, Node
 from ppsim.utils import NamedTuple
 
 
-@dataclass()
+@dataclass(repr=False, eq=False, slots=True)
 class Edge(DataType):
     """An edge in the plant which can be exposed to the user."""
 
@@ -29,8 +29,11 @@ class Edge(DataType):
         """The type of commodity that flows in the edge."""
         return self.destination.commodity_in
 
+    def __repr__(self) -> str:
+        return f"Edge(source='{self.source.name}', destination='{self.destination.name}')"
 
-@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True)
+
+@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
 class InternalEdge(InternalDataType):
     """An edge in the plant which is not exposed to the user."""
 

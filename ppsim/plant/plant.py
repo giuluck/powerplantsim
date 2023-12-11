@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Tuple, Callable, Iterable, Set, List
+from typing import Optional, Dict, Tuple, Callable, Iterable, Set, List, Any
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -23,7 +23,7 @@ class Plant:
         """
         # convert horizon to a standard format (pd.Index)
         if not isinstance(horizon, Iterable):
-            assert horizon > 0, f"The time horizon must be a positive integer, got {horizon}"
+            assert horizon > 0, f"The time horizon must be a strictly positive integer, got {horizon}"
             horizon = np.arange(horizon)
         horizon = pd.Index(horizon)
 
@@ -104,12 +104,12 @@ class Plant:
         check_dest = utils.get_filtering_function(user_input=destinations)
         check_edge = utils.get_filtering_function(user_input=commodities)
         # build data structure containing all the necessary information
-        return pd.DataFrame([{
-            'source': s,
-            'destination': d,
-            'commodity': e.commodity,
-            'edge': e.exposed
-        } for (s, d), e in self._edges.items() if check_sour(s) and check_dest(d) and check_edge(e.commodity)])
+        edges = [
+            (s, d, e.commodity, e.exposed)
+            for (s, d), e in self._edges.items()
+            if check_sour(s) and check_dest(d) and check_edge(e.commodity)
+        ]
+        return pd.DataFrame(edges, columns=['source', 'destination', 'commodity', 'edge'])
 
     def graph(self, attributes: bool = False) -> nx.DiGraph:
         """Builds the graph representing the power plant.
@@ -122,12 +122,26 @@ class Plant:
         """
         g = nx.DiGraph()
         if attributes:
-            g.add_nodes_from(self._nodes.keys(), attr=self._nodes.values())
-            g.add_edges_from(self._edges.keys(), attr=self._edges.values())
+            for name, node in self._nodes.items():
+                g.add_node(name, attr=node.exposed)
+            for (source, destination), edge in self._edges.items():
+                g.add_edge(source, destination, attr=edge.exposed)
         else:
             g.add_nodes_from(self._nodes.keys())
             g.add_edges_from(self._edges.keys())
         return g
+
+    def copy(self) -> Any:
+        """Copies the plant object.
+
+        :return:
+            A copy of the plant object.
+        """
+        copy = Plant(horizon=self.horizon)
+        copy._commodities = set(self._commodities)
+        copy._nodes = dict(self._nodes)
+        copy._edges = dict(self._edges)
+        return copy
 
     def _check_and_update(self,
                           node: InternalNode,
@@ -136,7 +150,9 @@ class Plant:
                           max_flow: Optional[float],
                           integer: Optional[bool]):
         # add the new commodities to the set
-        self._commodities.update({node.commodity_in, *node.commodities_out})
+        if node.commodity_in is not None:
+            self._commodities.add(node.commodity_in)
+        self._commodities.update(node.commodities_out)
         # check that the node has a unique identifier
         alias = self._nodes.get(node.name)
         assert alias is None, f"There is already a {alias.kind} node '{node.name}', please use another identifier"
@@ -150,11 +166,12 @@ class Plant:
         for parent in parents:
             parent = self._nodes.get(parent)
             assert parent is not None, f"Parent node {parent} has not been added yet"
-            assert node.commodity_in in parent.commodities_out,\
+            assert node.commodity_in in parent.commodities_out, \
                 f"Parent node '{parent.name}' should return commodity '{node.commodity_in}', " \
                 f"but it returns {parent.commodities_out}"
             # create an edge instance using the parent as source and the new node as destination
-            edge = InternalEdge(source=parent, destination=node, min_flow=min_flow, max_flow=max_flow, integer=integer)
+            edge = InternalEdge(source=parent, destination=node, min_flow=min_flow, max_flow=max_flow,
+                                integer=integer)
             self._edges[(parent.name, node.name)] = edge
             # append parent and children to the respective lists
             parent.children.append(node)

@@ -8,7 +8,7 @@ from descriptors import classproperty
 from ppsim.datatypes.node import InternalNode, Node
 
 
-@dataclass()
+@dataclass(repr=False, eq=False, slots=True)
 class Client(Node):
     """A node in the plant that asks for a unique commodity and can be exposed to the user."""
 
@@ -16,7 +16,7 @@ class Client(Node):
     """The series of (predicted) demands."""
 
 
-@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True)
+@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
 class InternalClient(InternalNode):
     """A node in the plant that asks for a unique commodity and is not exposed to the user.."""
 
@@ -59,7 +59,7 @@ class InternalClient(InternalNode):
             For an input series with length L, the true demand will be eventually computed as:
                 true = self.demands[L] + <eps>
         """
-        return VARIANCE_fn(rng, series)
+        return self.variance_fn(rng, series)
 
     @property
     def exposed(self) -> Client:

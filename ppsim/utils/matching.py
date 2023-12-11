@@ -14,7 +14,7 @@ def get_filtering_function(user_input: Optional) -> Callable[[Any], bool]:
     """
     if user_input is None:
         return lambda d: True
-    elif isinstance(user_input, Iterable):
+    elif isinstance(user_input, Iterable) and not isinstance(user_input, str):
         user_input = set(user_input)
         return lambda d: d in user_input
     else:

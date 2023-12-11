@@ -6,7 +6,7 @@ from descriptors import classproperty
 from ppsim.datatypes.node import InternalNode, Node
 
 
-@dataclass()
+@dataclass(repr=False, eq=False, slots=True)
 class Storage(Node):
     """A node in the plant that stores certain commodities and can be exposed to the user."""
 
@@ -17,7 +17,7 @@ class Storage(Node):
     """The dissipation rate of the storage at every time unit, which must be a float in [0, 1]."""
 
 
-@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True)
+@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
 class InternalStorage(InternalNode):
     """A node in the plant that stores certain commodities and is not exposed to the user."""
 
