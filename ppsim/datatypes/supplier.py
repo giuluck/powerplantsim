@@ -13,7 +13,7 @@ class Supplier(VarianceNode):
 
     @property
     def prices(self) -> pd.Series:
-        """The series of predicted selling prices."""
+        """The series of predicted selling prices (alias for predictions)."""
         return self.predictions
 
 
@@ -39,5 +39,5 @@ class InternalSupplier(InternalVarianceNode):
             name=self.name,
             commodity_in=self.commodity_in,
             commodities_out=self.commodities_out,
-            predictions=self.predictions.copy(deep=True)
+            predictions=self._predictions.copy()
         )

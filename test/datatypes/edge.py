@@ -1,32 +1,29 @@
-from ppsim.datatypes import InternalStorage, InternalEdge, InternalMachine, Edge, InternalSupplier
-from test.datatypes.datatype import TestDataType, SETPOINT, SERIES_1, VARIANCE_1
+from ppsim.datatypes import InternalEdge, Supplier, Storage, Machine, Edge
+from test.datatypes.datatype import TestDataType, SETPOINT, SERIES_1, HORIZON
 
-MACHINE = InternalMachine(
+MACHINE = Machine(
     name='m',
-    commodity='in_com',
+    commodity_in='in_com',
+    commodities_out={'out_com_1', 'out_com_2'},
     setpoint=SETPOINT,
     discrete_setpoint=False,
     max_starting=None,
     cost=0
 )
 
-SUPPLIER = InternalSupplier(
-    name='s',
-    commodity='in_com',
-    predictions=SERIES_1,
-    variance_fn=VARIANCE_1
-)
+SUPPLIER = Supplier(name='s', commodity_in=None, commodities_out={'in_com'}, predictions=SERIES_1)
 
-STORAGE_1 = InternalStorage(name='s1', commodity='out_com_1', capacity=100, dissipation=1.0)
+STORAGE_1 = Storage(name='s1', commodity_in='out_com_1', commodities_out={'out_com_1'}, capacity=100, dissipation=1.0)
 
-STORAGE_2 = InternalStorage(name='s2', commodity='out_com_2', capacity=100, dissipation=1.0)
+STORAGE_2 = Storage(name='s2', commodity_in='out_com_2', commodities_out={'out_com_2'}, capacity=100, dissipation=1.0)
 
 EDGE = InternalEdge(
     source=MACHINE,
     destination=STORAGE_1,
     min_flow=0.0,
     max_flow=100.0,
-    integer=False
+    integer=False,
+    _horizon=HORIZON
 )
 
 MIN_FLOW_EXCEPTION = lambda v: f"The minimum flow cannot be negative, got {v}"
@@ -39,19 +36,33 @@ class TestEdge(TestDataType):
 
     def test_inputs(self):
         # check correct flows
-        InternalEdge(source=MACHINE, destination=STORAGE_1, min_flow=0.0, max_flow=1.0, integer=False)
-        InternalEdge(source=MACHINE, destination=STORAGE_1, min_flow=1.0, max_flow=2.0, integer=False)
-        InternalEdge(source=MACHINE, destination=STORAGE_1, min_flow=1.0, max_flow=1.0, integer=False)
+        InternalEdge(source=MACHINE, destination=STORAGE_1, min_flow=0.0, max_flow=1.0, integer=False, _horizon=HORIZON)
+        InternalEdge(source=MACHINE, destination=STORAGE_1, min_flow=1.0, max_flow=2.0, integer=False, _horizon=HORIZON)
+        InternalEdge(source=MACHINE, destination=STORAGE_1, min_flow=1.0, max_flow=1.0, integer=False, _horizon=HORIZON)
         # check incorrect flows
         with self.assertRaises(AssertionError, msg="Negative min flow should raise exception") as e:
-            InternalEdge(source=MACHINE, destination=STORAGE_1, min_flow=-1.0, max_flow=100.0, integer=False)
+            InternalEdge(
+                source=MACHINE,
+                destination=STORAGE_1,
+                min_flow=-1.0,
+                max_flow=100.0,
+                integer=False,
+                _horizon=HORIZON
+            )
         self.assertEqual(
             str(e.exception),
             MIN_FLOW_EXCEPTION(-1.0),
             msg='Wrong exception message returned for negative min flow on edge'
         )
         with self.assertRaises(AssertionError, msg="max flow < min flow should raise exception") as e:
-            InternalEdge(source=MACHINE, destination=STORAGE_1, min_flow=101.0, max_flow=100.0, integer=False)
+            InternalEdge(
+                source=MACHINE,
+                destination=STORAGE_1,
+                min_flow=101.0,
+                max_flow=100.0,
+                integer=False,
+                _horizon=HORIZON
+            )
         self.assertEqual(
             str(e.exception),
             MAX_FLOW_EXCEPTION(101.0, 100.0),
@@ -59,14 +70,28 @@ class TestEdge(TestDataType):
         )
         # check incorrect commodities
         with self.assertRaises(AssertionError, msg="Empty destination commodity should raise exception") as e:
-            InternalEdge(source=MACHINE, destination=SUPPLIER, min_flow=0.0, max_flow=100.0, integer=False)
+            InternalEdge(
+                source=MACHINE,
+                destination=SUPPLIER,
+                min_flow=0.0,
+                max_flow=100.0,
+                integer=False,
+                _horizon=HORIZON
+            )
         self.assertEqual(
             str(e.exception),
             EMPTY_DESTINATION_EXCEPTION('s'),
             msg='Wrong exception message returned for empty destination commodity on edge'
         )
         with self.assertRaises(AssertionError, msg="Wrong source commodity should raise exception") as e:
-            InternalEdge(source=STORAGE_1, destination=MACHINE, min_flow=0.0, max_flow=100.0, integer=False)
+            InternalEdge(
+                source=STORAGE_1,
+                destination=MACHINE,
+                min_flow=0.0,
+                max_flow=100.0,
+                integer=False,
+                _horizon=HORIZON
+            )
         self.assertEqual(
             str(e.exception),
             INCONSISTENT_SOURCE_EXCEPTION('s1', 'in_com', {'out_com_1'}),
@@ -80,7 +105,8 @@ class TestEdge(TestDataType):
             destination=STORAGE_1,
             min_flow=50.0,
             max_flow=60.0,
-            integer=True
+            integer=True,
+            _horizon=HORIZON
         )
         self.assertEqual(EDGE, e_equal, msg="Nodes with the same name should be considered equal")
         # test different hash
@@ -89,7 +115,8 @@ class TestEdge(TestDataType):
             destination=STORAGE_2,
             min_flow=0.0,
             max_flow=100.0,
-            integer=False
+            integer=False,
+            _horizon=HORIZON
         )
         self.assertNotEqual(EDGE, e_diff, msg="Nodes with different names should be considered different")
 
@@ -101,9 +128,18 @@ class TestEdge(TestDataType):
         e = EDGE.exposed
         self.assertIsInstance(e, Edge, msg="Wrong exposed type")
         # test stored information
-        self.assertEqual(e.source.name, 'm', msg="Wrong exposed source")
-        self.assertEqual(e.destination.name, 's1', msg="Wrong exposed destination")
+        self.assertEqual(e.source, MACHINE, msg="Wrong exposed source")
+        self.assertEqual(e.destination, STORAGE_1, msg="Wrong exposed destination")
         self.assertEqual(e.commodity, 'out_com_1', msg="Wrong exposed commodity")
         self.assertEqual(e.min_flow, 0.0, msg='Wrong exposed min flow')
         self.assertEqual(e.max_flow, 100.0, msg='Wrong exposed max flow')
         self.assertFalse(e.integer, msg='Wrong exposed integer')
+        # test dict
+        self.assertEqual(e.dict, {
+            'source': MACHINE,
+            'destination': STORAGE_1,
+            'commodity': 'out_com_1',
+            'min_flow': 0.0,
+            'max_flow': 100.0,
+            'integer': False
+        }, msg='Wrong dictionary returned for exposed storage')

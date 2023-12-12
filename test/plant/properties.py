@@ -159,22 +159,22 @@ class TestPlantProperties(unittest.TestCase):
         # test graph with attributes
         graph = PLANT_2.graph(attributes=True)
         self.assertDictEqual(
-            {name: attr for name, attr in graph.nodes(data=True)},
+            {name: attr.keys() for name, attr in graph.nodes(data=True)},
             {
-                'sup': {'attr': SUPPLIER},
-                'mac': {'attr': MACHINE},
-                'sto': {'attr': STORAGE},
-                'cli': {'attr': CLIENT}
+                'sup': SUPPLIER.dict.keys(),
+                'mac': MACHINE.dict.keys(),
+                'sto': STORAGE.dict.keys(),
+                'cli': CLIENT.dict.keys()
             },
             msg='Wrong nodes returned in graph with attributes'
         )
         self.assertDictEqual(
-            {(sour, dest): attr for sour, dest, attr in graph.edges(data=True)},
+            {(sour, dest): attr.keys() for sour, dest, attr in graph.edges(data=True)},
             {
-                ('sup', 'mac'): {'attr': EDGE_1},
-                ('mac', 'sto'): {'attr': EDGE_2},
-                ('mac', 'cli'): {'attr': EDGE_3},
-                ('sto', 'cli'): {'attr': EDGE_4}
+                ('sup', 'mac'): EDGE_1.dict.keys(),
+                ('mac', 'sto'): EDGE_2.dict.keys(),
+                ('mac', 'cli'): EDGE_3.dict.keys(),
+                ('sto', 'cli'): EDGE_4.dict.keys()
             },
             msg='Wrong edges returned in graph with attributes'
         )

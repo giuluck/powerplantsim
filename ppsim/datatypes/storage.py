@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Set, Optional
 
+import numpy as np
+import pandas as pd
 from descriptors import classproperty
 
 from ppsim.datatypes.node import InternalNode, Node
@@ -30,6 +32,12 @@ class InternalStorage(InternalNode):
     dissipation: float = field(kw_only=True)
     """The dissipation rate of the storage at every time unit, which must be a float in [0, 1]."""
 
+    _horizon: pd.Index = field(kw_only=True)
+    """The time horizon of the simulation in which the datatype is involved."""
+
+    _storage: pd.Series = field(init=False, default_factory=lambda: pd.Series(dtype=float))
+    """The series of actual commodities storage, which is filled during the simulation."""
+
     def __post_init__(self):
         assert self.capacity > 0.0, f"Capacity should be strictly positive, got {self.capacity}"
         assert 0.0 <= self.dissipation <= 1.0, f"Dissipation should be in range [0, 1], got {self.dissipation}"
@@ -37,6 +45,11 @@ class InternalStorage(InternalNode):
     @classproperty
     def kind(self) -> str:
         return 'storage'
+
+    @property
+    def storage(self) -> pd.Series:
+        """The series of actual commodities storage, which is filled during the simulation."""
+        return pd.Series(self._storage, index=self._horizon, dtype=float)
 
     @property
     def commodity_in(self) -> Optional[str]:
@@ -55,3 +68,19 @@ class InternalStorage(InternalNode):
             capacity=self.capacity,
             dissipation=self.dissipation
         )
+
+    def update(self, rng: np.random.Generator):
+        index = self._step()
+        # compute total input and output flows from respective edges
+        in_flow = np.sum([e.flow_at(index=index) for e in self._in_edges])
+        out_flow = np.sum([e.flow_at(index=index) for e in self._out_edges])
+        # check that at least one of the two is null as from the constraints
+        assert in_flow == 0.0 or out_flow == 0.0, \
+            f"Storage node '{self.name}' can have either input or output flows in a single time step, got both"
+        # compute and check new storage from previous one (discounted by 1 - dissipation) and difference between flows
+        previous_storage = 0.0 if len(self._storage) == 0 else (1 - self.dissipation) * self._storage.values[-1]
+        storage = previous_storage + in_flow - out_flow
+        assert storage >= 0.0, f"Storage node '{self.name}' cannot contain negative amount, got {storage}"
+        assert storage <= self.capacity, \
+            f"Storage node '{self.name}' cannot contain more than {self.capacity} amount, got {storage}"
+        self._storage[index] = storage

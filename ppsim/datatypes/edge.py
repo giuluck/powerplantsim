@@ -1,7 +1,10 @@
 from dataclasses import dataclass, field
+from typing import Any, Dict
+
+import pandas as pd
 
 from ppsim.datatypes.datatype import InternalDataType, DataType
-from ppsim.datatypes.node import InternalNode, Node
+from ppsim.datatypes.node import Node
 from ppsim.utils import NamedTuple
 
 
@@ -29,6 +32,13 @@ class Edge(DataType):
         """The type of commodity that flows in the edge."""
         return self.destination.commodity_in
 
+    @property
+    def dict(self) -> Dict[str, Any]:
+        # include commodity in the dictionary
+        output = super(Edge, self).dict
+        output['commodity'] = self.commodity
+        return output
+
     def __repr__(self) -> str:
         return f"Edge(source='{self.source.name}', destination='{self.destination.name}')"
 
@@ -42,10 +52,10 @@ class InternalEdge(InternalDataType):
         source: str = field()
         destination: str = field()
 
-    source: InternalNode = field(kw_only=True)
+    source: Node = field(kw_only=True)
     """The source node."""
 
-    destination: InternalNode = field(kw_only=True)
+    destination: Node = field(kw_only=True)
     """The destination node."""
 
     min_flow: float = field(kw_only=True)
@@ -57,6 +67,12 @@ class InternalEdge(InternalDataType):
     integer: bool = field(kw_only=True)
     """Whether the flow must be integer or not."""
 
+    _horizon: pd.Index = field(kw_only=True)
+    """The time horizon of the simulation in which the datatype is involved."""
+
+    _flows: pd.Series = field(init=False, default_factory=lambda: pd.Series(dtype=float))
+    """The series of actual flows, which is filled during the simulation."""
+
     def __post_init__(self):
         assert self.min_flow >= 0, f"The minimum flow cannot be negative, got {self.min_flow}"
         assert self.max_flow >= self.min_flow, \
@@ -67,26 +83,15 @@ class InternalEdge(InternalDataType):
             f"Source node '{self.source.name}' should return commodity '{self.commodity}', " \
             f"but it returns {self.source.commodities_out}"
 
-    def check(self, flow: float) -> bool:
-        """Checks that the given flow falls within the range of the edge and respects optional integrality constraints.
-
-        :param flow:
-            The flow to check.
-
-        :return:
-            Whether the flow is valid or not.
-        """
-        # check bounds
-        bounds = self.min_flow <= flow <= self.max_flow
-        # check integrality (i.e., no integer constraint or flow is int/numpy integer)
-        integrality = not self.integer or isinstance(flow, int) or flow.is_integer()
-        # returns the combination of both checks
-        return bounds and integrality
-
     @property
     def commodity(self) -> str:
         """The type of commodity that flows in the edge, which can be uniquely determined by the destination input."""
         return self.destination.commodity_in
+
+    @property
+    def flows(self) -> pd.Series:
+        """The series of actual flows, which is filled during the simulation."""
+        return pd.Series(self._flows, index=self._horizon, dtype=float)
 
     @property
     def key(self) -> EdgeID:
@@ -95,9 +100,32 @@ class InternalEdge(InternalDataType):
     @property
     def exposed(self) -> Edge:
         return Edge(
-            source=self.source.exposed,
-            destination=self.destination.exposed,
+            source=self.source,
+            destination=self.destination,
             min_flow=self.min_flow,
             max_flow=self.max_flow,
             integer=self.integer
         )
+
+    def flow_at(self, index: Any) -> float:
+        """Returns the flow at the given index.
+
+        :param index:
+            The time step of the simulation.
+
+        :return:
+            The corresponding flow.
+        """
+        return self._flows[index]
+
+    def update(self, flow: float):
+        """Updates the simulation by checking the value of the flow and appending it to the internal history.
+
+        :param flow:
+            The random number generator to be used for reproducible results.
+        """
+        index = self._step()
+        assert flow >= self.min_flow, f"Flow for edge {self.key} should be >= {self.min_flow}, got {flow}"
+        assert flow <= self.max_flow, f"Flow for edge {self.key} should be <= {self.max_flow}, got {flow}"
+        assert not self.integer or flow.is_integer(), f"Flow for edge {self.key} should be integer, got {flow}"
+        self._flows[index] = flow

@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Tuple, Callable, Iterable, Set, List
+from typing import Optional, Dict, Tuple, Callable, Iterable, Set, List, Any
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -9,24 +9,29 @@ from ppsim import utils
 from ppsim.datatypes import InternalNode, InternalClient, InternalMachine, InternalSupplier, InternalEdge, \
     InternalStorage, Supplier, Client, Machine, Storage, Node, InternalPurchaser, InternalCustomer
 from ppsim.plant import drawing
+from ppsim.plant.execution import process_plan, run_update, default_action, action_graph, SimulationOutput, build_output
 
 
 class Plant:
     """Defines a power plant based on its topology, involved commodities, and predicted prices and demands."""
 
-    def __init__(self, horizon: int | list | np.ndarray | pd.Series | pd.Index):
+    def __init__(self, horizon: int | Iterable[float], seed: int = 0):
         """
         :param horizon:
             The time horizon of the simulation.
             If an integer is passed, the index will be {0, ..., horizon - 1}.
             Otherwise, an explicit list, numpy array or pandas series can be passed.
+
+        :param seed:
+            The seed used for random number operations.
         """
         # convert horizon to a standard format (pd.Index)
-        if not isinstance(horizon, Iterable):
+        if isinstance(horizon, int):
             assert horizon > 0, f"The time horizon must be a strictly positive integer, got {horizon}"
             horizon = np.arange(horizon)
         horizon = pd.Index(horizon)
 
+        self._rng: np.random.Generator = np.random.default_rng(seed=seed)
         self._horizon: pd.Index = horizon
         self._commodities: Set[str] = set()
         self._nodes: Dict[str, InternalNode] = dict()
@@ -35,7 +40,7 @@ class Plant:
     @property
     def horizon(self) -> pd.Index:
         """A pandas series representing the time index of the simulation."""
-        return self._horizon.copy(deep=True)
+        return self._horizon.copy()
 
     @property
     def commodities(self) -> Set[str]:
@@ -115,7 +120,7 @@ class Plant:
         """Builds the graph representing the power plant.
 
         :param attributes:
-            Whether or not to include node/edge attributes (under the key 'attr').
+            Whether or not to include node/edge attributes.
 
         :return:
             A networkx DiGraph object representing the power plant.
@@ -123,9 +128,9 @@ class Plant:
         g = nx.DiGraph()
         if attributes:
             for name, node in self._nodes.items():
-                g.add_node(name, attr=node.exposed)
+                g.add_node(name, **node.exposed.dict)
             for (source, destination), edge in self._edges.items():
-                g.add_edge(source, destination, attr=edge.exposed)
+                g.add_edge(source, destination, **edge.exposed.dict)
         else:
             g.add_nodes_from(self._nodes.keys())
             g.add_edges_from(self._edges.keys())
@@ -170,17 +175,23 @@ class Plant:
                 f"Parent node '{parent.name}' should return commodity '{node.commodity_in}', " \
                 f"but it returns {parent.commodities_out}"
             # create an edge instance using the parent as source and the new node as destination
-            edge = InternalEdge(source=parent, destination=node, min_flow=min_flow, max_flow=max_flow,
-                                integer=integer)
+            edge = InternalEdge(
+                source=parent.exposed,
+                destination=node.exposed,
+                min_flow=min_flow,
+                max_flow=max_flow,
+                integer=integer,
+                _horizon=self.horizon
+            )
             self._edges[(parent.name, node.name)] = edge
             # append parent and children to the respective lists
-            parent.children.append(node)
-            node.parents.append(parent)
+            parent.append(edge)
+            node.append(edge)
 
     def add_supplier(self,
                      name: str,
                      commodity: str,
-                     predictions: float | list | np.ndarray | pd.Series,
+                     predictions: float | Iterable[float],
                      variance: Callable[[np.random.Generator, pd.Series], float] = lambda rng, series: 0.0) -> Supplier:
         """Adds a supplier node to the plant topology.
 
@@ -212,7 +223,7 @@ class Plant:
         # convert prices to a standard format (pd.Series)
         predictions = pd.Series(predictions, dtype=float, index=self._horizon)
         # create an internal supplier node and add it to the internal data structure and the graph
-        supplier = InternalSupplier(name=name, commodity=commodity, predictions=predictions, variance_fn=variance)
+        supplier = InternalSupplier(name=name, commodity=commodity, _predictions=predictions, _variance_fn=variance)
         self._check_and_update(node=supplier, parents=None, min_flow=None, max_flow=None, integer=None)
         return supplier.exposed
 
@@ -220,7 +231,7 @@ class Plant:
                    name: str,
                    commodity: str,
                    parents: str | List[str],
-                   predictions: float | list | np.ndarray | pd.Series,
+                   predictions: float | Iterable[float],
                    purchaser: bool = False,
                    variance: Callable[[np.random.Generator, pd.Series], float] = lambda rng, series: 0.0) -> Client:
         """Adds a client node to the plant topology.
@@ -244,7 +255,7 @@ class Plant:
             amount of commodities is sent to it according to its demands (series = demands).
 
         :param variance:
-            A function f(<rng>, <series>) -> <variance> which defines the variance model of the true demands
+            A function f(<rng>, <series>) -> <variance> which defines the variance model of the true pries/demands
             respectively to the predictions.
             The random number generator is used to get reproducible results, while the input series represents the
             vector of previous values indexed by the datetime information passed to the plant; the last value of the
@@ -261,9 +272,9 @@ class Plant:
         predictions = pd.Series(predictions, dtype=float, index=self._horizon)
         # create an internal client node (with specified type) and add it to the internal data structure and the graph
         if purchaser:
-            client = InternalPurchaser(name=name, commodity=commodity, predictions=predictions, variance_fn=variance)
+            client = InternalPurchaser(name=name, commodity=commodity, _predictions=predictions, _variance_fn=variance)
         else:
-            client = InternalCustomer(name=name, commodity=commodity, predictions=predictions, variance_fn=variance)
+            client = InternalCustomer(name=name, commodity=commodity, _predictions=predictions, _variance_fn=variance)
         self._check_and_update(node=client, parents=parents, min_flow=0.0, max_flow=float('inf'), integer=False)
         return client.exposed
 
@@ -323,11 +334,12 @@ class Plant:
         # create an internal machine node and add it to the internal data structure and the graph
         machine = InternalMachine(
             name=name,
-            setpoint=setpoint,
+            _setpoint=setpoint,
             commodity=commodity,
             discrete_setpoint=discrete_setpoint,
             max_starting=max_starting,
-            cost=cost
+            cost=cost,
+            _horizon=self.horizon
         )
         self._check_and_update(node=machine, parents=parents, min_flow=min_flow, max_flow=max_flow, integer=integer)
         return machine.exposed
@@ -371,7 +383,13 @@ class Plant:
             The added storage node.
         """
         # create an internal machine node and add it to the internal data structure and the graph
-        storage = InternalStorage(name=name, commodity=commodity, capacity=capacity, dissipation=dissipation)
+        storage = InternalStorage(
+            name=name,
+            commodity=commodity,
+            capacity=capacity,
+            dissipation=dissipation,
+            _horizon=self.horizon
+        )
         self._check_and_update(node=storage, parents=parents, min_flow=min_flow, max_flow=max_flow, integer=integer)
         return storage.exposed
 
@@ -384,7 +402,7 @@ class Plant:
              node_size: float = 30,
              edge_width: float = 2,
              legend: bool = True,
-             longest_path: bool = True):
+             longest_path: bool = False):
         """Draws the plant topology.
 
         :param figsize:
@@ -417,6 +435,7 @@ class Plant:
 
         :param longest_path:
             Whether or not to use the Dijkstra algorithm with negative unitary cost to get the longest path.
+            The longest path algorithm may fail sometimes since it uses negative costs.
         """
         # retrieve plant info, build the figure, and compute node positions
         nodes = self.nodes(indexed=True)
@@ -457,3 +476,35 @@ class Plant:
         if legend:
             plt.legend(handles=labels, prop={'size': 20})
         plt.show()
+
+    def run(self,
+            plan: Dict[Tuple[str, str], float | Iterable[float]] | pd.DataFrame,
+            action_fn: Optional[Callable[[Any, nx.DiGraph], Dict[Tuple[str, str], float]]] = None) -> SimulationOutput:
+        """Runs a simulation up to the time horizon using the given plan.
+
+        :param plan:
+            The energetic plan of the power plant defined as vectors of flows within the edges of the power plant.
+            It can be a dictionary <(source, destination), flows> that maps each edge (source, destination) to either
+            a fixed flow or an iterable of such which should match the time horizon of the simulation, or it can be a
+            dataframe where the index matches the time horizon of the simulation and the columns are indexed by tuple
+            (source, destination).
+
+        :param action_fn:
+            A function f(index: Any, graph: nx.DiGraph) -> updated_flows: Dict[Tuple[str, str], float].
+            This function models the recourse action for a given step (index), which is provided as input together with
+            the topology of the power plant as returned by plant.graph(attributes=True), with an additional attribute
+            'flow' stored in the edges which represent the flow provided by the original plan. The function must return
+            a dictionary {<edge>: <updated_flow>} where an <edge> is identified by the tuple of the names of the node
+            that is connecting, and <updated_flow> is a floating point value of the actual flow.
+            If None is passed, a default greedy recourse action is used instead.
+
+        :return:
+            A SimulationOutput object containing all the information about true prices, demands, setpoints, and storage.
+        """
+        action_fn = default_action if action_fn is None else action_fn
+        plan = process_plan(plan=plan, edges=set(self._edges.keys()), horizon=self._horizon)
+        for idx, row in plan.iterrows():
+            graph = action_graph(plant=self, flows=row)
+            flows = action_fn(idx, graph)
+            run_update(nodes=self._nodes.values(), edges=self._edges.values(), flows=flows, rng=self._rng)
+        return build_output(nodes=self._nodes.values(), edges=self._edges.values(), horizon=self._horizon)

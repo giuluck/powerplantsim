@@ -1,7 +1,8 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Set, Optional
 
+import numpy as np
 import pandas as pd
 from descriptors import classproperty
 
@@ -11,16 +12,26 @@ from ppsim.datatypes.node import VarianceNode, InternalVarianceNode
 @dataclass(repr=False, eq=False, slots=True)
 class Client(VarianceNode, ABC):
     """A node in the plant that buys/asks for a unique commodity and can be exposed to the user."""
-    pass
+
+    @classproperty
+    @abstractmethod
+    def purchaser(self) -> bool:
+        """Whether the client node buys the commodity at a given price (series = prices) or requires that an exact
+        amount of commodities is sent to it according to its demands (series = demands)."""
+        pass
 
 
 @dataclass(repr=False, eq=False, slots=True)
 class Customer(Client):
     """A node in the plant that asks for a unique commodity and can be exposed to the user."""
 
+    @classproperty
+    def purchaser(self) -> bool:
+        return False
+
     @property
     def demands(self) -> pd.Series:
-        """The series of predicted demands."""
+        """The series of predicted demands (alias for predictions)."""
         return self.predictions
 
 
@@ -28,15 +39,26 @@ class Customer(Client):
 class Purchaser(Client):
     """A node in the plant that buys a unique commodity and can be exposed to the user."""
 
+    @classproperty
+    def purchaser(self) -> bool:
+        return True
+
     @property
     def prices(self) -> pd.Series:
-        """The series of predicted buying prices."""
+        """The series of predicted buying prices (alias for predictions)."""
         return self.predictions
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
 class InternalClient(InternalVarianceNode, ABC):
     """A node in the plant that buys/asks for a unique commodity and is not exposed to the user."""
+
+    @classproperty
+    @abstractmethod
+    def purchaser(self) -> bool:
+        """Whether the client node buys the commodity at a given price (series = prices) or requires that an exact
+        amount of commodities is sent to it according to its demands (series = demands)."""
+        pass
 
     @classproperty
     def kind(self) -> str:
@@ -53,10 +75,11 @@ class InternalClient(InternalVarianceNode, ABC):
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
 class InternalCustomer(InternalClient):
-    @property
-    def demands(self) -> pd.Series:
-        """The series of predicted demands."""
-        return self.predictions
+    """A node in the plant that asks for a unique commodity and is not exposed to the user."""
+
+    @classproperty
+    def purchaser(self) -> bool:
+        return False
 
     @property
     def exposed(self) -> Customer:
@@ -64,16 +87,25 @@ class InternalCustomer(InternalClient):
             name=self.name,
             commodity_in=self.commodity_in,
             commodities_out=self.commodities_out,
-            predictions=self.demands.copy(deep=True)
+            predictions=self._predictions.copy()
         )
+
+    def update(self, rng: np.random.Generator):
+        index = self._step()
+        value = self._predictions[index] + self._variance_fn(rng, self.values)
+        flow = np.sum([e.flow_at(index=index) for e in self._in_edges])
+        assert value <= flow, \
+            f"Customer node '{self.name}' can accept at most {value} units at time step {index}, got {flow}"
+        self._values[index] = value
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
 class InternalPurchaser(InternalClient):
-    @property
-    def prices(self) -> pd.Series:
-        """The series of predicted buying prices."""
-        return self.predictions
+    """A node in the plant that buys a unique commodity and is not exposed to the user."""
+
+    @classproperty
+    def purchaser(self) -> bool:
+        return True
 
     @property
     def exposed(self) -> Purchaser:
@@ -81,5 +113,5 @@ class InternalPurchaser(InternalClient):
             name=self.name,
             commodity_in=self.commodity_in,
             commodities_out=self.commodities_out,
-            predictions=self.prices.copy(deep=True)
+            predictions=self._predictions.copy()
         )

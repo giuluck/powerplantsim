@@ -1,6 +1,6 @@
 from abc import abstractmethod, ABC
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import dataclass, field
+from typing import Any, Dict
 
 import numpy as np
 import pandas as pd
@@ -11,6 +11,11 @@ from ppsim import utils
 @dataclass(repr=False, eq=False, slots=True)
 class DataType(ABC):
     """Abstract class that defines a datatype which can be exposed to the user."""
+
+    @property
+    def dict(self) -> Dict[str, Any]:
+        """A dictionary containing all the information of the datatype object indexed via property name."""
+        return {param: getattr(self, param) for param in self.__slots__}
 
     def __eq__(self, other: Any) -> bool:
         # if the two classes are not exactly the same, return False
@@ -53,6 +58,14 @@ class DataType(ABC):
 class InternalDataType(ABC):
     """Abstract class that defines a datatype which is not exposed to the user and has a unique key for comparison."""
 
+    @dataclass
+    class _InternalInfo:
+        """Internal class to handle mutable (non-frozen) information about the simulation"""
+        step: int = field(init=False, default=0)
+
+    _info: _InternalInfo = field(init=False, default_factory=_InternalInfo)
+    """Internal mutable simulation info."""
+
     @property
     @abstractmethod
     def key(self):
@@ -64,6 +77,28 @@ class InternalDataType(ABC):
     def exposed(self) -> DataType:
         """The public datatype that can be exposed to the user."""
         pass
+
+    @property
+    @abstractmethod
+    def _horizon(self) -> pd.Index:
+        """The time horizon of the simulation in which the datatype is involved."""
+        pass
+
+    @property
+    def _index(self):
+        """The current index of the simulation as for the given time horizon."""
+        return self._horizon[self._info.step]
+
+    def _step(self):
+        """Checks and updates the internal simulation details.
+
+        :return:
+            The updated index of the simulation as for the given time horizon.
+        """
+        assert self._info.step < len(self._horizon), f"{self} has reached maximal number of updates for the simulation"
+        index = self._index
+        self._info.step += 1
+        return index
 
     def _instance(self, other) -> bool:
         """Checks whether a different object is matching the self instance for comparison."""

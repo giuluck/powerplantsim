@@ -1,7 +1,10 @@
 import unittest
 from abc import abstractmethod
 
+import numpy as np
 import pandas as pd
+
+HORIZON = pd.Index(np.arange(3))
 
 SERIES_1 = pd.Series([3.0, 2.0, 1.0])
 

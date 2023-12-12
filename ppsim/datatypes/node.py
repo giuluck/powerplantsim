@@ -42,11 +42,11 @@ class InternalNode(InternalDataType, ABC):
     name: str = field(kw_only=True)
     """The name of the node."""
 
-    parents: list = field(kw_only=True, init=False, default_factory=lambda: [])
-    """A list containing all the parent nodes."""
+    _in_edges: list = field(kw_only=True, init=False, default_factory=list)
+    """A list of InternalEdge objects containing all the input edges (<source>, self)."""
 
-    children: list = field(kw_only=True, init=False, default_factory=lambda: [])
-    """A list containing all the children nodes."""
+    _out_edges: list = field(kw_only=True, init=False, default_factory=list)
+    """A list  of InternalEdge objects containing all the output edges (self, <destination>)."""
 
     @classproperty
     @abstractmethod
@@ -78,6 +78,28 @@ class InternalNode(InternalDataType, ABC):
     def _instance(self, other) -> bool:
         return isinstance(other, InternalNode)
 
+    @abstractmethod
+    def update(self, rng: np.random.Generator):
+        """Updates the simulation by computing the internal values of the node.
+
+        :param rng:
+            The random number generator to be used for reproducible results.
+        """
+        pass
+
+    def append(self, edge):
+        """Appends an edge into the internal data structure.
+
+        :param edge:
+            The edge to append.
+        """
+        if edge.source.name == self.name:
+            self._out_edges.append(edge)
+        elif edge.destination.name == self.name:
+            self._in_edges.append(edge)
+        else:
+            raise AssertionError(f"Trying to append {edge} to {self}, but the node is neither source nor destination")
+
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
 class InternalVarianceNode(InternalNode, ABC):
@@ -87,28 +109,31 @@ class InternalVarianceNode(InternalNode, ABC):
     commodity: str = field(kw_only=True)
     """The identifier of the commodity handled by the node."""
 
-    predictions: pd.Series = field(kw_only=True)
+    _predictions: pd.Series = field(kw_only=True)
     """The series of predictions."""
 
-    variance_fn: Callable[[np.random.Generator, pd.Series], float] = field(kw_only=True)
+    _variance_fn: Callable[[np.random.Generator, pd.Series], float] = field(kw_only=True)
     """A function f(rng, series) -> variance describing the variance model of true values."""
 
-    def variance(self, rng: np.random.Generator, series: pd.Series) -> float:
-        """Describes the variance model of the array of true prices with respect to the predictions.
+    _values: pd.Series = field(init=False, default_factory=lambda: pd.Series(dtype=float))
+    """The series of actual values, which is filled during the simulation."""
 
-        :param rng:
-            The random number generator to be used for reproducible results.
+    @property
+    def _horizon(self) -> pd.Index:
+        return self._predictions.index
 
-        :param series:
-            The time series of previous true values indexed by the datetime information passed to the plant.
-            The datetime information can be either an integer representing the index in the series, or a more specific
-            information which was passed to the plant.
-            The last value of the series is always a nan value, and it will be computed at the successive iteration
-            based on the respective predicted price and the output of this function.
+    @property
+    def predictions(self) -> pd.Series:
+        """The series of predictions."""
+        return self._predictions.copy()
 
-        :return:
-            A real number <eps> which represents the delta between the predicted price and the true price.
-            For an input series with length L, the true price will be eventually computed as:
-                true = self.prices[L] + <eps>
-        """
-        return self.variance_fn(rng, series)
+    @property
+    def values(self) -> pd.Series:
+        """The series of actual values, which is filled during the simulation."""
+        return pd.Series(self._values, index=self._horizon, dtype=float)
+
+    def update(self, rng: np.random.Generator):
+        # compute the new values as the sum of the prediction and the variance obtained from the variance model
+        index = self._step()
+        value = self._predictions[index] + self._variance_fn(rng, self.values)
+        self._values[index] = value
