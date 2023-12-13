@@ -130,7 +130,7 @@ class InternalVarianceNode(InternalNode, ABC):
     @property
     def values(self) -> pd.Series:
         """The series of actual values, which is filled during the simulation."""
-        return pd.Series(self._values, index=self._horizon, dtype=float)
+        return self._values.copy()
 
     def update(self, rng: np.random.Generator):
         # compute the new values as the sum of the prediction and the variance obtained from the variance model

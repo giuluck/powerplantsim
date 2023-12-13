@@ -120,7 +120,7 @@ def run_update(nodes: Iterable[InternalNode], edges: Iterable[InternalEdge], flo
         The random number generator to be used for reproducible results.
     """
     for edge in edges:
-        edge.update(flow=flows[(edge.source.name, edge.destination.name)])
+        edge.update(flow=flows[edge.key])
     for node in nodes:
         node.update(rng=rng)
 
@@ -142,7 +142,7 @@ def build_output(nodes: Iterable[InternalNode], edges: Iterable[InternalEdge], h
     """
     output = SimulationOutput(horizon=horizon)
     for edge in edges:
-        output.flows[(edge.source.name, edge.destination.name)] = edge.flows
+        output.flows[edge.key] = edge.flows
     for node in nodes:
         if isinstance(node, InternalMachine):
             output.states[node.name] = node.states

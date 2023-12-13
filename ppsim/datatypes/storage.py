@@ -49,7 +49,7 @@ class InternalStorage(InternalNode):
     @property
     def storage(self) -> pd.Series:
         """The series of actual commodities storage, which is filled during the simulation."""
-        return pd.Series(self._storage, index=self._horizon, dtype=float)
+        return self._storage.copy()
 
     @property
     def commodity_in(self) -> Optional[str]:

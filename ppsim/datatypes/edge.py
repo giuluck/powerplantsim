@@ -1,11 +1,14 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict
 
+import numpy as np
 import pandas as pd
 
+from ppsim.datatypes.machine import Machine
 from ppsim.datatypes.datatype import InternalDataType, DataType
 from ppsim.datatypes.node import Node
 from ppsim.utils import EdgeID
+from ppsim.utils.typing import Flow
 
 
 @dataclass(repr=False, eq=False, slots=True)
@@ -26,6 +29,10 @@ class Edge(DataType):
 
     integer: bool = field(kw_only=True)
     """Whether the flow must be integer or not."""
+
+    @property
+    def key(self) -> EdgeID:
+        return self.source.name, self.destination.name
 
     @property
     def commodity(self) -> str:
@@ -86,7 +93,7 @@ class InternalEdge(InternalDataType):
     @property
     def flows(self) -> pd.Series:
         """The series of actual flows, which is filled during the simulation."""
-        return pd.Series(self._flows, index=self._horizon, dtype=float)
+        return self._flows.copy()
 
     @property
     def key(self) -> EdgeID:
@@ -113,14 +120,19 @@ class InternalEdge(InternalDataType):
         """
         return self._flows[index]
 
-    def update(self, flow: float):
+    def update(self, flow: Flow):
         """Updates the simulation by checking the value of the flow and appending it to the internal history.
 
         :param flow:
             The random number generator to be used for reproducible results.
         """
         index = self._step()
-        assert flow >= self.min_flow, f"Flow for edge {self.key} should be >= {self.min_flow}, got {flow}"
-        assert flow <= self.max_flow, f"Flow for edge {self.key} should be <= {self.max_flow}, got {flow}"
-        assert not self.integer or flow.is_integer(), f"Flow for edge {self.key} should be integer, got {flow}"
+        # check flow consistency
+        if flow is None or np.isnan(flow):
+            assert isinstance(self.destination, Machine), \
+                f"None flows are allowed for machines destinations only, got None flow for edge {self.key}"
+        else:
+            assert flow >= self.min_flow, f"Flow for edge {self.key} should be >= {self.min_flow}, got {flow}"
+            assert flow <= self.max_flow, f"Flow for edge {self.key} should be <= {self.max_flow}, got {flow}"
+            assert not self.integer or flow.is_integer(), f"Flow for edge {self.key} should be integer, got {flow}"
         self._flows[index] = flow

@@ -72,7 +72,7 @@ class InternalMachine(InternalNode):
     @property
     def states(self) -> pd.Series:
         """The series of actual input setpoints (NaN for machine off), which is filled during the simulation."""
-        return pd.Series(self._states, index=self._horizon, dtype=float)
+        return self._states.copy()
 
     @property
     def setpoint(self) -> pd.DataFrame:
@@ -105,9 +105,8 @@ class InternalMachine(InternalNode):
         setpoint = self._setpoint.index
         # compute total input and output flows from respective edges
         in_flow = np.sum([e.flow_at(index=index) for e in self._in_edges])
-        if in_flow == 0.0:
-            # zero outputs for machine off and input flow becomes None as it will be stored in the series of setpoints
-            in_flow = None
+        if in_flow is None or np.isnan(in_flow):
+            # no outputs for machine off
             out_flows = {col: 0.0 for col in self._setpoint.columns}
         elif self.discrete_setpoint:
             # check correctness of discrete setpoint and compute output
