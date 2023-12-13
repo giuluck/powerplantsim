@@ -57,7 +57,7 @@ class InternalMachine(InternalNode):
         self._setpoint.sort_index(inplace=True)
         self._setpoint.index.rename(name='setpoint', inplace=True)
         # check that set points are strictly positive (the first one is enough since it is sorted)
-        assert self._setpoint.index[0] > 0.0, f"Setpoints should be strictly positive, got {self._setpoint.index[0]}"
+        assert self._setpoint.index[0] >= 0.0, f"Setpoints should be non-negative, got {self._setpoint.index[0]}"
         # check that the corresponding output flows are non-negative (take the minimum value for each column)
         for c in self._setpoint.columns:
             lb = self._setpoint[c].min()

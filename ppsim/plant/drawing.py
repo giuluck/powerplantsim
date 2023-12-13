@@ -1,8 +1,9 @@
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, List, Union
+from typing import Dict, Iterable, List, Union, Any
 
 import matplotlib.pyplot as plt
 import networkx as nx
+import numpy as np
 from matplotlib.lines import Line2D
 
 from ppsim import utils
@@ -25,7 +26,9 @@ NODE_STYLES: Dict[str, StyleInfo] = {
 """Default dictionary of nodes style information."""
 
 
-def get_node_positions(graph: nx.DiGraph, sources: Iterable[str], longest_path: bool) -> dict:
+def get_node_positions(graph: nx.DiGraph,
+                       sources: Iterable[str],
+                       node_pos: Union[str, Dict[int, List[str]], Dict[str, Any]]) -> dict:
     """Traverse the graph from the sources and label each node with a progressive number the position of the nodes is
     eventually obtained by layering them respectively to the computed number so that sources will be on the left and
     sinks on the right.
@@ -36,17 +39,30 @@ def get_node_positions(graph: nx.DiGraph, sources: Iterable[str], longest_path: 
     :param sources:
         The iterable of source nodes.
 
-    :param longest_path:
-        Whether or not to use the Dijkstra algorithm with negative unitary cost to get the longest path.
+    :param node_pos:
+        Information about the node position.
 
     :return:
         A dictionary of node positions.
     """
+    # if the position info already contain <node: pos> (i.e., dictionary indexed by string), return the info itself
+    if isinstance(node_pos, dict) and np.all([isinstance(key, str) for key in node_pos.keys()]):
+        return node_pos
     graph = graph.copy()
-    weight = -1 if longest_path else 1
-    nx.set_edge_attributes(graph, values=weight, name='weight')
-    for node, layer in nx.multi_source_dijkstra_path_length(graph, sources=sources, weight='weight').items():
-        graph.nodes[node]['layer'] = weight * layer
+    if isinstance(node_pos, dict) and np.all([isinstance(key, int) for key in node_pos.keys()]):
+        # if the position info contain <layer: nodes> (i.e., dictionary indexed by integer), add the layers to each node
+        for layer, nodes in node_pos.items():
+            for node in nodes:
+                graph.nodes[node]['layer'] = layer
+    elif node_pos in ['lp', 'sp']:
+        # if the position info is a string representing the layering strategy, add the layers to each node accordingly
+        weight = -1 if node_pos == 'lp' else 1
+        nx.set_edge_attributes(graph, values=weight, name='weight')
+        for node, layer in nx.multi_source_dijkstra_path_length(graph, sources=sources, weight='weight').items():
+            graph.nodes[node]['layer'] = weight * layer
+    else:
+        # if something else is passed, rais an exception
+        raise AssertionError(f"Unsupported input type for node_pos: {node_pos}")
     return nx.multipartite_layout(graph, subset_key='layer')
 
 

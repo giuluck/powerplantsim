@@ -12,7 +12,7 @@ MACHINE = InternalMachine(
 )
 
 COST_EXCEPTION = lambda v: f"The operating cost of the machine must be non-negative, got {v}"
-SETPOINT_EXCEPTION = lambda v: f"Setpoints should be strictly positive, got {v}"
+SETPOINT_EXCEPTION = lambda v: f"Setpoints should be non-negative, got {v}"
 OUTPUT_FLOWS_EXCEPTION = lambda c, v: f"Output flows should be non-negative, got {c}: {v}"
 DISCRETE_SETPOINT_EXCEPTION = lambda v: f"Unsupported flow {v} for discrete setpoint [50.0, 75.0, 100.0]"
 CONTINUOUS_SETPOINT_EXCEPTION = lambda v: f"Unsupported flow {v} for continuous setpoint 50.0 <= flow <= 100.0"
@@ -37,23 +37,17 @@ class TestMachine(TestDataType):
             COST_EXCEPTION(-1.0),
             msg='Wrong exception message returned for negative cost on machine'
         )
-        # test incorrect index setpoint
+        # test incorrect index setpoint (null input flow should not raise exception anymore)
         sp2 = SETPOINT.copy()
         sp2.index = [50.0, 0.0, 100.0]
-        with self.assertRaises(AssertionError, msg="Null input flows in setpoint should raise exception") as e:
-            InternalMachine(
-                name='m',
-                commodity='in_com',
-                _setpoint=sp2,
-                discrete_setpoint=False,
-                max_starting=None,
-                cost=0,
-                _horizon=HORIZON
-            )
-        self.assertEqual(
-            str(e.exception),
-            SETPOINT_EXCEPTION(0.0),
-            msg='Wrong exception message returned for null setpoint on machine'
+        InternalMachine(
+            name='m',
+            commodity='in_com',
+            _setpoint=sp2,
+            discrete_setpoint=False,
+            max_starting=None,
+            cost=0,
+            _horizon=HORIZON
         )
         sp2.index = [50.0, -1.0, 100.0]
         with self.assertRaises(AssertionError, msg="Negative input flows in setpoint should raise exception") as e:

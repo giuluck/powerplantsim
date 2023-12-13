@@ -41,6 +41,7 @@ def get_matching_object(matcher: Optional, index: Any, default: Any):
     if matcher is None:
         return default
     elif isinstance(matcher, dict):
-        return matcher[index]
+        matcher = matcher.get(index)
+        return default if matcher is None else matcher
     else:
         return matcher

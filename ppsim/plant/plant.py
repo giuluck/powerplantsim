@@ -396,18 +396,26 @@ class Plant:
 
     def draw(self,
              figsize: Tuple[int, int] = (16, 9),
+             node_pos: Union[str, Dict[int, List[str]], Dict[str, Any]] = 'lp',
              node_colors: Union[None, str, Dict[str, str]] = None,
              node_markers: Union[None, str, Dict[str, str]] = None,
              edge_colors: Union[str, Dict[str, str]] = 'black',
-             edge_shapes: Union[str, Dict[str, str]] = 'solid',
+             edge_styles: Union[str, Dict[str, str]] = 'solid',
              node_size: float = 30,
              edge_width: float = 2,
-             legend: bool = True,
-             longest_path: bool = False):
+             legend: bool = True):
         """Draws the plant topology.
 
         :param figsize:
             The matplotlib figsize parameter.
+
+        :param node_pos:
+            If the string 'lp' is passed, arranges the nodes into layers using the Dijkstra algorithm with negative
+            unitary cost to get the longest path (it may fail sometimes due to negative paths). If the string 'sp' is
+            passed, arranges the nodes into layers using the Dijkstra algorithm with positive unitary cost to get the
+            shortest path. If a dictionary indexed by integers is passed, it is considered as a mapping <layer: nodes>
+            representing in which layer to display the nodes. If a dictionary indexed by strings is passed, it is
+            considered as a mapping <node: position> representing where exactly to display each node.
 
         :param node_colors:
             Either a string representing the color of the nodes, or a dictionary {kind: color} which associates a color
@@ -421,7 +429,7 @@ class Plant:
             Either a string representing the color of the edges, or a dictionary {commodity: color} which associates a
             color to each commodity that flows in an edge.
 
-        :param edge_shapes:
+        :param edge_styles:
             Either a string representing the style of the edges, or a dictionary {commodity: style} which associates a
             style to each commodity that flows in an edge.
 
@@ -433,16 +441,12 @@ class Plant:
 
         :param legend:
             Whether to plot a legend or not.
-
-        :param longest_path:
-            Whether or not to use the Dijkstra algorithm with negative unitary cost to get the longest path.
-            The longest path algorithm may fail sometimes since it uses negative costs.
         """
         # retrieve plant info, build the figure, and compute node positions
         nodes = self.nodes(indexed=True)
         graph = self.graph(attributes=False)
         _, ax = plt.subplots(nrows=1, ncols=1, figsize=figsize, tight_layout=True)
-        pos = drawing.get_node_positions(graph=graph, sources=nodes['supplier'].keys(), longest_path=longest_path)
+        pos = drawing.get_node_positions(graph=graph, sources=nodes['supplier'].keys(), node_pos=node_pos)
         # retrieve nodes' styling information and draw them accordingly
         labels = []
         styles = drawing.get_node_style(colors=node_colors, markers=node_markers)
@@ -459,7 +463,7 @@ class Plant:
             handler = drawing.build_node_label(kind=kind, style=styles[kind])
             labels.append(handler)
         # retrieve edges' styling information and draw them accordingly
-        styles = drawing.get_edge_style(colors=edge_colors, shapes=edge_shapes, commodities=list(self._commodities))
+        styles = drawing.get_edge_style(colors=edge_colors, shapes=edge_styles, commodities=list(self._commodities))
         for commodity, edge_list in self.edges().groupby('commodity'):
             commodity = str(commodity)
             drawing.draw_edges(
