@@ -5,7 +5,7 @@ import pandas as pd
 
 from ppsim.datatypes.datatype import InternalDataType, DataType
 from ppsim.datatypes.node import Node
-from ppsim.utils import NamedTuple
+from ppsim.utils import EdgeID
 
 
 @dataclass(repr=False, eq=False, slots=True)
@@ -46,11 +46,6 @@ class Edge(DataType):
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
 class InternalEdge(InternalDataType):
     """An edge in the plant which is not exposed to the user."""
-
-    @dataclass(frozen=True, unsafe_hash=True, slots=True)
-    class EdgeID(NamedTuple):
-        source: str = field()
-        destination: str = field()
 
     source: Node = field(kw_only=True)
     """The source node."""
@@ -95,7 +90,7 @@ class InternalEdge(InternalDataType):
 
     @property
     def key(self) -> EdgeID:
-        return InternalEdge.EdgeID(source=self.source.name, destination=self.destination.name)
+        return self.source.name, self.destination.name
 
     @property
     def exposed(self) -> Edge:

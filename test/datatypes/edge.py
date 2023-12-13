@@ -121,8 +121,8 @@ class TestEdge(TestDataType):
         self.assertNotEqual(EDGE, e_diff, msg="Nodes with different names should be considered different")
 
     def test_properties(self):
-        self.assertIsInstance(EDGE.key, InternalEdge.EdgeID, msg="Wrong edge key type stored")
-        self.assertTupleEqual(EDGE.key.tuple, ('m', 's1'), msg="Wrong edge key stored")
+        self.assertIsInstance(EDGE.key, tuple, msg="Wrong edge key type stored")
+        self.assertTupleEqual(EDGE.key, ('m', 's1'), msg="Wrong edge key stored")
 
     def test_exposed(self):
         e = EDGE.exposed

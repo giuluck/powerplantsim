@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Tuple, Callable, Iterable, Set, List, Any
+from typing import Optional, Dict, Tuple, Callable, Iterable, Set, List, Any, Union
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -8,14 +8,15 @@ import pandas as pd
 from ppsim import utils
 from ppsim.datatypes import InternalNode, InternalClient, InternalMachine, InternalSupplier, InternalEdge, \
     InternalStorage, Supplier, Client, Machine, Storage, Node, InternalPurchaser, InternalCustomer
-from ppsim.plant import drawing
-from ppsim.plant.execution import process_plan, run_update, default_action, action_graph, SimulationOutput, build_output
+from ppsim.plant import drawing, execution
+from ppsim.utils import EdgeID
+from ppsim.utils.typing import Plan, Flows, Setpoint
 
 
 class Plant:
     """Defines a power plant based on its topology, involved commodities, and predicted prices and demands."""
 
-    def __init__(self, horizon: int | Iterable[float], seed: int = 0):
+    def __init__(self, horizon: Union[int, Iterable[float]], seed: int = 0):
         """
         :param horizon:
             The time horizon of the simulation.
@@ -35,7 +36,7 @@ class Plant:
         self._horizon: pd.Index = horizon
         self._commodities: Set[str] = set()
         self._nodes: Dict[str, InternalNode] = dict()
-        self._edges: Dict[Tuple[str, str], InternalEdge] = dict()
+        self._edges: Dict[EdgeID, InternalEdge] = dict()
 
     @property
     def horizon(self) -> pd.Index:
@@ -66,7 +67,7 @@ class Plant:
         """The storage nodes in the plant."""
         return {name: node.exposed for name, node in self._nodes.items() if isinstance(node, InternalStorage)}
 
-    def nodes(self, indexed: bool = False) -> Dict[str, Node | Dict[str, Node]]:
+    def nodes(self, indexed: bool = False) -> Union[Dict[str, Dict[str, Node]], Dict[str, Node]]:
         """Returns the nodes in the plant.
 
         :param indexed:
@@ -86,9 +87,9 @@ class Plant:
         return output
 
     def edges(self,
-              sources: None | str | Iterable[str] = None,
-              destinations: None | str | Iterable[str] = None,
-              commodities: None | str | Iterable[str] = None) -> pd.DataFrame:
+              sources: Union[None, str, Iterable[str]] = None,
+              destinations: Union[None, str, Iterable[str]] = None,
+              commodities: Union[None, str, Iterable[str]] = None) -> pd.DataFrame:
         """Returns the edges in the plant indexed either via nodes, or via nodes and commodity.
 
         :param sources:
@@ -150,7 +151,7 @@ class Plant:
 
     def _check_and_update(self,
                           node: InternalNode,
-                          parents: None | str | List[str],
+                          parents: Union[None, str, Iterable[str]],
                           min_flow: Optional[float],
                           max_flow: Optional[float],
                           integer: Optional[bool]):
@@ -191,7 +192,7 @@ class Plant:
     def add_supplier(self,
                      name: str,
                      commodity: str,
-                     predictions: float | Iterable[float],
+                     predictions: Union[float, Iterable[float]],
                      variance: Callable[[np.random.Generator, pd.Series], float] = lambda rng, series: 0.0) -> Supplier:
         """Adds a supplier node to the plant topology.
 
@@ -230,8 +231,8 @@ class Plant:
     def add_client(self,
                    name: str,
                    commodity: str,
-                   parents: str | List[str],
-                   predictions: float | Iterable[float],
+                   parents: Union[str, Iterable[str]],
+                   predictions: Union[float, Iterable[float]],
                    purchaser: bool = False,
                    variance: Callable[[np.random.Generator, pd.Series], float] = lambda rng, series: 0.0) -> Client:
         """Adds a client node to the plant topology.
@@ -281,8 +282,8 @@ class Plant:
     def add_machine(self,
                     name: str,
                     commodity: str,
-                    parents: str | List[str],
-                    setpoint: Dict[str, Iterable[float]] | pd.DataFrame,
+                    parents: Union[str, Iterable[str]],
+                    setpoint: Union[Setpoint, pd.DataFrame],
                     discrete_setpoint: bool = False,
                     max_starting: Optional[Tuple[int, int]] = None,
                     cost: float = 0.0,
@@ -347,7 +348,7 @@ class Plant:
     def add_storage(self,
                     name: str,
                     commodity: str,
-                    parents: str | List[str],
+                    parents: Union[str, List[str]],
                     capacity: float = float('inf'),
                     dissipation: float = 0.0,
                     min_flow: float = 0.0,
@@ -395,10 +396,10 @@ class Plant:
 
     def draw(self,
              figsize: Tuple[int, int] = (16, 9),
-             node_colors: None | str | Dict[str, str] = None,
-             node_markers: None | str | Dict[str, str] = None,
-             edge_colors: str | Dict[str, str] = 'black',
-             edge_shapes: str | Dict[str, str] = 'solid',
+             node_colors: Union[None, str, Dict[str, str]] = None,
+             node_markers: Union[None, str, Dict[str, str]] = None,
+             edge_colors: Union[str, Dict[str, str]] = 'black',
+             edge_shapes: Union[str, Dict[str, str]] = 'solid',
              node_size: float = 30,
              edge_width: float = 2,
              legend: bool = True,
@@ -478,8 +479,8 @@ class Plant:
         plt.show()
 
     def run(self,
-            plan: Dict[Tuple[str, str], float | Iterable[float]] | pd.DataFrame,
-            action_fn: Optional[Callable[[Any, nx.DiGraph], Dict[Tuple[str, str], float]]] = None) -> SimulationOutput:
+            plan: Union[Plan, pd.DataFrame],
+            action_fn: Optional[Callable[[Any, nx.DiGraph], Flows]] = None) -> execution.SimulationOutput:
         """Runs a simulation up to the time horizon using the given plan.
 
         :param plan:
@@ -501,10 +502,10 @@ class Plant:
         :return:
             A SimulationOutput object containing all the information about true prices, demands, setpoints, and storage.
         """
-        action_fn = default_action if action_fn is None else action_fn
-        plan = process_plan(plan=plan, edges=set(self._edges.keys()), horizon=self._horizon)
+        action_fn = execution.default_action if action_fn is None else action_fn
+        plan = execution.process_plan(plan=plan, edges=set(self._edges.keys()), horizon=self._horizon)
         for idx, row in plan.iterrows():
-            graph = action_graph(plant=self, flows=row)
+            graph = execution.action_graph(plant=self, flows=row)
             flows = action_fn(idx, graph)
-            run_update(nodes=self._nodes.values(), edges=self._edges.values(), flows=flows, rng=self._rng)
-        return build_output(nodes=self._nodes.values(), edges=self._edges.values(), horizon=self._horizon)
+            execution.run_update(nodes=self._nodes.values(), edges=self._edges.values(), flows=flows, rng=self._rng)
+        return execution.build_output(nodes=self._nodes.values(), edges=self._edges.values(), horizon=self._horizon)

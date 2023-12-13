@@ -17,18 +17,17 @@ def stringify(value, prefix: str = '', suffix: str = '') -> str:
     :return:
         The string version of the given object.
     """
-    match value:
-        case None:
-            return ''
-        case dict():
-            elements = [stringify(k) + ': ' + stringify(v) for k, v in value.items()]
-            string = f"{{{', '.join(elements)}}}"
-        case set() | list() | tuple():
-            delimiter = '({})' if isinstance(value, tuple) else ('[{}]' if isinstance(value, list) else '{{{}}}')
-            string = delimiter.format(', '.join([stringify(v) for v in value]))
-        case LambdaType() | FunctionType() | MethodType():
-            # include the parameters in the function representation
-            string = f"{value.__name__}{inspect.signature(value)}"
-        case _:
-            string = value.__name__ if hasattr(value, '__name__') else f"{value!r}"
+    if value is None:
+        return ''
+    elif isinstance(value, dict):
+        elements = [stringify(k) + ': ' + stringify(v) for k, v in value.items()]
+        string = f"{{{', '.join(elements)}}}"
+    elif isinstance(value, (set, list, tuple)):
+        delimiter = '({})' if isinstance(value, tuple) else ('[{}]' if isinstance(value, list) else '{{{}}}')
+        string = delimiter.format(', '.join([stringify(v) for v in value]))
+    elif isinstance(value, (LambdaType, FunctionType, MethodType)):
+        # include the parameters in the function representation
+        string = f"{value.__name__}{inspect.signature(value)}"
+    else:
+        string = value.__name__ if hasattr(value, '__name__') else f"{value!r}"
     return f'{prefix}{string}{suffix}'

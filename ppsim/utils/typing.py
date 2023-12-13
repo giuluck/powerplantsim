@@ -1,9 +1,26 @@
 from dataclasses import dataclass
-from typing import Any, Dict, Tuple, List
+from typing import Any, Dict, Tuple, List, Optional, Iterable, Union
+
+EdgeID = Tuple[str, str]
+"""Datatype for Edge Identifier (tuple <source, destination>)."""
+
+Flow = Optional[float]
+"""Datatype for Single Flow specification (either a flow or None for machines off)."""
+
+Flows = Dict[EdgeID, Flow]
+"""Datatype for Flows specification (dictionary <edge, flow>)."""
+
+Plan = Dict[EdgeID, Union[Flow, Iterable[Flow]]]
+"""Datatype for Plan specification (dictionary <edge, flow/flows>)."""
+
+Setpoint = Dict[str, Iterable[float]]
+"""Datatype for Setpoint specification (dictionary <commodity>: <input/output flows>)."""
 
 
 @dataclass(frozen=True, unsafe_hash=True, slots=True)
 class NamedTuple:
+    """Template dataclass that models a named tuple."""
+
     def __getitem__(self, item: Any):
         if isinstance(item, int):
             item = self.__slots__[item]

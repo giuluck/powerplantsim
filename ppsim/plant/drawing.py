@@ -1,12 +1,12 @@
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, Iterable, List, Union
 
 import matplotlib.pyplot as plt
 import networkx as nx
 from matplotlib.lines import Line2D
 
 from ppsim import utils
-from ppsim.utils import NamedTuple
+from ppsim.utils import NamedTuple, EdgeID
 
 
 @dataclass(frozen=True, unsafe_hash=True, slots=True, kw_only=True)
@@ -50,7 +50,8 @@ def get_node_positions(graph: nx.DiGraph, sources: Iterable[str], longest_path: 
     return nx.multipartite_layout(graph, subset_key='layer')
 
 
-def get_node_style(colors: None | str | Dict[str, str], markers: None | str | Dict[str, str]) -> Dict[str, StyleInfo]:
+def get_node_style(colors: Union[None, str, Dict[str, str]],
+                   markers: Union[None, str, Dict[str, str]]) -> Dict[str, StyleInfo]:
     """Builds a dictionary of color and marker mappings indexed by node kind.
     In case either the colors or the shapes are not None, include the custom information in the dictionary.
 
@@ -73,8 +74,8 @@ def get_node_style(colors: None | str | Dict[str, str], markers: None | str | Di
     return styles
 
 
-def get_edge_style(colors: None | str | Dict[str, str],
-                   shapes: None | str | Dict[str, str],
+def get_edge_style(colors: Union[None, str, Dict[str, str]],
+                   shapes: Union[None, str, Dict[str, str]],
                    commodities: List[str]) -> Dict[str, StyleInfo]:
     """Build a dictionary of color and style mappings indexed by commodity.
 
@@ -192,7 +193,7 @@ def draw_nodes(graph: nx.DiGraph,
 
 def draw_edges(graph: nx.DiGraph,
                pos: dict,
-               edges: Iterable[Tuple[str, str]],
+               edges: Iterable[EdgeID],
                style: StyleInfo,
                size: float,
                width: float,

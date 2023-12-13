@@ -1,4 +1,4 @@
-from typing import Dict, Tuple, Set, Iterable, Any
+from typing import Set, Iterable, Any, Union
 
 import networkx as nx
 import numpy as np
@@ -6,6 +6,8 @@ import pandas as pd
 
 from ppsim.datatypes import InternalEdge, InternalNode, InternalMachine, InternalStorage, InternalCustomer, \
     InternalPurchaser, InternalSupplier
+from ppsim.utils import EdgeID
+from ppsim.utils.typing import Plan, Flows
 
 
 class SimulationOutput:
@@ -35,9 +37,7 @@ class SimulationOutput:
         """The true selling prices indexed by supplier name."""
 
 
-def process_plan(plan: Dict[Tuple[str, str], float | Iterable[float]] | pd.DataFrame,
-                 edges: Set[Tuple[str, str]],
-                 horizon: pd.Index) -> pd.DataFrame:
+def process_plan(plan: Union[Plan, pd.DataFrame], edges: Set[EdgeID], horizon: pd.Index) -> pd.DataFrame:
     """Checks that the given plan is correctly specified and converts it to a standard format.
 
     :param plan:
@@ -87,7 +87,7 @@ def action_graph(plant, flows: pd.Series) -> nx.DiGraph:
 
 
 # noinspection PyUnusedLocal
-def default_action(index: Any, graph: nx.DiGraph) -> Dict[Tuple[str, str], float]:
+def default_action(index: Any, graph: nx.DiGraph) -> Flows:
     """Implements the default recourse action.
 
     :param index:
@@ -104,10 +104,7 @@ def default_action(index: Any, graph: nx.DiGraph) -> Dict[Tuple[str, str], float
     return {(source, destination): attributes['flow'] for source, destination, attributes in graph.edges(data=True)}
 
 
-def run_update(nodes: Iterable[InternalNode],
-               edges: Iterable[InternalEdge],
-               flows: Dict[Tuple[str, str], float],
-               rng: np.random.Generator):
+def run_update(nodes: Iterable[InternalNode], edges: Iterable[InternalEdge], flows: Flows, rng: np.random.Generator):
     """Performs a step update in the simulation.
 
     :param nodes:

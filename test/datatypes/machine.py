@@ -170,76 +170,76 @@ class TestMachine(TestDataType):
         self.assertEqual(m.setpoint.iloc[0, 0], 5.0, msg="Exposed setpoint should be mutable")
         self.assertEqual(MACHINE.setpoint.iloc[0, 0], 0.0, msg="Internal setpoint should be immutable")
 
-    # def test_operation(self):
-    #     # test discrete setpoint
-    #     m = InternalMachine(
-    #         name='m',
-    #         commodity='in_com',
-    #         _setpoint=SETPOINT,
-    #         discrete_setpoint=True,
-    #         max_starting=None,
-    #         cost=0,
-    #         _horizon=HORIZON
-    #     )
-    #     self.assertIsNone(m.operate(0.0), msg="Operate function should return None if the input is null")
-    #     self.assertDictEqual(m.operate(50.0), {'out_com_1': 0.0, 'out_com_2': 10.0}, msg="Wrong operation output")
-    #     self.assertDictEqual(m.operate(75.0), {'out_com_1': 0.5, 'out_com_2': 30.0}, msg="Wrong operation output")
-    #     self.assertDictEqual(m.operate(100.0), {'out_com_1': 1.0, 'out_com_2': 60.0}, msg="Wrong operation output")
-    #     with self.assertRaises(AssertionError, msg="Discrete setpoint should not return values for out-of-data") as e:
-    #         m.operate(70.0)
-    #     self.assertEqual(
-    #         str(e.exception),
-    #         DISCRETE_SETPOINT_EXCEPTION(70.0),
-    #         msg='Wrong exception message returned for discrete setpoint operation on machine'
-    #     )
-    #     with self.assertRaises(AssertionError, msg="Discrete setpoint should not return values for out-of-data") as e:
-    #         m.operate(90.0)
-    #     self.assertEqual(
-    #         str(e.exception),
-    #         DISCRETE_SETPOINT_EXCEPTION(90.0),
-    #         msg='Wrong exception message returned for discrete setpoint operation on machine'
-    #     )
-    #     with self.assertRaises(AssertionError, msg="Discrete setpoint should not return values for out-of-bound") as e:
-    #         m.operate(20.0)
-    #     self.assertEqual(
-    #         str(e.exception),
-    #         DISCRETE_SETPOINT_EXCEPTION(20.0),
-    #         msg='Wrong exception message returned for discrete setpoint operation on machine'
-    #     )
-    #     with self.assertRaises(AssertionError, msg="Discrete setpoint should not return values for out-of-bound") as e:
-    #         m.operate(110.0)
-    #     self.assertEqual(
-    #         str(e.exception),
-    #         DISCRETE_SETPOINT_EXCEPTION(110.0),
-    #         msg='Wrong exception message returned for discrete setpoint operation on machine'
-    #     )
-    #     # test continuous setpoint
-    #     m = InternalMachine(
-    #         name='m',
-    #         commodity='in_com',
-    #         _setpoint=SETPOINT,
-    #         discrete_setpoint=False,
-    #         max_starting=None,
-    #         cost=0,
-    #         _horizon=HORIZON
-    #     )
-    #     self.assertIsNone(m.operate(0.0), msg="Operate function should return None if the input is null")
-    #     self.assertDictEqual(m.operate(50.0), {'out_com_1': 0.0, 'out_com_2': 10.0}, msg="Wrong operation output")
-    #     self.assertDictEqual(m.operate(75.0), {'out_com_1': 0.5, 'out_com_2': 30.0}, msg="Wrong operation output")
-    #     self.assertDictEqual(m.operate(100.0), {'out_com_1': 1.0, 'out_com_2': 60.0}, msg="Wrong operation output")
-    #     self.assertDictEqual(m.operate(70.0), {'out_com_1': 0.4, 'out_com_2': 26.0}, msg="Wrong operation output")
-    #     self.assertDictEqual(m.operate(90.0), {'out_com_1': 0.8, 'out_com_2': 48.0}, msg="Wrong operation output")
-    #     with self.assertRaises(AssertionError, msg="Discrete setpoint should not return values for out-of-bound") as e:
-    #         m.operate(20.0)
-    #     self.assertEqual(
-    #         str(e.exception),
-    #         CONTINUOUS_SETPOINT_EXCEPTION(20.0),
-    #         msg='Wrong exception message returned for continuous setpoint operation on machine'
-    #     )
-    #     with self.assertRaises(AssertionError, msg="Discrete setpoint should not return values for out-of-bound") as e:
-    #         m.operate(110.0)
-    #     self.assertEqual(
-    #         str(e.exception),
-    #         CONTINUOUS_SETPOINT_EXCEPTION(110.0),
-    #         msg='Wrong exception message returned for continuous setpoint operation on machine'
-    #     )
+# def test_operation(self):
+#     # test discrete setpoint
+#     m = InternalMachine(
+#         name='m',
+#         commodity='in_com',
+#         _setpoint=SETPOINT,
+#         discrete_setpoint=True,
+#         max_starting=None,
+#         cost=0,
+#         _horizon=HORIZON
+#     )
+#     self.assertIsNone(m.operate(0.0), msg="Operate function should return None if the input is null")
+#     self.assertDictEqual(m.operate(50.0), {'out_com_1': 0.0, 'out_com_2': 10.0}, msg="Wrong operation output")
+#     self.assertDictEqual(m.operate(75.0), {'out_com_1': 0.5, 'out_com_2': 30.0}, msg="Wrong operation output")
+#     self.assertDictEqual(m.operate(100.0), {'out_com_1': 1.0, 'out_com_2': 60.0}, msg="Wrong operation output")
+#     with self.assertRaises(AssertionError, msg="Discrete setpoint should not return values for out-of-data") as e:
+#         m.operate(70.0)
+#     self.assertEqual(
+#         str(e.exception),
+#         DISCRETE_SETPOINT_EXCEPTION(70.0),
+#         msg='Wrong exception message returned for discrete setpoint operation on machine'
+#     )
+#     with self.assertRaises(AssertionError, msg="Discrete setpoint should not return values for out-of-data") as e:
+#         m.operate(90.0)
+#     self.assertEqual(
+#         str(e.exception),
+#         DISCRETE_SETPOINT_EXCEPTION(90.0),
+#         msg='Wrong exception message returned for discrete setpoint operation on machine'
+#     )
+#     with self.assertRaises(AssertionError, msg="Discrete setpoint should not return values for out-of-bound") as e:
+#         m.operate(20.0)
+#     self.assertEqual(
+#         str(e.exception),
+#         DISCRETE_SETPOINT_EXCEPTION(20.0),
+#         msg='Wrong exception message returned for discrete setpoint operation on machine'
+#     )
+#     with self.assertRaises(AssertionError, msg="Discrete setpoint should not return values for out-of-bound") as e:
+#         m.operate(110.0)
+#     self.assertEqual(
+#         str(e.exception),
+#         DISCRETE_SETPOINT_EXCEPTION(110.0),
+#         msg='Wrong exception message returned for discrete setpoint operation on machine'
+#     )
+#     # test continuous setpoint
+#     m = InternalMachine(
+#         name='m',
+#         commodity='in_com',
+#         _setpoint=SETPOINT,
+#         discrete_setpoint=False,
+#         max_starting=None,
+#         cost=0,
+#         _horizon=HORIZON
+#     )
+#     self.assertIsNone(m.operate(0.0), msg="Operate function should return None if the input is null")
+#     self.assertDictEqual(m.operate(50.0), {'out_com_1': 0.0, 'out_com_2': 10.0}, msg="Wrong operation output")
+#     self.assertDictEqual(m.operate(75.0), {'out_com_1': 0.5, 'out_com_2': 30.0}, msg="Wrong operation output")
+#     self.assertDictEqual(m.operate(100.0), {'out_com_1': 1.0, 'out_com_2': 60.0}, msg="Wrong operation output")
+#     self.assertDictEqual(m.operate(70.0), {'out_com_1': 0.4, 'out_com_2': 26.0}, msg="Wrong operation output")
+#     self.assertDictEqual(m.operate(90.0), {'out_com_1': 0.8, 'out_com_2': 48.0}, msg="Wrong operation output")
+#     with self.assertRaises(AssertionError, msg="Discrete setpoint should not return values for out-of-bound") as e:
+#         m.operate(20.0)
+#     self.assertEqual(
+#         str(e.exception),
+#         CONTINUOUS_SETPOINT_EXCEPTION(20.0),
+#         msg='Wrong exception message returned for continuous setpoint operation on machine'
+#     )
+#     with self.assertRaises(AssertionError, msg="Discrete setpoint should not return values for out-of-bound") as e:
+#         m.operate(110.0)
+#     self.assertEqual(
+#         str(e.exception),
+#         CONTINUOUS_SETPOINT_EXCEPTION(110.0),
+#         msg='Wrong exception message returned for continuous setpoint operation on machine'
+#     )
