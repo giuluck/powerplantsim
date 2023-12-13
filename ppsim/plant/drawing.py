@@ -1,9 +1,8 @@
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, List, Union, Any
+from typing import Dict, Iterable, List, Union, Any, Optional
 
 import matplotlib.pyplot as plt
 import networkx as nx
-import numpy as np
 from matplotlib.lines import Line2D
 
 from ppsim import utils
@@ -28,7 +27,7 @@ NODE_STYLES: Dict[str, StyleInfo] = {
 
 def get_node_positions(graph: nx.DiGraph,
                        sources: Iterable[str],
-                       node_pos: Union[str, Dict[int, List[str]], Dict[str, Any]]) -> dict:
+                       node_pos: Union[str, List[Iterable[Optional[str]]], Dict[str, Any]]) -> dict:
     """Traverse the graph from the sources and label each node with a progressive number the position of the nodes is
     eventually obtained by layering them respectively to the computed number so that sources will be on the left and
     sinks on the right.
@@ -45,24 +44,37 @@ def get_node_positions(graph: nx.DiGraph,
     :return:
         A dictionary of node positions.
     """
-    # if the position info already contain <node: pos> (i.e., dictionary indexed by string), return the info itself
-    if isinstance(node_pos, dict) and np.all([isinstance(key, str) for key in node_pos.keys()]):
+    # if the position info is a dictionary, it already contains the mapping <node: pos> so return the info itself
+    if isinstance(node_pos, dict):
         return node_pos
+    # if the position info is a list, create a new graph with nodes added sequentially and with the layers attribute
+    if isinstance(node_pos, list):
+        p = 0
+        nodes = set(graph.nodes)
+        edges = set(graph.edges)
+        graph = nx.DiGraph()
+        for layer, nodelist in enumerate(node_pos):
+            for node in nodelist:
+                if node is None:
+                    p += 1
+                    node = f'__placeholder-{p}__'
+                else:
+                    assert node in nodes, f"Node {node} is not present in the given plant"
+                graph.add_node(node_for_adding=node, layer=layer)
+        graph.add_edges_from(edges)
+        pos = nx.multipartite_layout(graph, subset_key='layer')
+        return {k: v for k, v in pos.items() if k in nodes}
+    # if the position info is a string representing the layering strategy, add the layers to each node accordingly
     graph = graph.copy()
-    if isinstance(node_pos, dict) and np.all([isinstance(key, int) for key in node_pos.keys()]):
-        # if the position info contain <layer: nodes> (i.e., dictionary indexed by integer), add the layers to each node
-        for layer, nodes in node_pos.items():
-            for node in nodes:
-                graph.nodes[node]['layer'] = layer
-    elif node_pos in ['lp', 'sp']:
-        # if the position info is a string representing the layering strategy, add the layers to each node accordingly
-        weight = -1 if node_pos == 'lp' else 1
-        nx.set_edge_attributes(graph, values=weight, name='weight')
-        for node, layer in nx.multi_source_dijkstra_path_length(graph, sources=sources, weight='weight').items():
-            graph.nodes[node]['layer'] = weight * layer
+    if node_pos == 'lp':
+        weight = -1
+    elif node_pos == 'sp':
+        weight = 1
     else:
-        # if something else is passed, rais an exception
-        raise AssertionError(f"Unsupported input type for node_pos: {node_pos}")
+        raise AssertionError(f"Unsupported node_pos: {node_pos}")
+    nx.set_edge_attributes(graph, values=weight, name='weight')
+    for node, layer in nx.multi_source_dijkstra_path_length(graph, sources=sources, weight='weight').items():
+        graph.nodes[node]['layer'] = weight * layer
     return nx.multipartite_layout(graph, subset_key='layer')
 
 

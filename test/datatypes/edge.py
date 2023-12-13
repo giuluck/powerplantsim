@@ -8,14 +8,30 @@ MACHINE = Machine(
     setpoint=SETPOINT,
     discrete_setpoint=False,
     max_starting=None,
-    cost=0
+    cost=0.0
 )
 
 SUPPLIER = Supplier(name='s', commodity_in=None, commodities_out={'in_com'}, predictions=SERIES_1)
 
-STORAGE_1 = Storage(name='s1', commodity_in='out_com_1', commodities_out={'out_com_1'}, capacity=100, dissipation=1.0)
+STORAGE_1 = Storage(
+    name='s1',
+    commodity_in='out_com_1',
+    commodities_out={'out_com_1'},
+    capacity=100.0,
+    dissipation=1.0,
+    charge_rate=10.0,
+    discharge_rate=10.0
+)
 
-STORAGE_2 = Storage(name='s2', commodity_in='out_com_2', commodities_out={'out_com_2'}, capacity=100, dissipation=1.0)
+STORAGE_2 = Storage(
+    name='s2',
+    commodity_in='out_com_2',
+    commodities_out={'out_com_2'},
+    capacity=100.0,
+    dissipation=1.0,
+    charge_rate=10.0,
+    discharge_rate=10.0
+)
 
 EDGE = InternalEdge(
     source=MACHINE,

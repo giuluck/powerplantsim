@@ -1,11 +1,11 @@
 from dataclasses import dataclass
-from typing import Any, Dict, Tuple, List, Optional, Iterable, Union
+from typing import Any, Dict, Tuple, List, Iterable, Union
 
 EdgeID = Tuple[str, str]
 """Datatype for Edge Identifier (tuple <source, destination>)."""
 
-Flow = Optional[float]
-"""Datatype for Single Flow specification (either a flow or None for machines off)."""
+Flow = float
+"""Datatype for Single Flow specification (null flow implies that the machine is off)."""
 
 Flows = Dict[EdgeID, Flow]
 """Datatype for Flows specification (dictionary <edge, flow>)."""

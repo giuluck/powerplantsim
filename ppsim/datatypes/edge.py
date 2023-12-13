@@ -1,10 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict
 
-import numpy as np
 import pandas as pd
 
-from ppsim.datatypes.machine import Machine
 from ppsim.datatypes.datatype import InternalDataType, DataType
 from ppsim.datatypes.node import Node
 from ppsim.utils import EdgeID
@@ -127,12 +125,7 @@ class InternalEdge(InternalDataType):
             The random number generator to be used for reproducible results.
         """
         index = self._step()
-        # check flow consistency
-        if flow is None or np.isnan(flow):
-            assert isinstance(self.destination, Machine), \
-                f"None flows are allowed for machines destinations only, got None flow for edge {self.key}"
-        else:
-            assert flow >= self.min_flow, f"Flow for edge {self.key} should be >= {self.min_flow}, got {flow}"
-            assert flow <= self.max_flow, f"Flow for edge {self.key} should be <= {self.max_flow}, got {flow}"
-            assert not self.integer or flow.is_integer(), f"Flow for edge {self.key} should be integer, got {flow}"
+        assert flow >= self.min_flow, f"Flow for edge {self.key} should be >= {self.min_flow}, got {flow}"
+        assert flow <= self.max_flow, f"Flow for edge {self.key} should be <= {self.max_flow}, got {flow}"
+        assert not self.integer or flow.is_integer(), f"Flow for edge {self.key} should be integer, got {flow}"
         self._flows[index] = flow

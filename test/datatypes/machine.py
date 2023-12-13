@@ -12,6 +12,9 @@ MACHINE = InternalMachine(
 )
 
 COST_EXCEPTION = lambda v: f"The operating cost of the machine must be non-negative, got {v}"
+MAX_STARTING_EXCEPTION = lambda n: f"The number of starting must be a strictly positive integer, got {n}"
+TIMESTEP_STARTING_EXCEPTION = \
+    lambda n, t: f"The number of starting must be strictly less than the number of time steps, got {n} >= {t}"
 SETPOINT_EXCEPTION = lambda v: f"Setpoints should be non-negative, got {v}"
 OUTPUT_FLOWS_EXCEPTION = lambda c, v: f"Output flows should be non-negative, got {c}: {v}"
 DISCRETE_SETPOINT_EXCEPTION = lambda v: f"Unsupported flow {v} for discrete setpoint [50.0, 75.0, 100.0]"
@@ -36,6 +39,53 @@ class TestMachine(TestDataType):
             str(e.exception),
             COST_EXCEPTION(-1.0),
             msg='Wrong exception message returned for negative cost on machine'
+        )
+        # test incorrect max starting
+        with self.assertRaises(AssertionError, msg="Negative max starting should raise exception") as e:
+            InternalMachine(
+                name='m',
+                commodity='in_com',
+                _setpoint=SETPOINT,
+                discrete_setpoint=True,
+                max_starting=(-1, 3),
+                cost=0,
+                _horizon=HORIZON
+            )
+        self.assertEqual(
+            str(e.exception),
+            MAX_STARTING_EXCEPTION(-1),
+            msg='Wrong exception message returned for negative max starting on machine'
+        )
+        with self.assertRaises(AssertionError, msg="Null max starting should raise exception") as e:
+            InternalMachine(
+                name='m',
+                commodity='in_com',
+                _setpoint=SETPOINT,
+                discrete_setpoint=True,
+                max_starting=(0, 3),
+                cost=0,
+                _horizon=HORIZON
+            )
+        self.assertEqual(
+            str(e.exception),
+            MAX_STARTING_EXCEPTION(0),
+            msg='Wrong exception message returned for null max starting on machine'
+        )
+
+        with self.assertRaises(AssertionError, msg="Max starting lower than time steps should raise exception") as e:
+            InternalMachine(
+                name='m',
+                commodity='in_com',
+                _setpoint=SETPOINT,
+                discrete_setpoint=True,
+                max_starting=(5, 3),
+                cost=0,
+                _horizon=HORIZON
+            )
+        self.assertEqual(
+            str(e.exception),
+            TIMESTEP_STARTING_EXCEPTION(5, 3),
+            msg='Wrong exception message returned for max starting lower than time steps on machine'
         )
         # test incorrect index setpoint (null input flow should not raise exception anymore)
         sp2 = SETPOINT.copy()

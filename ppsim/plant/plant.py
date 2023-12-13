@@ -351,6 +351,7 @@ class Plant:
                     parents: Union[str, List[str]],
                     capacity: float = float('inf'),
                     dissipation: float = 0.0,
+                    rates: Union[float, Tuple[float, float]] = float('inf'),
                     min_flow: float = 0.0,
                     max_flow: float = float('inf'),
                     integer: bool = False) -> Storage:
@@ -371,6 +372,10 @@ class Plant:
         :param dissipation:
             The dissipation rate of the storage at every time unit, which must be a float in [0, 1].
 
+        :param rates:
+            Either a tuple (charge_rate, discharge_rate) containing the maximal charge rate (input flow) and discharge
+            rate (output flow) in a time unit, or a single float value in case charge_rate == discharge_rate.
+
         :param min_flow:
             The minimal flow of commodity that can pass in the edge.
 
@@ -383,12 +388,15 @@ class Plant:
         :return:
             The added storage node.
         """
+        charge_rate, discharge_rate = rates if isinstance(rates, tuple) else (rates, rates)
         # create an internal machine node and add it to the internal data structure and the graph
         storage = InternalStorage(
             name=name,
             commodity=commodity,
             capacity=capacity,
             dissipation=dissipation,
+            charge_rate=charge_rate,
+            discharge_rate=discharge_rate,
             _horizon=self.horizon
         )
         self._check_and_update(node=storage, parents=parents, min_flow=min_flow, max_flow=max_flow, integer=integer)
@@ -396,7 +404,7 @@ class Plant:
 
     def draw(self,
              figsize: Tuple[int, int] = (16, 9),
-             node_pos: Union[str, Dict[int, List[str]], Dict[str, Any]] = 'lp',
+             node_pos: Union[str, List[Iterable[Optional[str]]], Dict[str, Any]] = 'lp',
              node_colors: Union[None, str, Dict[str, str]] = None,
              node_markers: Union[None, str, Dict[str, str]] = None,
              edge_colors: Union[str, Dict[str, str]] = 'black',
@@ -413,9 +421,9 @@ class Plant:
             If the string 'lp' is passed, arranges the nodes into layers using the Dijkstra algorithm with negative
             unitary cost to get the longest path (it may fail sometimes due to negative paths). If the string 'sp' is
             passed, arranges the nodes into layers using the Dijkstra algorithm with positive unitary cost to get the
-            shortest path. If a dictionary indexed by integers is passed, it is considered as a mapping <layer: nodes>
-            representing in which layer to display the nodes. If a dictionary indexed by strings is passed, it is
-            considered as a mapping <node: position> representing where exactly to display each node.
+            shortest path. If a list is passed, it is considered as a mapping <layer: nodes> representing in which
+            layer to display the nodes (None values can be used to add placeholder nodes). If a dictionary is passed,
+            it is considered as a mapping <node: position> representing where exactly to display each node.
 
         :param node_colors:
             Either a string representing the color of the nodes, or a dictionary {kind: color} which associates a color
@@ -508,8 +516,11 @@ class Plant:
         """
         action_fn = execution.default_action if action_fn is None else action_fn
         plan = execution.process_plan(plan=plan, edges=set(self._edges.keys()), horizon=self._horizon)
+        graph = self.graph(attributes=True)
         for idx, row in plan.iterrows():
-            graph = execution.action_graph(plant=self, flows=row)
+            # updates the action graph with the last flow
+            for (source, destination), flow in row.items():
+                graph[source][destination]['flow'] = flow
             flows = action_fn(idx, graph)
             execution.run_update(nodes=self._nodes.values(), edges=self._edges.values(), flows=flows, rng=self._rng)
         return execution.build_output(nodes=self._nodes.values(), edges=self._edges.values(), horizon=self._horizon)

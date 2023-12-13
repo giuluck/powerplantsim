@@ -68,24 +68,6 @@ def process_plan(plan: Union[Plan, pd.DataFrame], edges: Set[EdgeID], horizon: p
     return plan
 
 
-def action_graph(plant, flows: pd.Series) -> nx.DiGraph:
-    """Builds a graph representing the power plant, with flows included as attributes on edges.
-
-    :param plant:
-        The power plant object.
-
-    :param flows:
-        The series of edge flows indexed by edge.
-
-    :return:
-        The graph instance.
-    """
-    graph = plant.graph(attributes=True)
-    for (source, destination), flow in flows.items():
-        graph[source][destination]['flow'] = flow
-    return graph
-
-
 # noinspection PyUnusedLocal
 def default_action(index: Any, graph: nx.DiGraph) -> Flows:
     """Implements the default recourse action.

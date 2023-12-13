@@ -62,6 +62,11 @@ class InternalMachine(InternalNode):
         for c in self._setpoint.columns:
             lb = self._setpoint[c].min()
             assert lb >= 0.0, f"Output flows should be non-negative, got {c}: {lb}"
+        # check max starting
+        if self.max_starting is not None:
+            n, t = self.max_starting
+            assert n > 0, f"The number of starting must be a strictly positive integer, got {n}"
+            assert n < t, f"The number of starting must be strictly less than the number of time steps, got {n} >= {t}"
         # check non-negative cost
         assert self.cost >= 0.0, f"The operating cost of the machine must be non-negative, got {self.cost}"
 
@@ -105,8 +110,9 @@ class InternalMachine(InternalNode):
         setpoint = self._setpoint.index
         # compute total input and output flows from respective edges
         in_flow = np.sum([e.flow_at(index=index) for e in self._in_edges])
-        if in_flow is None or np.isnan(in_flow):
-            # no outputs for machine off
+        if in_flow == 0.0:
+            # zero outputs for machine off and input flow becomes None as it will be stored in the series of setpoints
+            in_flow = None
             out_flows = {col: 0.0 for col in self._setpoint.columns}
         elif self.discrete_setpoint:
             # check correctness of discrete setpoint and compute output
@@ -127,4 +133,18 @@ class InternalMachine(InternalNode):
             true_flow = out_true[commodity]
             assert np.isclose(true_flow, exp_flow), \
                 f"Expected output flow {exp_flow} for commodity '{commodity}' in machine '{self.name}', got {true_flow}"
+        # check maximal number of starting:
+        #  - create a list of the last T states and append the last one
+        #  - check consecutive pairs and increase the counter if we pass from a NaN to a real number
+        #  - if the counter gets greater than N, raise an error
+        if self.max_starting is not None:
+            n, t = self.max_starting
+            t = min(t, len(self._states))
+            count = 0
+            states = [*self._states.values[-t:], in_flow]
+            for s1, s2 in zip(states[-t - 1:-1], states[-t:]):
+                if np.isnan(s1) and not np.isnan(s2):
+                    count += 1
+                    assert count <= n, \
+                        f"Machine '{self.name}' cannot be started for more than {n} times in {t} time steps"
         self._states[index] = in_flow

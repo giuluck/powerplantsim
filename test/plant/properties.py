@@ -27,7 +27,15 @@ MACHINE = Machine(
     max_starting=None,
     cost=0.0
 )
-STORAGE = Storage(name='sto', commodity_in='out', commodities_out={'out'}, capacity=float('inf'), dissipation=0.0)
+STORAGE = Storage(
+    name='sto',
+    commodity_in='out',
+    commodities_out={'out'},
+    capacity=float('inf'),
+    dissipation=0.0,
+    charge_rate=float('inf'),
+    discharge_rate=float('inf')
+)
 CLIENT = Customer(name='cli', commodity_in='out', commodities_out=set(), predictions=SERIES)
 
 EDGE_1 = Edge(source=SUPPLIER, destination=MACHINE, min_flow=0.0, max_flow=float('inf'), integer=False)
