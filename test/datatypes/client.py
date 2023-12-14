@@ -1,18 +1,20 @@
 from ppsim.datatypes import Customer, Purchaser
-from test.datatypes.datatype import TestDataType, SERIES_1, SERIES_2, VARIANCE_1, VARIANCE_2
+from test.datatypes.datatype import TestDataType, SERIES_1, SERIES_2, VARIANCE_1, VARIANCE_2, PLANT
 
 CUSTOMER = Customer(
     name='c',
     commodity='c_com',
     _predictions=SERIES_1,
-    _variance_fn=VARIANCE_1
+    _variance_fn=VARIANCE_1,
+    _plant=PLANT
 )
 
 PURCHASER = Purchaser(
     name='p',
     commodity='p_com',
     _predictions=SERIES_1,
-    _variance_fn=VARIANCE_1
+    _variance_fn=VARIANCE_1,
+    _plant=PLANT
 )
 
 
@@ -23,14 +25,14 @@ class TestClient(TestDataType):
 
     def test_hashing(self):
         # test equal hash
-        c_equal = Customer(name='c', commodity='c_com_2', _predictions=SERIES_2, _variance_fn=VARIANCE_2)
+        c_equal = Customer(name='c', commodity='c_com_2', _predictions=SERIES_2, _variance_fn=VARIANCE_2, _plant=PLANT)
         self.assertEqual(CUSTOMER, c_equal, msg="Nodes with the same name should be considered equal")
-        p_equal = Purchaser(name='p', commodity='p_com_2', _predictions=SERIES_2, _variance_fn=VARIANCE_2)
+        p_equal = Purchaser(name='p', commodity='p_com_2', _predictions=SERIES_2, _variance_fn=VARIANCE_2, _plant=PLANT)
         self.assertEqual(PURCHASER, p_equal, msg="Nodes with the same name should be considered equal")
         # test different hash
-        c_diff = Customer(name='cd', commodity='c_com', _predictions=SERIES_1, _variance_fn=VARIANCE_1)
+        c_diff = Customer(name='cd', commodity='c_com', _predictions=SERIES_1, _variance_fn=VARIANCE_1, _plant=PLANT)
         self.assertNotEqual(CUSTOMER, c_diff, msg="Nodes with different names should be considered different")
-        p_diff = Purchaser(name='pd', commodity='p_com', _predictions=SERIES_1, _variance_fn=VARIANCE_1)
+        p_diff = Purchaser(name='pd', commodity='p_com', _predictions=SERIES_1, _variance_fn=VARIANCE_1, _plant=PLANT)
         self.assertNotEqual(CUSTOMER, p_diff, msg="Nodes with different names should be considered different")
 
     def test_properties(self):

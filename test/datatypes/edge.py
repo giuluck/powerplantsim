@@ -1,5 +1,5 @@
 from ppsim.datatypes import Supplier, Storage, Machine, Edge
-from test.datatypes.datatype import TestDataType, SETPOINT, SERIES_1, HORIZON, VARIANCE_1
+from test.datatypes.datatype import TestDataType, SETPOINT, SERIES_1, VARIANCE_1, PLANT
 
 MACHINE = Machine(
     name='m',
@@ -8,14 +8,15 @@ MACHINE = Machine(
     discrete_setpoint=False,
     max_starting=None,
     cost=0.0,
-    _horizon=HORIZON
+    _plant=PLANT
 )
 
 SUPPLIER = Supplier(
     name='s',
     commodity='in_com',
     _predictions=SERIES_1,
-    _variance_fn=VARIANCE_1
+    _variance_fn=VARIANCE_1,
+    _plant=PLANT
 )
 
 STORAGE_1 = Storage(
@@ -25,7 +26,7 @@ STORAGE_1 = Storage(
     dissipation=1.0,
     charge_rate=10.0,
     discharge_rate=10.0,
-    _horizon=HORIZON
+    _plant=PLANT
 )
 
 STORAGE_2 = Storage(
@@ -35,7 +36,7 @@ STORAGE_2 = Storage(
     dissipation=1.0,
     charge_rate=10.0,
     discharge_rate=10.0,
-    _horizon=HORIZON
+    _plant=PLANT
 )
 
 EDGE = Edge(
@@ -44,7 +45,7 @@ EDGE = Edge(
     min_flow=0.0,
     max_flow=100.0,
     integer=False,
-    _horizon=HORIZON
+    _plant=PLANT
 )
 
 MIN_FLOW_EXCEPTION = lambda v: f"The minimum flow cannot be negative, got {v}"
@@ -57,9 +58,9 @@ class TestEdge(TestDataType):
 
     def test_inputs(self):
         # check correct flows
-        Edge(source=MACHINE, destination=STORAGE_1, min_flow=0.0, max_flow=1.0, integer=False, _horizon=HORIZON)
-        Edge(source=MACHINE, destination=STORAGE_1, min_flow=1.0, max_flow=2.0, integer=False, _horizon=HORIZON)
-        Edge(source=MACHINE, destination=STORAGE_1, min_flow=1.0, max_flow=1.0, integer=False, _horizon=HORIZON)
+        Edge(source=MACHINE, destination=STORAGE_1, min_flow=0.0, max_flow=1.0, integer=False, _plant=PLANT)
+        Edge(source=MACHINE, destination=STORAGE_1, min_flow=1.0, max_flow=2.0, integer=False, _plant=PLANT)
+        Edge(source=MACHINE, destination=STORAGE_1, min_flow=1.0, max_flow=1.0, integer=False, _plant=PLANT)
         # check incorrect flows
         with self.assertRaises(AssertionError, msg="Negative min flow should raise exception") as e:
             Edge(
@@ -68,7 +69,7 @@ class TestEdge(TestDataType):
                 min_flow=-1.0,
                 max_flow=100.0,
                 integer=False,
-                _horizon=HORIZON
+                _plant=PLANT
             )
         self.assertEqual(
             str(e.exception),
@@ -82,7 +83,7 @@ class TestEdge(TestDataType):
                 min_flow=101.0,
                 max_flow=100.0,
                 integer=False,
-                _horizon=HORIZON
+                _plant=PLANT
             )
         self.assertEqual(
             str(e.exception),
@@ -97,7 +98,7 @@ class TestEdge(TestDataType):
                 min_flow=0.0,
                 max_flow=100.0,
                 integer=False,
-                _horizon=HORIZON
+                _plant=PLANT
             )
         self.assertEqual(
             str(e.exception),
@@ -111,7 +112,7 @@ class TestEdge(TestDataType):
                 min_flow=0.0,
                 max_flow=100.0,
                 integer=False,
-                _horizon=HORIZON
+                _plant=PLANT
             )
         self.assertEqual(
             str(e.exception),
@@ -127,7 +128,7 @@ class TestEdge(TestDataType):
             min_flow=50.0,
             max_flow=60.0,
             integer=True,
-            _horizon=HORIZON
+            _plant=PLANT
         )
         self.assertEqual(EDGE, e_equal, msg="Nodes with the same name should be considered equal")
         # test different hash
@@ -137,7 +138,7 @@ class TestEdge(TestDataType):
             min_flow=0.0,
             max_flow=100.0,
             integer=False,
-            _horizon=HORIZON
+            _plant=PLANT
         )
         self.assertNotEqual(EDGE, e_diff, msg="Nodes with different names should be considered different")
 

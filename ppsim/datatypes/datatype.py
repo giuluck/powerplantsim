@@ -15,7 +15,10 @@ class DataType(ABC):
     @dataclass
     class _InternalInfo:
         """Internal class to handle mutable (non-frozen) information about the simulation"""
-        step: int = field(init=False, default=0)
+        step: int = field(init=False, default=-1)
+
+    _plant: Any = field(kw_only=True)
+    """The power plant object to which this datatype is attached."""
 
     _info: _InternalInfo = field(init=False, default_factory=_InternalInfo)
     """Internal mutable simulation info."""
@@ -33,15 +36,14 @@ class DataType(ABC):
         pass
 
     @property
-    @abstractmethod
     def _horizon(self) -> pd.Index:
         """The time horizon of the simulation in which the datatype is involved."""
-        pass
+        return self._plant.horizon.copy()
 
     @property
     def _index(self):
         """The current index of the simulation as for the given time horizon."""
-        return self._horizon[self._info.step]
+        return self._plant.horizon[self._info.step]
 
     @property
     def dict(self) -> Dict[str, Any]:
@@ -52,12 +54,11 @@ class DataType(ABC):
         """Checks and updates the internal simulation details.
 
         :return:
-            The updated index of the simulation as for the given time horizon.
+            The updated step of the simulation as for the given time horizon.
         """
-        assert self._info.step < len(self._horizon), f"{self} has reached maximal number of updates for the simulation"
-        index = self._index
         self._info.step += 1
-        return index
+        assert self._info.step < len(self._horizon), f"{self} has reached maximal number of updates for the simulation"
+        return self._info.step
 
     def _instance(self, other) -> bool:
         """Checks whether a different object is matching the self instance for comparison."""

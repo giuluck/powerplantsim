@@ -1,11 +1,12 @@
 from ppsim.datatypes import Supplier
-from test.datatypes.datatype import TestDataType, SERIES_1, SERIES_2, VARIANCE_1, VARIANCE_2
+from test.datatypes.datatype import TestDataType, SERIES_1, SERIES_2, VARIANCE_1, VARIANCE_2, PLANT
 
 SUPPLIER = Supplier(
     name='s',
     commodity='s_com',
     _predictions=SERIES_1,
-    _variance_fn=VARIANCE_1
+    _variance_fn=VARIANCE_1,
+    _plant=PLANT
 )
 
 
@@ -16,10 +17,10 @@ class TestSupplier(TestDataType):
 
     def test_hashing(self):
         # test equal hash
-        s_equal = Supplier(name='s', commodity='s_com_2', _predictions=SERIES_2, _variance_fn=VARIANCE_2)
+        s_equal = Supplier(name='s', commodity='s_com_2', _predictions=SERIES_2, _variance_fn=VARIANCE_2, _plant=PLANT)
         self.assertEqual(SUPPLIER, s_equal, msg="Nodes with the same name should be considered equal")
         # test different hash
-        s_diff = Supplier(name='sd', commodity='s_com', _predictions=SERIES_1, _variance_fn=VARIANCE_1)
+        s_diff = Supplier(name='sd', commodity='s_com', _predictions=SERIES_1, _variance_fn=VARIANCE_1, _plant=PLANT)
         self.assertNotEqual(SUPPLIER, s_diff, msg="Nodes with different names should be considered different")
 
     def test_properties(self):

@@ -27,10 +27,7 @@ class Storage(Node):
     discharge_rate: float = field(kw_only=True)
     """The maximal discharge rate (output flow) in a time unit."""
 
-    _horizon: pd.Index = field(kw_only=True)
-    """The time horizon of the simulation in which the datatype is involved."""
-
-    _storage: pd.Series = field(init=False, default_factory=lambda: pd.Series(dtype=float))
+    _storage: List[float] = field(init=False, default_factory=list)
     """The series of actual commodities storage, which is filled during the simulation."""
 
     def __post_init__(self):
@@ -51,7 +48,7 @@ class Storage(Node):
     @property
     def storage(self) -> pd.Series:
         """The series of actual commodities storage, which is filled during the simulation."""
-        return self._storage.copy()
+        return pd.Series(self._storage, dtype=float, index=self._horizon[:self._info.step + 1])
 
     @property
     def commodity_in(self) -> Optional[str]:
@@ -62,10 +59,10 @@ class Storage(Node):
         return {self.commodity}
 
     def update(self, rng: np.random.Generator):
-        index = self._step()
+        step = self._step()
         # compute total input and output flows from respective edges
-        in_flow = np.sum([e.flow_at(index=index) for e in self._in_edges])
-        out_flow = np.sum([e.flow_at(index=index) for e in self._out_edges])
+        in_flow = np.sum([e.flow_at(step=step) for e in self._in_edges])
+        out_flow = np.sum([e.flow_at(step=step) for e in self._out_edges])
         # check that at least one of the two is null as from the constraints
         assert in_flow == 0.0 or out_flow == 0.0, \
             f"Storage node '{self.name}' can have either input or output flows in a single time step, got both"
@@ -80,4 +77,4 @@ class Storage(Node):
         assert storage >= 0.0, f"Storage node '{self.name}' cannot contain negative amount, got {storage}"
         assert storage <= self.capacity, \
             f"Storage node '{self.name}' cannot contain more than {self.capacity} amount, got {storage}"
-        self._storage[index] = storage
+        self._storage[step] = storage

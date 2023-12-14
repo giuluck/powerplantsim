@@ -5,7 +5,6 @@ import pandas as pd
 
 from ppsim import Plant
 from ppsim.datatypes import Supplier, Machine, Storage, Edge, Customer
-from temp.main import HORIZON
 from test.datatypes.datatype import VARIANCE_1
 
 PLANT_1 = Plant(horizon=24)
@@ -17,9 +16,9 @@ PLANT_2.add_machine(name='mac', parents='sup', commodity='in', setpoint={'setpoi
 PLANT_2.add_storage(name='sto', parents='mac', commodity='out')
 PLANT_2.add_client(name='cli', parents=['mac', 'sto'], commodity='out', predictions=1.)
 
-SERIES = pd.Series(1., index=PLANT_1.horizon)
+SERIES = np.ones(24)
 SETPOINT = pd.DataFrame(data=[1.], columns=['out'], index=[1.])
-SUPPLIER = Supplier(name='sup', commodity='in', _predictions=SERIES, _variance_fn=VARIANCE_1)
+SUPPLIER = Supplier(name='sup', commodity='in', _predictions=SERIES, _variance_fn=VARIANCE_1, _plant=PLANT_1)
 MACHINE = Machine(
     name='mac',
     commodity='in',
@@ -27,7 +26,7 @@ MACHINE = Machine(
     discrete_setpoint=False,
     max_starting=None,
     cost=0.0,
-    _horizon=HORIZON
+    _plant=PLANT_1
 )
 STORAGE = Storage(
     name='sto',
@@ -36,15 +35,14 @@ STORAGE = Storage(
     dissipation=0.0,
     charge_rate=float('inf'),
     discharge_rate=float('inf'),
-    _horizon=HORIZON
+    _plant=PLANT_1
 )
-CLIENT = Customer(name='cli', commodity='out', _predictions=SERIES, _variance_fn=VARIANCE_1)
+CLIENT = Customer(name='cli', commodity='out', _predictions=SERIES, _variance_fn=VARIANCE_1, _plant=PLANT_1)
 
-EDGE_1 = Edge(source=SUPPLIER, destination=MACHINE, min_flow=0.0, max_flow=float('inf'), integer=False,
-              _horizon=HORIZON)
-EDGE_2 = Edge(source=MACHINE, destination=STORAGE, min_flow=0.0, max_flow=float('inf'), integer=False, _horizon=HORIZON)
-EDGE_3 = Edge(source=MACHINE, destination=CLIENT, min_flow=0.0, max_flow=float('inf'), integer=False, _horizon=HORIZON)
-EDGE_4 = Edge(source=STORAGE, destination=CLIENT, min_flow=0.0, max_flow=float('inf'), integer=False, _horizon=HORIZON)
+EDGE_1 = Edge(source=SUPPLIER, destination=MACHINE, min_flow=0.0, max_flow=float('inf'), integer=False, _plant=PLANT_1)
+EDGE_2 = Edge(source=MACHINE, destination=STORAGE, min_flow=0.0, max_flow=float('inf'), integer=False, _plant=PLANT_1)
+EDGE_3 = Edge(source=MACHINE, destination=CLIENT, min_flow=0.0, max_flow=float('inf'), integer=False, _plant=PLANT_1)
+EDGE_4 = Edge(source=STORAGE, destination=CLIENT, min_flow=0.0, max_flow=float('inf'), integer=False, _plant=PLANT_1)
 
 NEGATIVE_HORIZON_EXCEPTION = lambda v: f"The time horizon must be a strictly positive integer, got {v}"
 

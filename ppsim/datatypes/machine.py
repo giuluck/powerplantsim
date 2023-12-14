@@ -28,10 +28,7 @@ class Machine(Node):
     cost: float = field(kw_only=True)
     """The cost for operating the machine (cost is discarded when the machine is off)."""
 
-    _horizon: pd.Index = field(kw_only=True)
-    """The time horizon of the simulation in which the datatype is involved."""
-
-    _states: pd.Series = field(init=False, default_factory=lambda: pd.Series(dtype=float))
+    _states: List[float] = field(init=False, default_factory=list)
     """The series of actual input setpoints (None for machine off), which is filled during the simulation."""
 
     def __post_init__(self):
@@ -64,7 +61,7 @@ class Machine(Node):
     @property
     def states(self) -> pd.Series:
         """The series of actual input setpoints (NaN for machine off), which is filled during the simulation."""
-        return self._states.copy()
+        return pd.Series(self._states, dtype=float, index=self._horizon[:self._info.step + 1])
 
     @property
     def setpoint(self) -> pd.DataFrame:
@@ -81,10 +78,10 @@ class Machine(Node):
         return set(self._setpoint.columns)
 
     def update(self, rng: np.random.Generator):
-        index = self._step()
+        step = self._step()
         setpoint = self._setpoint.index
         # compute total input and output flows from respective edges
-        in_flow = np.sum([e.flow_at(index=index) for e in self._in_edges])
+        in_flow = np.sum([e.flow_at(step=step) for e in self._in_edges])
         if in_flow == 0.0:
             # zero outputs for machine off and input flow becomes None as it will be stored in the series of setpoints
             in_flow = None
@@ -103,7 +100,7 @@ class Machine(Node):
         # check that the respective output flows are consistent
         out_true = {col: 0.0 for col in self._setpoint.columns}
         for e in self._out_edges:
-            out_true[e.commodity] += e.flow_at(index=index)
+            out_true[e.commodity] += e.flow_at(step=step)
         for commodity, exp_flow in out_flows.items():
             true_flow = out_true[commodity]
             assert np.isclose(true_flow, exp_flow), \
@@ -122,4 +119,4 @@ class Machine(Node):
                     count += 1
                     assert count <= n, \
                         f"Machine '{self.name}' cannot be started for more than {n} times in {t} time steps"
-        self._states[index] = in_flow
+        self._states[step] = in_flow

@@ -1,5 +1,5 @@
 from ppsim.datatypes import Machine
-from test.datatypes.datatype import TestDataType, SETPOINT, HORIZON
+from test.datatypes.datatype import TestDataType, SETPOINT, PLANT
 
 MACHINE = Machine(
     name='m',
@@ -8,7 +8,7 @@ MACHINE = Machine(
     discrete_setpoint=False,
     max_starting=None,
     cost=0,
-    _horizon=HORIZON
+    _plant=PLANT
 )
 
 COST_EXCEPTION = lambda v: f"The operating cost of the machine must be non-negative, got {v}"
@@ -33,7 +33,7 @@ class TestMachine(TestDataType):
                 discrete_setpoint=True,
                 max_starting=None,
                 cost=-1.0,
-                _horizon=HORIZON
+                _plant=PLANT
             )
         self.assertEqual(
             str(e.exception),
@@ -49,7 +49,7 @@ class TestMachine(TestDataType):
                 discrete_setpoint=True,
                 max_starting=(-1, 3),
                 cost=0,
-                _horizon=HORIZON
+                _plant=PLANT
             )
         self.assertEqual(
             str(e.exception),
@@ -64,7 +64,7 @@ class TestMachine(TestDataType):
                 discrete_setpoint=True,
                 max_starting=(0, 3),
                 cost=0,
-                _horizon=HORIZON
+                _plant=PLANT
             )
         self.assertEqual(
             str(e.exception),
@@ -80,7 +80,7 @@ class TestMachine(TestDataType):
                 discrete_setpoint=True,
                 max_starting=(5, 3),
                 cost=0,
-                _horizon=HORIZON
+                _plant=PLANT
             )
         self.assertEqual(
             str(e.exception),
@@ -97,7 +97,7 @@ class TestMachine(TestDataType):
             discrete_setpoint=False,
             max_starting=None,
             cost=0,
-            _horizon=HORIZON
+            _plant=PLANT
         )
         sp2.index = [50.0, -1.0, 100.0]
         with self.assertRaises(AssertionError, msg="Negative input flows in setpoint should raise exception") as e:
@@ -108,7 +108,7 @@ class TestMachine(TestDataType):
                 discrete_setpoint=False,
                 max_starting=None,
                 cost=0,
-                _horizon=HORIZON
+                _plant=PLANT
             )
         self.assertEqual(
             str(e.exception),
@@ -126,7 +126,7 @@ class TestMachine(TestDataType):
                 discrete_setpoint=False,
                 max_starting=None,
                 cost=0,
-                _horizon=HORIZON
+                _plant=PLANT
             )
         self.assertEqual(
             str(e.exception),
@@ -143,7 +143,7 @@ class TestMachine(TestDataType):
                 discrete_setpoint=False,
                 max_starting=None,
                 cost=0,
-                _horizon=HORIZON
+                _plant=PLANT
             )
         self.assertEqual(
             str(e.exception),
@@ -160,7 +160,7 @@ class TestMachine(TestDataType):
             discrete_setpoint=True,
             max_starting=(1, 7),
             cost=100,
-            _horizon=HORIZON
+            _plant=PLANT
         )
         self.assertEqual(MACHINE, m_equal, msg="Nodes with the same name should be considered equal")
         # test different hash
@@ -171,7 +171,7 @@ class TestMachine(TestDataType):
             discrete_setpoint=False,
             max_starting=None,
             cost=0,
-            _horizon=HORIZON
+            _plant=PLANT
         )
         self.assertNotEqual(MACHINE, m_diff, msg="Nodes with different names should be considered different")
 
@@ -217,7 +217,7 @@ class TestMachine(TestDataType):
 #         discrete_setpoint=True,
 #         max_starting=None,
 #         cost=0,
-#         _horizon=HORIZON
+#         _plant=PLANT
 #     )
 #     self.assertIsNone(m.operate(0.0), msg="Operate function should return None if the input is null")
 #     self.assertDictEqual(m.operate(50.0), {'out_com_1': 0.0, 'out_com_2': 10.0}, msg="Wrong operation output")
@@ -259,7 +259,7 @@ class TestMachine(TestDataType):
 #         discrete_setpoint=False,
 #         max_starting=None,
 #         cost=0,
-#         _horizon=HORIZON
+#         _plant=PLANT
 #     )
 #     self.assertIsNone(m.operate(0.0), msg="Operate function should return None if the input is null")
 #     self.assertDictEqual(m.operate(50.0), {'out_com_1': 0.0, 'out_com_2': 10.0}, msg="Wrong operation output")

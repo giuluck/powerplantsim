@@ -1,5 +1,5 @@
 from ppsim.datatypes import Storage
-from test.datatypes.datatype import TestDataType, HORIZON
+from test.datatypes.datatype import TestDataType, PLANT
 
 STORAGE = Storage(
     name='s',
@@ -8,7 +8,7 @@ STORAGE = Storage(
     dissipation=1.0,
     charge_rate=10.0,
     discharge_rate=10.0,
-    _horizon=HORIZON
+    _plant=PLANT
 )
 
 CAPACITY_EXCEPTION = lambda v: f"Capacity should be strictly positive, got {v}"
@@ -26,7 +26,7 @@ class TestStorage(TestDataType):
             dissipation=0.0,
             charge_rate=10.0,
             discharge_rate=10.0,
-            _horizon=HORIZON
+            _plant=PLANT
         )
         Storage(
             name='s',
@@ -35,7 +35,7 @@ class TestStorage(TestDataType):
             dissipation=0.5,
             charge_rate=10.0,
             discharge_rate=10.0,
-            _horizon=HORIZON
+            _plant=PLANT
         )
         Storage(
             name='s',
@@ -44,7 +44,7 @@ class TestStorage(TestDataType):
             dissipation=1.0,
             charge_rate=10.0,
             discharge_rate=10.0,
-            _horizon=HORIZON
+            _plant=PLANT
         )
         # test incorrect dissipation
         with self.assertRaises(AssertionError, msg="Out of bound dissipation should raise exception") as e:
@@ -55,7 +55,7 @@ class TestStorage(TestDataType):
                 dissipation=-1.0,
                 charge_rate=10.0,
                 discharge_rate=10.0,
-                _horizon=HORIZON
+                _plant=PLANT
             )
         self.assertEqual(
             str(e.exception),
@@ -70,7 +70,7 @@ class TestStorage(TestDataType):
                 dissipation=2.0,
                 charge_rate=10.0,
                 discharge_rate=10.0,
-                _horizon=HORIZON
+                _plant=PLANT
             )
         self.assertEqual(
             str(e.exception),
@@ -86,7 +86,7 @@ class TestStorage(TestDataType):
                 dissipation=0.0,
                 charge_rate=10.0,
                 discharge_rate=10.0,
-                _horizon=HORIZON
+                _plant=PLANT
             )
         self.assertEqual(
             str(e.exception),
@@ -101,7 +101,7 @@ class TestStorage(TestDataType):
                 dissipation=0.0,
                 charge_rate=10.0,
                 discharge_rate=10.0,
-                _horizon=HORIZON
+                _plant=PLANT
             )
         self.assertEqual(
             str(e.exception),
@@ -118,7 +118,7 @@ class TestStorage(TestDataType):
             dissipation=1.0,
             charge_rate=5.0,
             discharge_rate=5.0,
-            _horizon=HORIZON
+            _plant=PLANT
         )
         self.assertEqual(STORAGE, s_equal, msg="Nodes with the same name should be considered equal")
         # test different hash
@@ -129,7 +129,7 @@ class TestStorage(TestDataType):
             dissipation=0.0,
             charge_rate=10.0,
             discharge_rate=10.0,
-            _horizon=HORIZON
+            _plant=PLANT
         )
         self.assertNotEqual(STORAGE, s_diff, msg="Nodes with different names should be considered different")
 

@@ -177,12 +177,12 @@ class Plant:
                 f"but it returns {parent.commodities_out}"
             # create an edge instance using the parent as source and the new node as destination
             edge = Edge(
+                _plant=self,
                 source=parent,
                 destination=node,
                 min_flow=min_flow,
                 max_flow=max_flow,
-                integer=integer,
-                _horizon=self.horizon
+                integer=integer
             )
             self._edges[(parent.name, node.name)] = edge
             # append parent and children to the respective lists
@@ -221,10 +221,15 @@ class Plant:
         :return:
             The added supplier node.
         """
-        # convert prices to a standard format (pd.Series)
-        predictions = pd.Series(predictions, dtype=float, index=self._horizon)
+        predictions = np.ones_like(self._horizon) * predictions if isinstance(predictions, float) else predictions
         # create an internal supplier node and add it to the internal data structure and the graph
-        supplier = Supplier(name=name, commodity=commodity, _predictions=predictions, _variance_fn=variance)
+        supplier = Supplier(
+            _plant=self,
+            name=name,
+            commodity=commodity,
+            _predictions=predictions,
+            _variance_fn=variance
+        )
         self._check_and_update(node=supplier, parents=None, min_flow=None, max_flow=None, integer=None)
         return supplier
 
@@ -269,13 +274,24 @@ class Plant:
         :return:
             The added client node.
         """
-        # convert demands to a standard format (pd.Series)
-        predictions = pd.Series(predictions, dtype=float, index=self._horizon)
+        predictions = np.ones_like(self._horizon) * predictions if isinstance(predictions, float) else predictions
         # create an internal client node (with specified type) and add it to the internal data structure and the graph
         if purchaser:
-            client = Purchaser(name=name, commodity=commodity, _predictions=predictions, _variance_fn=variance)
+            client = Purchaser(
+                _plant=self,
+                name=name,
+                commodity=commodity,
+                _predictions=predictions,
+                _variance_fn=variance
+            )
         else:
-            client = Customer(name=name, commodity=commodity, _predictions=predictions, _variance_fn=variance)
+            client = Customer(
+                _plant=self,
+                name=name,
+                commodity=commodity,
+                _predictions=predictions,
+                _variance_fn=variance
+            )
         self._check_and_update(node=client, parents=parents, min_flow=0.0, max_flow=float('inf'), integer=False)
         return client
 
@@ -334,13 +350,13 @@ class Plant:
             setpoint = pd.DataFrame(setpoint).set_index('setpoint')
         # create an internal machine node and add it to the internal data structure and the graph
         machine = Machine(
+            _plant=self,
             name=name,
             _setpoint=setpoint,
             commodity=commodity,
             discrete_setpoint=discrete_setpoint,
             max_starting=max_starting,
-            cost=cost,
-            _horizon=self.horizon
+            cost=cost
         )
         self._check_and_update(node=machine, parents=parents, min_flow=min_flow, max_flow=max_flow, integer=integer)
         return machine
@@ -391,13 +407,13 @@ class Plant:
         charge_rate, discharge_rate = rates if isinstance(rates, tuple) else (rates, rates)
         # create an internal machine node and add it to the internal data structure and the graph
         storage = Storage(
+            _plant=self,
             name=name,
             commodity=commodity,
             capacity=capacity,
             dissipation=dissipation,
             charge_rate=charge_rate,
-            discharge_rate=discharge_rate,
-            _horizon=self.horizon
+            discharge_rate=discharge_rate
         )
         self._check_and_update(node=storage, parents=parents, min_flow=min_flow, max_flow=max_flow, integer=integer)
         return storage

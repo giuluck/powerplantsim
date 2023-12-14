@@ -57,12 +57,12 @@ class Customer(Client):
         return self.values
 
     def update(self, rng: np.random.Generator):
-        index = self._step()
-        value = self._predictions[index] + self._variance_fn(rng, self.values)
-        flow = np.sum([e.flow_at(index=index) for e in self._in_edges])
+        step = self._step()
+        value = self._predictions[step] + self._variance_fn(rng, self.values)
+        flow = np.sum([e.flow_at(step=step) for e in self._in_edges])
         assert value <= flow, \
-            f"Customer node '{self.name}' can accept at most {value} units at time step {index}, got {flow}"
-        self._values[index] = value
+            f"Customer node '{self.name}' can accept at most {value} units at time step {step}, got {flow}"
+        self._values[step] = value
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)

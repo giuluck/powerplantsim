@@ -81,31 +81,31 @@ class VarianceNode(Node, ABC):
     commodity: str = field(kw_only=True)
     """The identifier of the commodity handled by the node."""
 
-    _predictions: pd.Series = field(kw_only=True)
+    _predictions: np.ndarray = field(kw_only=True)
     """The series of predictions."""
 
     _variance_fn: Callable[[np.random.Generator, pd.Series], float] = field(kw_only=True)
     """A function f(rng, series) -> variance describing the variance model of true values."""
 
-    _values: pd.Series = field(init=False, default_factory=lambda: pd.Series(dtype=float))
+    _values: List[float] = field(init=False, default_factory=list)
     """The series of actual values, which is filled during the simulation."""
 
-    @property
-    def _horizon(self) -> pd.Index:
-        return self._predictions.index
+    def __post_init__(self):
+        assert len(self._predictions) == len(self._horizon), \
+            f"Predictions should match length of horizon, got {len(self._predictions)} instead of {len(self._horizon)}"
 
     @property
     def predictions(self) -> pd.Series:
         """The series of predictions."""
-        return self._predictions.copy()
+        return pd.Series(self._predictions.copy(), dtype=float, index=self._horizon)
 
     @property
     def values(self) -> pd.Series:
         """The series of actual values, which is filled during the simulation."""
-        return self._values.copy()
+        return pd.Series(self._values.copy(), dtype=float, index=self._horizon[:self._info.step + 1])
 
     def update(self, rng: np.random.Generator):
         # compute the new values as the sum of the prediction and the variance obtained from the variance model
-        index = self._step()
-        value = self._predictions[index] + self._variance_fn(rng, self.values)
-        self._values[index] = value
+        step = self._step()
+        value = self._predictions[step] + self._variance_fn(rng, self.values)
+        self._values[step] = value

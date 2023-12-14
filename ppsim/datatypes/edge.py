@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, List
+from typing import List
 
 import pandas as pd
 from descriptors import classproperty
@@ -29,10 +29,7 @@ class Edge(DataType):
     integer: bool = field(kw_only=True)
     """Whether the flow must be integer or not."""
 
-    _horizon: pd.Index = field(kw_only=True)
-    """The time horizon of the simulation in which the datatype is involved."""
-
-    _flows: pd.Series = field(init=False, default_factory=lambda: pd.Series(dtype=float))
+    _flows: List[float] = field(init=False, default_factory=list)
     """The series of actual flows, which is filled during the simulation."""
 
     def __post_init__(self):
@@ -57,22 +54,22 @@ class Edge(DataType):
     @property
     def flows(self) -> pd.Series:
         """The series of actual flows, which is filled during the simulation."""
-        return self._flows.copy()
+        return pd.Series(self._flows, dtype=float, index=self._horizon[:self._info.step + 1])
 
     @property
     def key(self) -> EdgeID:
         return self.source.name, self.destination.name
 
-    def flow_at(self, index: Any) -> float:
+    def flow_at(self, step: int) -> float:
         """Returns the flow at the given index.
 
-        :param index:
+        :param step:
             The time step of the simulation.
 
         :return:
             The corresponding flow.
         """
-        return self._flows[index]
+        return self._flows[step]
 
     def update(self, flow: Flow):
         """Updates the simulation by checking the value of the flow and appending it to the internal history.
@@ -80,8 +77,8 @@ class Edge(DataType):
         :param flow:
             The random number generator to be used for reproducible results.
         """
-        index = self._step()
+        step = self._step()
         assert flow >= self.min_flow, f"Flow for edge {self.key} should be >= {self.min_flow}, got {flow}"
         assert flow <= self.max_flow, f"Flow for edge {self.key} should be <= {self.max_flow}, got {flow}"
         assert not self.integer or flow.is_integer(), f"Flow for edge {self.key} should be integer, got {flow}"
-        self._flows[index] = flow
+        self._flows[step] = flow
