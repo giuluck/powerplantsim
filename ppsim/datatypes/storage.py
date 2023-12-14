@@ -1,33 +1,16 @@
 from dataclasses import dataclass, field
-from typing import Set, Optional
+from typing import Set, Optional, List
 
 import numpy as np
 import pandas as pd
 from descriptors import classproperty
 
-from ppsim.datatypes.node import InternalNode, Node
-
-
-@dataclass(repr=False, eq=False, slots=True)
-class Storage(Node):
-    """A node in the plant that stores certain commodities and can be exposed to the user."""
-
-    capacity: float = field(kw_only=True)
-    """The storage capacity, which must be a strictly positive number."""
-
-    dissipation: float = field(kw_only=True)
-    """The dissipation rate of the storage at every time unit, which must be a float in [0, 1]."""
-
-    charge_rate: float = field(kw_only=True)
-    """The maximal charge rate (input flow) in a time unit."""
-
-    discharge_rate: float = field(kw_only=True)
-    """The maximal discharge rate (output flow) in a time unit."""
+from ppsim.datatypes.node import Node
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
-class InternalStorage(InternalNode):
-    """A node in the plant that stores certain commodities and is not exposed to the user."""
+class Storage(Node):
+    """A node in the plant that stores certain commodities."""
 
     commodity: str = field(kw_only=True)
     """The commodity stored by the machine."""
@@ -60,6 +43,11 @@ class InternalStorage(InternalNode):
     def kind(self) -> str:
         return 'storage'
 
+    @classproperty
+    def _properties(self) -> List[str]:
+        properties = super(Storage, self)._properties
+        return properties + ['capacity', 'dissipation', 'charge_rate', 'discharge_rate', 'storage']
+
     @property
     def storage(self) -> pd.Series:
         """The series of actual commodities storage, which is filled during the simulation."""
@@ -72,18 +60,6 @@ class InternalStorage(InternalNode):
     @property
     def commodities_out(self) -> Set[str]:
         return {self.commodity}
-
-    @property
-    def exposed(self) -> Storage:
-        return Storage(
-            name=self.name,
-            commodity_in=self.commodity_in,
-            commodities_out=self.commodities_out,
-            capacity=self.capacity,
-            dissipation=self.dissipation,
-            charge_rate=self.charge_rate,
-            discharge_rate=self.discharge_rate
-        )
 
     def update(self, rng: np.random.Generator):
         index = self._step()

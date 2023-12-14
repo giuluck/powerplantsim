@@ -4,8 +4,8 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 
-from ppsim.datatypes import InternalEdge, InternalNode, InternalMachine, InternalStorage, InternalCustomer, \
-    InternalPurchaser, InternalSupplier
+from ppsim.datatypes import Edge, Node, Machine, Storage, Customer, \
+    Purchaser, Supplier
 from ppsim.utils import EdgeID
 from ppsim.utils.typing import Plan, Flows
 
@@ -86,7 +86,7 @@ def default_action(index: Any, graph: nx.DiGraph) -> Flows:
     return {(source, destination): attributes['flow'] for source, destination, attributes in graph.edges(data=True)}
 
 
-def run_update(nodes: Iterable[InternalNode], edges: Iterable[InternalEdge], flows: Flows, rng: np.random.Generator):
+def run_update(nodes: Iterable[Node], edges: Iterable[Edge], flows: Flows, rng: np.random.Generator):
     """Performs a step update in the simulation.
 
     :param nodes:
@@ -107,7 +107,7 @@ def run_update(nodes: Iterable[InternalNode], edges: Iterable[InternalEdge], flo
         node.update(rng=rng)
 
 
-def build_output(nodes: Iterable[InternalNode], edges: Iterable[InternalEdge], horizon: pd.Index) -> SimulationOutput:
+def build_output(nodes: Iterable[Node], edges: Iterable[Edge], horizon: pd.Index) -> SimulationOutput:
     """Builds the output of the simulation.
 
     :param nodes:
@@ -126,15 +126,15 @@ def build_output(nodes: Iterable[InternalNode], edges: Iterable[InternalEdge], h
     for edge in edges:
         output.flows[edge.key] = edge.flows
     for node in nodes:
-        if isinstance(node, InternalMachine):
+        if isinstance(node, Machine):
             output.states[node.name] = node.states
-        elif isinstance(node, InternalStorage):
+        elif isinstance(node, Storage):
             output.storage[node.name] = node.storage
-        elif isinstance(node, InternalCustomer):
+        elif isinstance(node, Customer):
             output.demands[node.name] = node.values
-        elif isinstance(node, InternalPurchaser):
+        elif isinstance(node, Purchaser):
             output.buying_prices[node.name] = node.values
-        elif isinstance(node, InternalSupplier):
+        elif isinstance(node, Supplier):
             output.sell_prices[node.name] = node.values
         else:
             raise AssertionError(f"Unknown node type {type(node)}")

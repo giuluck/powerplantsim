@@ -1,43 +1,17 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Set, Optional, Callable
+from typing import Set, Optional, Callable, List
 
 import numpy as np
 import pandas as pd
 from descriptors import classproperty
 
-from ppsim.datatypes.datatype import InternalDataType, DataType
-
-
-@dataclass(repr=False, eq=False, slots=True)
-class Node(DataType):
-    """Public data class for an abstract node in the plant which can be exposed to the user."""
-
-    name: str = field(kw_only=True, repr=True)
-    """The name of the node."""
-
-    commodity_in: Optional[str] = field(kw_only=True)
-    """The (optional) input commodities that is accepted (can be at most one)."""
-
-    commodities_out: Set[str] = field(kw_only=True)
-    """The set of output commodities that is returned (can be more than one)."""
-
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(name='{self.name}')"
-
-
-@dataclass(repr=False, eq=False, slots=True)
-class VarianceNode(Node, ABC):
-    """A node in the plant that contains a series of predicted values and a variance model for a single commodity and
-    can be exposed to the user."""
-
-    predictions: pd.Series = field(kw_only=True)
-    """The series of predictions."""
+from ppsim.datatypes.datatype import DataType
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
-class InternalNode(InternalDataType, ABC):
-    """Data class for an abstract node in the plant which is not exposed to the user."""
+class Node(DataType, ABC):
+    """Data class for an abstract node in the plant."""
 
     name: str = field(kw_only=True)
     """The name of the node."""
@@ -54,6 +28,10 @@ class InternalNode(InternalDataType, ABC):
         """The node type."""
         pass
 
+    @classproperty
+    def _properties(self) -> List[str]:
+        return ['name', 'commodity_in', 'commodities_out']
+
     @property
     @abstractmethod
     def commodity_in(self) -> Optional[str]:
@@ -67,16 +45,11 @@ class InternalNode(InternalDataType, ABC):
         pass
 
     @property
-    @abstractmethod
-    def exposed(self) -> Node:
-        pass
-
-    @property
     def key(self) -> str:
         return self.name
 
     def _instance(self, other) -> bool:
-        return isinstance(other, InternalNode)
+        return isinstance(other, Node)
 
     @abstractmethod
     def update(self, rng: np.random.Generator):
@@ -102,9 +75,8 @@ class InternalNode(InternalDataType, ABC):
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
-class InternalVarianceNode(InternalNode, ABC):
-    """A node in the plant that contains a series of predicted values and a variance model for a single commodity and
-    is not exposed to the user."""
+class VarianceNode(Node, ABC):
+    """A node in the plant that contains a series of predicted values and a variance model for a single commodity."""
 
     commodity: str = field(kw_only=True)
     """The identifier of the commodity handled by the node."""

@@ -37,6 +37,11 @@ class TestDataType(unittest.TestCase):
         pass
 
     @abstractmethod
-    def test_exposed(self):
-        """Tests that the correct exposed version of the datatype is returned."""
+    def test_immutability(self):
+        """Tests that the internal mutable datatypes cannot be changed."""
+        pass
+
+    @abstractmethod
+    def test_dict(self):
+        """Tests that the correct dictionary of datatype properties is returned."""
         pass

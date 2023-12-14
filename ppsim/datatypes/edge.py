@@ -1,56 +1,18 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict
+from typing import Any, List
 
 import pandas as pd
+from descriptors import classproperty
 
-from ppsim.datatypes.datatype import InternalDataType, DataType
+from ppsim.datatypes.datatype import DataType
 from ppsim.datatypes.node import Node
 from ppsim.utils import EdgeID
 from ppsim.utils.typing import Flow
 
 
-@dataclass(repr=False, eq=False, slots=True)
-class Edge(DataType):
-    """An edge in the plant which can be exposed to the user."""
-
-    source: Node = field(kw_only=True)
-    """The source node."""
-
-    destination: Node = field(kw_only=True)
-    """The destination node."""
-
-    min_flow: float = field(kw_only=True)
-    """The minimal flow of commodity."""
-
-    max_flow: float = field(kw_only=True)
-    """The maximal flow of commodity."""
-
-    integer: bool = field(kw_only=True)
-    """Whether the flow must be integer or not."""
-
-    @property
-    def key(self) -> EdgeID:
-        return self.source.name, self.destination.name
-
-    @property
-    def commodity(self) -> str:
-        """The type of commodity that flows in the edge."""
-        return self.destination.commodity_in
-
-    @property
-    def dict(self) -> Dict[str, Any]:
-        # include commodity in the dictionary
-        output = super(Edge, self).dict
-        output['commodity'] = self.commodity
-        return output
-
-    def __repr__(self) -> str:
-        return f"Edge(source='{self.source.name}', destination='{self.destination.name}')"
-
-
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
-class InternalEdge(InternalDataType):
-    """An edge in the plant which is not exposed to the user."""
+class Edge(DataType):
+    """An edge in the plant."""
 
     source: Node = field(kw_only=True)
     """The source node."""
@@ -83,6 +45,10 @@ class InternalEdge(InternalDataType):
             f"Source node '{self.source.name}' should return commodity '{self.commodity}', " \
             f"but it returns {self.source.commodities_out}"
 
+    @classproperty
+    def _properties(self) -> List[str]:
+        return ['source', 'destination', 'commodity', 'min_flow', 'max_flow', 'integer', 'flows']
+
     @property
     def commodity(self) -> str:
         """The type of commodity that flows in the edge, which can be uniquely determined by the destination input."""
@@ -96,16 +62,6 @@ class InternalEdge(InternalDataType):
     @property
     def key(self) -> EdgeID:
         return self.source.name, self.destination.name
-
-    @property
-    def exposed(self) -> Edge:
-        return Edge(
-            source=self.source,
-            destination=self.destination,
-            min_flow=self.min_flow,
-            max_flow=self.max_flow,
-            integer=self.integer
-        )
 
     def flow_at(self, index: Any) -> float:
         """Returns the flow at the given index.

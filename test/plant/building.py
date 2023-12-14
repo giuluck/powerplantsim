@@ -38,8 +38,8 @@ class TestPlantBuilding(unittest.TestCase):
             self.assertEqual(s.name, f'sup_{i}', msg="Wrong name for supplier")
             self.assertIsNone(s.commodity_in, msg="Wrong input commodity for supplier")
             self.assertSetEqual(s.commodities_out, {'in'}, msg="Wrong output commodity for supplier")
-            self.assertListEqual(list(s.prices.index), list(p.horizon), msg="Wrong prices index for supplier")
-            self.assertListEqual(list(s.prices.values), prices, msg="Wrong prices for supplier")
+            self.assertListEqual(list(s.predictions.index), list(p.horizon), msg="Wrong predictions index for supplier")
+            self.assertListEqual(list(s.predictions.values), prices, msg="Wrong predictions for supplier")
 
     def test_add_client(self):
         p: Plant = PLANT.copy()
@@ -87,12 +87,16 @@ class TestPlantBuilding(unittest.TestCase):
             for pur in [True, False]:
                 klass, kind = (Purchaser, 'purchaser') if pur else (Customer, 'customer')
                 c = p.add_client(name=f'{kind}_{i}', commodity='out', parents='mac', predictions=dmn, purchaser=pur)
-                self.assertIsInstance(c, klass, msg=f"Wrong exposed type for {kind}")
+                self.assertIsInstance(c, klass, msg=f"Wrong type for {kind}")
                 self.assertEqual(c.name, f'{kind}_{i}', msg=f"Wrong name for {kind}")
                 self.assertEqual(c.commodity_in, 'out', msg=f"Wrong input commodity for {kind}")
                 self.assertSetEqual(c.commodities_out, set(), msg=f"Wrong output commodity for {kind}")
-                self.assertListEqual(list(c.predictions.index), list(p.horizon), msg=f"Wrong demands index for {kind}")
-                self.assertListEqual(list(c.predictions.values), demands, msg=f"Wrong demands for {kind}")
+                self.assertListEqual(
+                    list(c.predictions.index),
+                    list(p.horizon),
+                    msg=f"Wrong predictions index for {kind}"
+                )
+                self.assertListEqual(list(c.predictions.values), demands, msg=f"Wrong predictions for {kind}")
         # test edge properties
         p.add_client(name='c', commodity='out', parents='mac', predictions=1.)
         e = p.edges(destinations='c')['edge'].values[0]

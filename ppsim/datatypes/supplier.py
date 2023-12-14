@@ -1,29 +1,34 @@
 from dataclasses import dataclass
-from typing import Set, Optional
+from typing import Set, Optional, List
 
 import pandas as pd
 from descriptors import classproperty
 
-from ppsim.datatypes.node import InternalVarianceNode, VarianceNode
-
-
-@dataclass(repr=False, eq=False, slots=True)
-class Supplier(VarianceNode):
-    """A node in the plant that can supply a unique commodity and can be exposed to the user."""
-
-    @property
-    def prices(self) -> pd.Series:
-        """The series of predicted selling prices (alias for predictions)."""
-        return self.predictions
+from ppsim.datatypes.node import VarianceNode
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
-class InternalSupplier(InternalVarianceNode):
-    """A node in the plant that can supply a unique commodity and is not exposed to the user."""
+class Supplier(VarianceNode):
+    """A node in the plant that can supply a unique commodity."""
 
     @classproperty
     def kind(self) -> str:
         return 'supplier'
+
+    @classproperty
+    def _properties(self) -> List[str]:
+        properties = super(VarianceNode, self)._properties
+        return properties + ['predicted_prices', 'prices']
+
+    @property
+    def predicted_prices(self) -> pd.Series:
+        """The series of predicted selling prices."""
+        return self.predictions
+
+    @property
+    def prices(self) -> pd.Series:
+        """The series of actual selling prices, which is filled during the simulation."""
+        return self.values
 
     @property
     def commodity_in(self) -> Optional[str]:
@@ -32,12 +37,3 @@ class InternalSupplier(InternalVarianceNode):
     @property
     def commodities_out(self) -> Set[str]:
         return {self.commodity}
-
-    @property
-    def exposed(self) -> Supplier:
-        return Supplier(
-            name=self.name,
-            commodity_in=self.commodity_in,
-            commodities_out=self.commodities_out,
-            predictions=self._predictions.copy()
-        )

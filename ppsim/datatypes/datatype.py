@@ -1,62 +1,16 @@
 from abc import abstractmethod, ABC
 from dataclasses import dataclass, field
-from typing import Any, Dict
+from typing import Any, Dict, List
 
-import numpy as np
 import pandas as pd
+from descriptors import classproperty
 
 from ppsim import utils
 
 
-@dataclass(repr=False, eq=False, slots=True)
-class DataType(ABC):
-    """Abstract class that defines a datatype which can be exposed to the user."""
-
-    @property
-    def dict(self) -> Dict[str, Any]:
-        """A dictionary containing all the information of the datatype object indexed via property name."""
-        return {param: getattr(self, param) for param in self.__slots__}
-
-    def __eq__(self, other: Any) -> bool:
-        # if the two classes are not exactly the same, return False
-        # (use the '==' operator instead of the 'instanceof' operator to avoid subclasses matching)
-        if self.__class__ != other.__class__:
-            return False
-        # continue with checking equality among all the parameters of the dataclass
-        # (implement specific checks for pandas datatypes)
-        for param in self.__slots__:
-            p1 = getattr(self, param)
-            p2 = getattr(other, param)
-            # COMPUTE EQUALITY
-            if isinstance(p1, np.ndarray) and isinstance(p2, np.ndarray):
-                # for numpy arrays, check equal shape first, then equality among values
-                equal = p1.shape == p2.shape and np.all(p1 == p2)
-            elif isinstance(p1, pd.Index) and isinstance(p2, pd.Index):
-                # for pandas indices, check equal shape first, then equality among values
-                equal = p1.shape == p2.shape and np.all(p1.values == p2.values)
-            elif isinstance(p1, pd.Series) and isinstance(p2, pd.Series):
-                # for pandas series, check equal shape first, then equality among index and values
-                equal = p1.shape == p2.shape and np.all(p1.index == p2.index) and np.all(p1.values == p2.values)
-            elif isinstance(p1, pd.DataFrame) and isinstance(p2, pd.DataFrame):
-                # for pandas dataframes, check equal shape first, then equality among index, column, and values
-                equal = p1.shape == p2.shape and \
-                        np.all(p1.index == p2.index) and \
-                        np.all(p1.columns == p2.columns) and \
-                        np.all(p1.values == p2.values)
-            else:
-                # for different object types, check that the class is the same then check for equality
-                equal = p1.__class__ == p2.__class__ and p1 == p2
-            # CHECK EQUALITY
-            # if the two objects are not equal, stop the check
-            if not equal:
-                return False
-        # if the loop was not stopped, the two objects are equal
-        return True
-
-
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
-class InternalDataType(ABC):
-    """Abstract class that defines a datatype which is not exposed to the user and has a unique key for comparison."""
+class DataType(ABC):
+    """Abstract class that defines a datatype and has a unique key for comparison."""
 
     @dataclass
     class _InternalInfo:
@@ -66,16 +20,16 @@ class InternalDataType(ABC):
     _info: _InternalInfo = field(init=False, default_factory=_InternalInfo)
     """Internal mutable simulation info."""
 
-    @property
+    @classproperty
     @abstractmethod
-    def key(self):
-        """An identifier of the object."""
+    def _properties(self) -> List[str]:
+        """The list of public properties of the datatype."""
         pass
 
     @property
     @abstractmethod
-    def exposed(self) -> DataType:
-        """The public datatype that can be exposed to the user."""
+    def key(self):
+        """An identifier of the object."""
         pass
 
     @property
@@ -88,6 +42,11 @@ class InternalDataType(ABC):
     def _index(self):
         """The current index of the simulation as for the given time horizon."""
         return self._horizon[self._info.step]
+
+    @property
+    def dict(self) -> Dict[str, Any]:
+        """A dictionary containing all the information of the datatype object indexed via property name."""
+        return {param: getattr(self, param) for param in self._properties}
 
     def _step(self):
         """Checks and updates the internal simulation details.

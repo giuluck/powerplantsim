@@ -1,57 +1,17 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Set, Optional
+from typing import Set, Optional, List
 
 import numpy as np
 import pandas as pd
 from descriptors import classproperty
 
-from ppsim.datatypes.node import VarianceNode, InternalVarianceNode
-
-
-@dataclass(repr=False, eq=False, slots=True)
-class Client(VarianceNode, ABC):
-    """A node in the plant that buys/asks for a unique commodity and can be exposed to the user."""
-
-    @classproperty
-    @abstractmethod
-    def purchaser(self) -> bool:
-        """Whether the client node buys the commodity at a given price (series = prices) or requires that an exact
-        amount of commodities is sent to it according to its demands (series = demands)."""
-        pass
-
-
-@dataclass(repr=False, eq=False, slots=True)
-class Customer(Client):
-    """A node in the plant that asks for a unique commodity and can be exposed to the user."""
-
-    @classproperty
-    def purchaser(self) -> bool:
-        return False
-
-    @property
-    def demands(self) -> pd.Series:
-        """The series of predicted demands (alias for predictions)."""
-        return self.predictions
-
-
-@dataclass(repr=False, eq=False, slots=True)
-class Purchaser(Client):
-    """A node in the plant that buys a unique commodity and can be exposed to the user."""
-
-    @classproperty
-    def purchaser(self) -> bool:
-        return True
-
-    @property
-    def prices(self) -> pd.Series:
-        """The series of predicted buying prices (alias for predictions)."""
-        return self.predictions
+from ppsim.datatypes.node import VarianceNode
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
-class InternalClient(InternalVarianceNode, ABC):
-    """A node in the plant that buys/asks for a unique commodity and is not exposed to the user."""
+class Client(VarianceNode, ABC):
+    """A node in the plant that buys/asks for a unique commodity."""
 
     @classproperty
     @abstractmethod
@@ -74,21 +34,27 @@ class InternalClient(InternalVarianceNode, ABC):
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
-class InternalCustomer(InternalClient):
-    """A node in the plant that asks for a unique commodity and is not exposed to the user."""
+class Customer(Client):
+    """A node in the plant that asks for a unique commodity."""
 
     @classproperty
     def purchaser(self) -> bool:
         return False
 
+    @classproperty
+    def _properties(self) -> List[str]:
+        properties = super(VarianceNode, self)._properties
+        return properties + ['predicted_demands', 'demands']
+
     @property
-    def exposed(self) -> Customer:
-        return Customer(
-            name=self.name,
-            commodity_in=self.commodity_in,
-            commodities_out=self.commodities_out,
-            predictions=self._predictions.copy()
-        )
+    def predicted_demands(self) -> pd.Series:
+        """The series of predicted demands."""
+        return self.predictions
+
+    @property
+    def demands(self) -> pd.Series:
+        """The series of actual demands, which is filled during the simulation."""
+        return self.values
 
     def update(self, rng: np.random.Generator):
         index = self._step()
@@ -100,18 +66,24 @@ class InternalCustomer(InternalClient):
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
-class InternalPurchaser(InternalClient):
-    """A node in the plant that buys a unique commodity and is not exposed to the user."""
+class Purchaser(Client):
+    """A node in the plant that buys a unique commodity."""
 
     @classproperty
     def purchaser(self) -> bool:
         return True
 
+    @classproperty
+    def _properties(self) -> List[str]:
+        properties = super(VarianceNode, self)._properties
+        return properties + ['predicted_prices', 'prices']
+
     @property
-    def exposed(self) -> Purchaser:
-        return Purchaser(
-            name=self.name,
-            commodity_in=self.commodity_in,
-            commodities_out=self.commodities_out,
-            predictions=self._predictions.copy()
-        )
+    def predicted_prices(self) -> pd.Series:
+        """The series of predicted buying prices."""
+        return self.predictions
+
+    @property
+    def prices(self) -> pd.Series:
+        """The series of actual buying prices, which is filled during the simulation."""
+        return self.values

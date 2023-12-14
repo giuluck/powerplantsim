@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 
 from ppsim import utils
-from ppsim.datatypes import InternalNode, InternalClient, InternalMachine, InternalSupplier, InternalEdge, \
-    InternalStorage, Supplier, Client, Machine, Storage, Node, InternalPurchaser, InternalCustomer
+from ppsim.datatypes import Node, Client, Machine, Supplier, Edge, \
+    Storage, Purchaser, Customer
 from ppsim.plant import drawing, execution
 from ppsim.utils import EdgeID
 from ppsim.utils.typing import Plan, Flows, Setpoint
@@ -35,8 +35,8 @@ class Plant:
         self._rng: np.random.Generator = np.random.default_rng(seed=seed)
         self._horizon: pd.Index = horizon
         self._commodities: Set[str] = set()
-        self._nodes: Dict[str, InternalNode] = dict()
-        self._edges: Dict[EdgeID, InternalEdge] = dict()
+        self._nodes: Dict[str, Node] = dict()
+        self._edges: Dict[EdgeID, Edge] = dict()
 
     @property
     def horizon(self) -> pd.Index:
@@ -50,22 +50,22 @@ class Plant:
     @property
     def suppliers(self) -> Dict[str, Supplier]:
         """The supplier nodes in the plant."""
-        return {name: node.exposed for name, node in self._nodes.items() if isinstance(node, InternalSupplier)}
+        return {name: node for name, node in self._nodes.items() if isinstance(node, Supplier)}
 
     @property
     def clients(self) -> Dict[str, Client]:
         """The client nodes in the plant."""
-        return {name: node.exposed for name, node in self._nodes.items() if isinstance(node, InternalClient)}
+        return {name: node for name, node in self._nodes.items() if isinstance(node, Client)}
 
     @property
     def machines(self) -> Dict[str, Machine]:
         """The machine nodes in the plant."""
-        return {name: node.exposed for name, node in self._nodes.items() if isinstance(node, InternalMachine)}
+        return {name: node for name, node in self._nodes.items() if isinstance(node, Machine)}
 
     @property
     def storages(self) -> Dict[str, Storage]:
         """The storage nodes in the plant."""
-        return {name: node.exposed for name, node in self._nodes.items() if isinstance(node, InternalStorage)}
+        return {name: node for name, node in self._nodes.items() if isinstance(node, Storage)}
 
     def nodes(self, indexed: bool = False) -> Union[Dict[str, Dict[str, Node]], Dict[str, Node]]:
         """Returns the nodes in the plant.
@@ -80,10 +80,10 @@ class Plant:
             output = {}
             for name, node in self._nodes.items():
                 sub_dict = output.get(node.kind, dict())
-                sub_dict[name] = node.exposed
+                sub_dict[name] = node
                 output[node.kind] = sub_dict
         else:
-            output = {name: node.exposed for name, node in self._nodes.items()}
+            output = {name: node for name, node in self._nodes.items()}
         return output
 
     def edges(self,
@@ -111,7 +111,7 @@ class Plant:
         check_edge = utils.get_filtering_function(user_input=commodities)
         # build data structure containing all the necessary information
         edges = [
-            (s, d, e.commodity, e.exposed)
+            (s, d, e.commodity, e)
             for (s, d), e in self._edges.items()
             if check_sour(s) and check_dest(d) and check_edge(e.commodity)
         ]
@@ -129,9 +129,9 @@ class Plant:
         g = nx.DiGraph()
         if attributes:
             for name, node in self._nodes.items():
-                g.add_node(name, **node.exposed.dict)
+                g.add_node(name, **node.dict)
             for (source, destination), edge in self._edges.items():
-                g.add_edge(source, destination, **edge.exposed.dict)
+                g.add_edge(source, destination, **edge.dict)
         else:
             g.add_nodes_from(self._nodes.keys())
             g.add_edges_from(self._edges.keys())
@@ -150,7 +150,7 @@ class Plant:
         return copy
 
     def _check_and_update(self,
-                          node: InternalNode,
+                          node: Node,
                           parents: Union[None, str, Iterable[str]],
                           min_flow: Optional[float],
                           max_flow: Optional[float],
@@ -176,9 +176,9 @@ class Plant:
                 f"Parent node '{parent.name}' should return commodity '{node.commodity_in}', " \
                 f"but it returns {parent.commodities_out}"
             # create an edge instance using the parent as source and the new node as destination
-            edge = InternalEdge(
-                source=parent.exposed,
-                destination=node.exposed,
+            edge = Edge(
+                source=parent,
+                destination=node,
                 min_flow=min_flow,
                 max_flow=max_flow,
                 integer=integer,
@@ -224,9 +224,9 @@ class Plant:
         # convert prices to a standard format (pd.Series)
         predictions = pd.Series(predictions, dtype=float, index=self._horizon)
         # create an internal supplier node and add it to the internal data structure and the graph
-        supplier = InternalSupplier(name=name, commodity=commodity, _predictions=predictions, _variance_fn=variance)
+        supplier = Supplier(name=name, commodity=commodity, _predictions=predictions, _variance_fn=variance)
         self._check_and_update(node=supplier, parents=None, min_flow=None, max_flow=None, integer=None)
-        return supplier.exposed
+        return supplier
 
     def add_client(self,
                    name: str,
@@ -273,11 +273,11 @@ class Plant:
         predictions = pd.Series(predictions, dtype=float, index=self._horizon)
         # create an internal client node (with specified type) and add it to the internal data structure and the graph
         if purchaser:
-            client = InternalPurchaser(name=name, commodity=commodity, _predictions=predictions, _variance_fn=variance)
+            client = Purchaser(name=name, commodity=commodity, _predictions=predictions, _variance_fn=variance)
         else:
-            client = InternalCustomer(name=name, commodity=commodity, _predictions=predictions, _variance_fn=variance)
+            client = Customer(name=name, commodity=commodity, _predictions=predictions, _variance_fn=variance)
         self._check_and_update(node=client, parents=parents, min_flow=0.0, max_flow=float('inf'), integer=False)
-        return client.exposed
+        return client
 
     def add_machine(self,
                     name: str,
@@ -333,7 +333,7 @@ class Plant:
         if isinstance(setpoint, dict):
             setpoint = pd.DataFrame(setpoint).set_index('setpoint')
         # create an internal machine node and add it to the internal data structure and the graph
-        machine = InternalMachine(
+        machine = Machine(
             name=name,
             _setpoint=setpoint,
             commodity=commodity,
@@ -343,7 +343,7 @@ class Plant:
             _horizon=self.horizon
         )
         self._check_and_update(node=machine, parents=parents, min_flow=min_flow, max_flow=max_flow, integer=integer)
-        return machine.exposed
+        return machine
 
     def add_storage(self,
                     name: str,
@@ -390,7 +390,7 @@ class Plant:
         """
         charge_rate, discharge_rate = rates if isinstance(rates, tuple) else (rates, rates)
         # create an internal machine node and add it to the internal data structure and the graph
-        storage = InternalStorage(
+        storage = Storage(
             name=name,
             commodity=commodity,
             capacity=capacity,
@@ -400,7 +400,7 @@ class Plant:
             _horizon=self.horizon
         )
         self._check_and_update(node=storage, parents=parents, min_flow=min_flow, max_flow=max_flow, integer=integer)
-        return storage.exposed
+        return storage
 
     def draw(self,
              figsize: Tuple[int, int] = (16, 9),

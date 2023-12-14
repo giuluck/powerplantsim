@@ -1,34 +1,16 @@
 from dataclasses import dataclass, field
-from typing import Set, Optional, Tuple
+from typing import Set, Optional, Tuple, List
 
 import numpy as np
 import pandas as pd
 from descriptors import classproperty
 
-from ppsim.datatypes.node import InternalNode, Node
-
-
-@dataclass(repr=False, eq=False, slots=True)
-class Machine(Node):
-    """A node in the plant that converts certain commodities in other and can be exposed to the user."""
-
-    setpoint: pd.DataFrame = field(kw_only=True)
-    """A pandas dataframe where the index is a series of floating point values that indicate the input commodity flow,
-    while the columns should be named after the output commodity and contain the respective output flows."""
-
-    discrete_setpoint: bool = field(kw_only=True)
-    """Whether the setpoint is discrete or continuous."""
-
-    max_starting: Optional[Tuple[int, int]] = field(kw_only=True)
-    """A tuple <N, T> where N is the maximal number of times that the machine can be switched on in T units."""
-
-    cost: float = field(kw_only=True)
-    """The cost for operating the machine (cost is discarded when the machine is off)."""
+from ppsim.datatypes.node import Node
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
-class InternalMachine(InternalNode):
-    """A node in the plant that converts certain commodities in other and is not exposed to the user."""
+class Machine(Node):
+    """A node in the plant that converts certain commodities in other."""
 
     commodity: str = field(kw_only=True)
     """The input commodity of the machine."""
@@ -74,6 +56,11 @@ class InternalMachine(InternalNode):
     def kind(self) -> str:
         return 'machine'
 
+    @classproperty
+    def _properties(self) -> List[str]:
+        properties = super(Machine, self)._properties
+        return properties + ['setpoint', 'discrete_setpoint', 'max_starting', 'cost', 'states']
+
     @property
     def states(self) -> pd.Series:
         """The series of actual input setpoints (NaN for machine off), which is filled during the simulation."""
@@ -92,18 +79,6 @@ class InternalMachine(InternalNode):
     @property
     def commodities_out(self) -> Set[str]:
         return set(self._setpoint.columns)
-
-    @property
-    def exposed(self) -> Machine:
-        return Machine(
-            name=self.name,
-            commodity_in=self.commodity_in,
-            commodities_out=self.commodities_out,
-            setpoint=self._setpoint.copy(),
-            discrete_setpoint=self.discrete_setpoint,
-            max_starting=self.max_starting,
-            cost=self.cost
-        )
 
     def update(self, rng: np.random.Generator):
         index = self._step()

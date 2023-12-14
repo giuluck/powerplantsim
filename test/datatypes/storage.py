@@ -1,7 +1,7 @@
-from ppsim.datatypes import InternalStorage, Storage
+from ppsim.datatypes import Storage
 from test.datatypes.datatype import TestDataType, HORIZON
 
-STORAGE = InternalStorage(
+STORAGE = Storage(
     name='s',
     commodity='s_com',
     capacity=100.0,
@@ -19,7 +19,7 @@ class TestStorage(TestDataType):
 
     def test_inputs(self):
         # test correct dissipation
-        InternalStorage(
+        Storage(
             name='s',
             commodity='s_com',
             capacity=100,
@@ -28,7 +28,7 @@ class TestStorage(TestDataType):
             discharge_rate=10.0,
             _horizon=HORIZON
         )
-        InternalStorage(
+        Storage(
             name='s',
             commodity='s_com',
             capacity=100,
@@ -37,7 +37,7 @@ class TestStorage(TestDataType):
             discharge_rate=10.0,
             _horizon=HORIZON
         )
-        InternalStorage(
+        Storage(
             name='s',
             commodity='s_com',
             capacity=100,
@@ -48,7 +48,7 @@ class TestStorage(TestDataType):
         )
         # test incorrect dissipation
         with self.assertRaises(AssertionError, msg="Out of bound dissipation should raise exception") as e:
-            InternalStorage(
+            Storage(
                 name='s',
                 commodity='s_com',
                 capacity=100,
@@ -63,7 +63,7 @@ class TestStorage(TestDataType):
             msg='Wrong exception message returned for out of bound dissipation on storage'
         )
         with self.assertRaises(AssertionError, msg="Out of bound dissipation should raise exception") as e:
-            InternalStorage(
+            Storage(
                 name='s',
                 commodity='s_com',
                 capacity=100,
@@ -79,7 +79,7 @@ class TestStorage(TestDataType):
         )
         # test incorrect capacity
         with self.assertRaises(AssertionError, msg="Null capacity should raise exception") as e:
-            InternalStorage(
+            Storage(
                 name='s',
                 commodity='s_com',
                 capacity=0.0,
@@ -94,7 +94,7 @@ class TestStorage(TestDataType):
             msg='Wrong exception message returned for null capacity on storage'
         )
         with self.assertRaises(AssertionError, msg="Negative capacity should raise exception") as e:
-            InternalStorage(
+            Storage(
                 name='s',
                 commodity='s_com',
                 capacity=-10.0,
@@ -111,7 +111,7 @@ class TestStorage(TestDataType):
 
     def test_hashing(self):
         # test equal hash
-        s_equal = InternalStorage(
+        s_equal = Storage(
             name='s',
             commodity='s_com_2',
             capacity=50.0,
@@ -122,7 +122,7 @@ class TestStorage(TestDataType):
         )
         self.assertEqual(STORAGE, s_equal, msg="Nodes with the same name should be considered equal")
         # test different hash
-        s_diff = InternalStorage(
+        s_diff = Storage(
             name='sd',
             commodity='s_com',
             capacity=100,
@@ -139,17 +139,14 @@ class TestStorage(TestDataType):
         self.assertEqual(STORAGE.commodity_in, 's_com', msg="Wrong storage inputs stored")
         self.assertSetEqual(STORAGE.commodities_out, {'s_com'}, msg="Wrong storage outputs stored")
 
-    def test_exposed(self):
-        s = STORAGE.exposed
-        self.assertIsInstance(s, Storage, msg="Wrong exposed type")
-        # test stored information
-        self.assertEqual(s.name, 's', msg="Wrong exposed name")
-        self.assertEqual(s.commodity_in, 's_com', msg="Wrong exposed inputs")
-        self.assertSetEqual(s.commodities_out, {'s_com'}, msg="Wrong exposed outputs")
-        self.assertEqual(s.capacity, 100.0, msg='Wrong exposed capacity')
-        self.assertEqual(s.dissipation, 1.0, msg='Wrong exposed dissipation')
-        # test dict
-        self.assertEqual(s.dict, {
+    def test_immutability(self):
+        STORAGE.storage[0] = 5.0
+        self.assertEqual(len(STORAGE.storage), 0, msg="Storage storage should be immutable")
+
+    def test_dict(self):
+        s_dict = STORAGE.dict
+        s_storage = s_dict.pop('storage')
+        self.assertEqual(s_dict, {
             'name': 's',
             'commodity_in': 's_com',
             'commodities_out': {'s_com'},
@@ -157,4 +154,5 @@ class TestStorage(TestDataType):
             'capacity': 100.0,
             'charge_rate': 10.0,
             'discharge_rate': 10.0,
-        }, msg='Wrong dictionary returned for exposed storage')
+        }, msg='Wrong dictionary returned for storage')
+        self.assertDictEqual(s_storage.to_dict(), {}, msg='Wrong dictionary returned for storage')

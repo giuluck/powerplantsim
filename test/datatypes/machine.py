@@ -1,7 +1,7 @@
-from ppsim.datatypes import InternalMachine, Machine
+from ppsim.datatypes import Machine
 from test.datatypes.datatype import TestDataType, SETPOINT, HORIZON
 
-MACHINE = InternalMachine(
+MACHINE = Machine(
     name='m',
     commodity='in_com',
     _setpoint=SETPOINT,
@@ -26,7 +26,7 @@ class TestMachine(TestDataType):
     def test_inputs(self):
         # test incorrect cost
         with self.assertRaises(AssertionError, msg="Negative cost should raise exception") as e:
-            InternalMachine(
+            Machine(
                 name='m',
                 commodity='in_com',
                 _setpoint=SETPOINT,
@@ -42,7 +42,7 @@ class TestMachine(TestDataType):
         )
         # test incorrect max starting
         with self.assertRaises(AssertionError, msg="Negative max starting should raise exception") as e:
-            InternalMachine(
+            Machine(
                 name='m',
                 commodity='in_com',
                 _setpoint=SETPOINT,
@@ -57,7 +57,7 @@ class TestMachine(TestDataType):
             msg='Wrong exception message returned for negative max starting on machine'
         )
         with self.assertRaises(AssertionError, msg="Null max starting should raise exception") as e:
-            InternalMachine(
+            Machine(
                 name='m',
                 commodity='in_com',
                 _setpoint=SETPOINT,
@@ -73,7 +73,7 @@ class TestMachine(TestDataType):
         )
 
         with self.assertRaises(AssertionError, msg="Max starting lower than time steps should raise exception") as e:
-            InternalMachine(
+            Machine(
                 name='m',
                 commodity='in_com',
                 _setpoint=SETPOINT,
@@ -90,7 +90,7 @@ class TestMachine(TestDataType):
         # test incorrect index setpoint (null input flow should not raise exception anymore)
         sp2 = SETPOINT.copy()
         sp2.index = [50.0, 0.0, 100.0]
-        InternalMachine(
+        Machine(
             name='m',
             commodity='in_com',
             _setpoint=sp2,
@@ -101,7 +101,7 @@ class TestMachine(TestDataType):
         )
         sp2.index = [50.0, -1.0, 100.0]
         with self.assertRaises(AssertionError, msg="Negative input flows in setpoint should raise exception") as e:
-            InternalMachine(
+            Machine(
                 name='m',
                 commodity='in_com',
                 _setpoint=sp2,
@@ -119,7 +119,7 @@ class TestMachine(TestDataType):
         sp2 = SETPOINT.copy()
         sp2['out_com_1'] = [-1.0, 0.0, 0.5]
         with self.assertRaises(AssertionError, msg="Negative output flows in setpoint should raise exception") as e:
-            InternalMachine(
+            Machine(
                 name='m',
                 commodity='in_com',
                 _setpoint=sp2,
@@ -136,7 +136,7 @@ class TestMachine(TestDataType):
         sp2 = SETPOINT.copy()
         sp2['out_com_2'] = [60.0, -10.0, 30.0]
         with self.assertRaises(AssertionError, msg="Negative output flows in setpoint should raise exception") as e:
-            InternalMachine(
+            Machine(
                 name='m',
                 commodity='in_com',
                 _setpoint=sp2,
@@ -153,7 +153,7 @@ class TestMachine(TestDataType):
 
     def test_hashing(self):
         # test equal hash
-        m_equal = InternalMachine(
+        m_equal = Machine(
             name='m',
             commodity='in_com_2',
             _setpoint=SETPOINT.copy(),
@@ -164,7 +164,7 @@ class TestMachine(TestDataType):
         )
         self.assertEqual(MACHINE, m_equal, msg="Nodes with the same name should be considered equal")
         # test different hash
-        m_diff = InternalMachine(
+        m_diff = Machine(
             name='md',
             commodity='in_com',
             _setpoint=SETPOINT,
@@ -186,20 +186,17 @@ class TestMachine(TestDataType):
         )
         self.assertDictEqual(MACHINE.setpoint.to_dict(), SETPOINT.to_dict(), msg='Wrong setpoint stored')
 
-    def test_exposed(self):
-        m = MACHINE.exposed
-        self.assertIsInstance(m, Machine, msg="Wrong exposed type")
-        # test stored information
-        self.assertEqual(m.name, 'm', msg="Wrong exposed name")
-        self.assertEqual(m.commodity_in, 'in_com', msg="Wrong exposed inputs")
-        self.assertSetEqual(m.commodities_out, {'out_com_1', 'out_com_2'}, msg="Wrong exposed outputs")
-        self.assertDictEqual(m.setpoint.to_dict(), SETPOINT.to_dict(), msg='Wrong exposed setpoint')
-        self.assertEqual(m.cost, 0.0, msg='Wrong exposed cost')
-        self.assertIsNone(m.max_starting, msg='Wrong exposed max starting')
-        self.assertFalse(m.discrete_setpoint, msg='Wrong exposed discrete setpoint')
-        # test dict (setpoint need to be tested separately due to errors in the equality check)
-        m_dict = m.dict
-        m_set = m_dict.pop('setpoint')
+    def test_immutability(self):
+        MACHINE.states[0] = 5.0
+        MACHINE.setpoint.iloc[0, 0] = 5.0
+        self.assertEqual(len(MACHINE.states), 0, msg="Machine states should be immutable")
+        self.assertEqual(MACHINE.setpoint.iloc[0, 0], 0.0, msg="Machine setpoint should be immutable")
+
+    def test_dict(self):
+        # pandas series and dataframes need to be tested separately due to errors in the equality check
+        m_dict = MACHINE.dict
+        m_states = m_dict.pop('states')
+        m_setpoint = m_dict.pop('setpoint')
         self.assertEqual(m_dict, {
             'name': 'm',
             'commodity_in': 'in_com',
@@ -207,12 +204,9 @@ class TestMachine(TestDataType):
             'discrete_setpoint': False,
             'max_starting': None,
             'cost': 0
-        }, msg='Wrong dictionary returned for exposed machine')
-        self.assertDictEqual(m_set.to_dict(), SETPOINT.to_dict(), msg='Wrong dictionary returned for exposed machine')
-        # test immutability of mutable types
-        m.setpoint.iloc[0, 0] = 5.0
-        self.assertEqual(m.setpoint.iloc[0, 0], 5.0, msg="Exposed setpoint should be mutable")
-        self.assertEqual(MACHINE.setpoint.iloc[0, 0], 0.0, msg="Internal setpoint should be immutable")
+        }, msg='Wrong dictionary returned for machine')
+        self.assertDictEqual(m_states.to_dict(), {}, msg='Wrong dictionary returned for machine')
+        self.assertDictEqual(m_setpoint.to_dict(), SETPOINT.to_dict(), msg='Wrong dictionary returned for machine')
 
 # def test_operation(self):
 #     # test discrete setpoint
