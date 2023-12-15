@@ -1,11 +1,10 @@
-from typing import Set, Iterable, Any, Union
+from typing import Iterable, Any, Union
 
 import networkx as nx
 import numpy as np
 import pandas as pd
 
-from ppsim.datatypes import Edge, Node, Machine, Storage, Customer, \
-    Purchaser, Supplier
+from ppsim.datatypes import Edge, Node, Machine, Storage, Customer, Purchaser, Supplier
 from ppsim.utils import EdgeID
 from ppsim.utils.typing import Plan, Flows
 
@@ -37,7 +36,7 @@ class SimulationOutput:
         """The true selling prices indexed by supplier name."""
 
 
-def process_plan(plan: Union[Plan, pd.DataFrame], edges: Set[EdgeID], horizon: pd.Index) -> pd.DataFrame:
+def process_plan(plan: Union[Plan, pd.DataFrame], edges: Iterable[EdgeID], horizon: pd.Index) -> pd.DataFrame:
     """Checks that the given plan is correctly specified and converts it to a standard format.
 
     :param plan:
@@ -52,6 +51,7 @@ def process_plan(plan: Union[Plan, pd.DataFrame], edges: Set[EdgeID], horizon: p
     :return:
         The energetic plan in standard format.
     """
+    edges = set(edges)
     # convert dictionary to dataframe if needed, and check consistency of flow vectors
     if isinstance(plan, dict):
         df = pd.DataFrame(index=horizon)

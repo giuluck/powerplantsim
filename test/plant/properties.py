@@ -117,39 +117,34 @@ class TestPlantProperties(unittest.TestCase):
     def test_edges(self):
         """Tests that the edges in the structure are correctly stored and returned."""
         # test plant 1
-        edges = PLANT_1.edges().set_index(['source', 'destination', 'commodity'])['edge'].to_dict()
-        self.assertDictEqual(edges, {}, msg='Wrong edges returned on plant 1')
+        self.assertDictEqual(PLANT_1.edges(), {}, msg='Wrong edges returned on plant 1')
         # test plant 2
-        edges = PLANT_2.edges().set_index(['source', 'destination', 'commodity'])['edge'].to_dict()
-        self.assertDictEqual(edges, {
-            ('sup', 'mac', 'in'): EDGE_1,
-            ('mac', 'sto', 'out'): EDGE_2,
-            ('mac', 'cli', 'out'): EDGE_3,
-            ('sto', 'cli', 'out'): EDGE_4
+        self.assertDictEqual(PLANT_2.edges(), {
+            ('sup', 'mac'): EDGE_1,
+            ('mac', 'sto'): EDGE_2,
+            ('mac', 'cli'): EDGE_3,
+            ('sto', 'cli'): EDGE_4
         }, msg='Wrong edges returned on plant 2')
         # test edges filtering operations
-        edges = PLANT_2.edges(sources='mac').set_index(['source', 'destination', 'commodity'])['edge'].to_dict()
-        self.assertDictEqual(edges, {
-            ('mac', 'sto', 'out'): EDGE_2,
-            ('mac', 'cli', 'out'): EDGE_3,
+        self.assertDictEqual(PLANT_2.edges(sources='mac'), {
+            ('mac', 'sto'): EDGE_2,
+            ('mac', 'cli'): EDGE_3,
         }, msg='Wrong edges returned on filtering by source')
-        edges = PLANT_2.edges(destinations='cli').set_index(['source', 'destination', 'commodity'])['edge'].to_dict()
-        self.assertDictEqual(edges, {
-            ('mac', 'cli', 'out'): EDGE_3,
-            ('sto', 'cli', 'out'): EDGE_4
+        self.assertDictEqual(PLANT_2.edges(destinations='cli'), {
+            ('mac', 'cli'): EDGE_3,
+            ('sto', 'cli'): EDGE_4
         }, msg='Wrong edges returned on filtering by destination')
-        edges = PLANT_2.edges(commodities='out').set_index(['source', 'destination', 'commodity'])['edge'].to_dict()
-        self.assertDictEqual(edges, {
-            ('mac', 'sto', 'out'): EDGE_2,
-            ('mac', 'cli', 'out'): EDGE_3,
-            ('sto', 'cli', 'out'): EDGE_4
+        self.assertDictEqual(PLANT_2.edges(commodities='out'), {
+            ('mac', 'sto'): EDGE_2,
+            ('mac', 'cli'): EDGE_3,
+            ('sto', 'cli'): EDGE_4
         }, msg='Wrong edges returned on filtering by commodity')
         edges = PLANT_2.edges(
             sources=['sup', 'mac'],
             destinations=['mac', 'cli'],
             commodities=['in']
-        ).set_index(['source', 'destination', 'commodity'])['edge'].to_dict()
-        self.assertDictEqual(edges, {('sup', 'mac', 'in'): EDGE_1}, msg='Wrong edges returned on multiple filtering')
+        )
+        self.assertDictEqual(edges, {('sup', 'mac'): EDGE_1}, msg='Wrong edges returned on multiple filtering')
 
     def test_graph(self):
         """Tests that the returned graph is correct."""
@@ -199,18 +194,15 @@ class TestPlantProperties(unittest.TestCase):
             'sto': STORAGE,
             'cli': CLIENT
         }, msg='Wrong nodes copy returned')
-        edges = p.edges().set_index(['source', 'destination', 'commodity'])['edge'].to_dict()
-        self.assertDictEqual(edges, {
-            ('sup', 'mac', 'in'): EDGE_1,
-            ('mac', 'sto', 'out'): EDGE_2,
-            ('mac', 'cli', 'out'): EDGE_3,
-            ('sto', 'cli', 'out'): EDGE_4
+        self.assertDictEqual(p.edges(), {
+            ('sup', 'mac'): EDGE_1,
+            ('mac', 'sto'): EDGE_2,
+            ('mac', 'cli'): EDGE_3,
+            ('sto', 'cli'): EDGE_4
         }, msg='Wrong edges copy returned')
         # test immutability
         p.add_storage(name='sto_2', commodity='out', parents='mac')
         self.assertIn('sto_2', p.nodes(), msg='New node not added to the copy')
-        edges = p.edges().set_index(['source', 'destination', 'commodity'])['edge'].to_dict()
-        self.assertIn(('mac', 'sto_2', 'out'), edges, msg='New edge not added to the copy')
+        self.assertIn(('mac', 'sto_2'), p.edges(), msg='New edge not added to the copy')
         self.assertNotIn('sto_2', PLANT_2.nodes(), msg='New node must not be added to the original plant')
-        edges = PLANT_2.edges().set_index(['source', 'destination', 'commodity'])['edge'].to_dict()
-        self.assertNotIn(('mac', 'sto_2', 'out'), edges, msg='New edge must not be added to the original plant')
+        self.assertNotIn(('mac', 'sto_2'), PLANT_2.edges(), msg='New edge must not be added to the original plant')

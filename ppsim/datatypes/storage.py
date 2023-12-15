@@ -72,9 +72,9 @@ class Storage(Node):
         assert out_flow <= self.charge_rate, \
             f"Storage node '{self.name}' should have maximal output flow {self.discharge_rate}, got {out_flow}"
         # compute and check new storage from previous one (discounted by 1 - dissipation) and difference between flows
-        previous_storage = 0.0 if len(self._storage) == 0 else (1 - self.dissipation) * self._storage.values[-1]
+        previous_storage = 0.0 if len(self._storage) == 0 else (1 - self.dissipation) * self._storage[-1]
         storage = previous_storage + in_flow - out_flow
         assert storage >= 0.0, f"Storage node '{self.name}' cannot contain negative amount, got {storage}"
         assert storage <= self.capacity, \
             f"Storage node '{self.name}' cannot contain more than {self.capacity} amount, got {storage}"
-        self._storage[step] = storage
+        self._storage.append(storage)

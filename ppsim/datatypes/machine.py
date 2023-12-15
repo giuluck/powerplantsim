@@ -84,7 +84,7 @@ class Machine(Node):
         in_flow = np.sum([e.flow_at(step=step) for e in self._in_edges])
         if in_flow == 0.0:
             # zero outputs for machine off and input flow becomes None as it will be stored in the series of setpoints
-            in_flow = None
+            in_flow = np.nan
             out_flows = {col: 0.0 for col in self._setpoint.columns}
         elif self.discrete_setpoint:
             # check correctness of discrete setpoint and compute output
@@ -106,17 +106,17 @@ class Machine(Node):
             assert np.isclose(true_flow, exp_flow), \
                 f"Expected output flow {exp_flow} for commodity '{commodity}' in machine '{self.name}', got {true_flow}"
         # check maximal number of starting:
-        #  - create a list of the last T states and append the last one
+        #  - create a list of the last T states, prepend nan (machine starts off) and append the last one
         #  - check consecutive pairs and increase the counter if we pass from a NaN to a real number
         #  - if the counter gets greater than N, raise an error
         if self.max_starting is not None:
             n, t = self.max_starting
             t = min(t, len(self._states))
             count = 0
-            states = [*self._states.values[-t:], in_flow]
+            states = [np.nan, *self._states[-t:], in_flow]
             for s1, s2 in zip(states[-t - 1:-1], states[-t:]):
                 if np.isnan(s1) and not np.isnan(s2):
                     count += 1
                     assert count <= n, \
                         f"Machine '{self.name}' cannot be started for more than {n} times in {t} time steps"
-        self._states[step] = in_flow
+        self._states.append(in_flow)

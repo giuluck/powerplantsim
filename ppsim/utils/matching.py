@@ -21,6 +21,26 @@ def get_filtering_function(user_input: Optional) -> Callable[[Any], bool]:
         return lambda d: d == user_input
 
 
+def get_indexed_object(keys: Optional, indexed: dict) -> Optional[list]:
+    """Indexes a set of keys in an indexed dictionary.
+
+    :param keys:
+        If None is passed, returns None.
+        If a single value is passed, returns a list with the single element <indexed[keys]>.
+        If an iterable is passed, returns a list with multiple elements <indexed[k]>, with k in keys.
+
+    :param indexed:
+        The dictionary to be indexed.
+
+    :return:
+        The list of indexed objects, or None in case the keys are not passed.
+    """
+    if keys is None:
+        return None
+    keys = [keys] if isinstance(keys, Iterable) and not isinstance(keys, str) else keys
+    return [indexed[k] for k in keys]
+
+
 def get_matching_object(matcher: Optional, index: Any, default: Any):
     """Uses a matching strategy to return a matching object.
 

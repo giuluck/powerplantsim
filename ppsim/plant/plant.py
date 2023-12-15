@@ -1,3 +1,4 @@
+import copy
 from typing import Optional, Dict, Tuple, Callable, Iterable, Set, List, Any, Union
 
 import matplotlib.pyplot as plt
@@ -6,10 +7,8 @@ import numpy as np
 import pandas as pd
 
 from ppsim import utils
-from ppsim.datatypes import Node, Client, Machine, Supplier, Edge, \
-    Storage, Purchaser, Customer
+from ppsim.datatypes import Node, Client, Machine, Supplier, Edge, Storage, Purchaser, Customer
 from ppsim.plant import drawing, execution
-from ppsim.utils import EdgeID
 from ppsim.utils.typing import Plan, Flows, Setpoint
 
 
@@ -35,8 +34,8 @@ class Plant:
         self._rng: np.random.Generator = np.random.default_rng(seed=seed)
         self._horizon: pd.Index = horizon
         self._commodities: Set[str] = set()
-        self._nodes: Dict[str, Node] = dict()
-        self._edges: Dict[EdgeID, Edge] = dict()
+        self._nodes: Dict[str, Set[Node]] = dict()
+        self._edges: Set[Edge] = set()
 
     @property
     def horizon(self) -> pd.Index:
@@ -50,24 +49,24 @@ class Plant:
     @property
     def suppliers(self) -> Dict[str, Supplier]:
         """The supplier nodes in the plant."""
-        return {name: node for name, node in self._nodes.items() if isinstance(node, Supplier)}
+        return {s.name: s for s in self._nodes.get(Supplier.kind, set())}
 
     @property
     def clients(self) -> Dict[str, Client]:
         """The client nodes in the plant."""
-        return {name: node for name, node in self._nodes.items() if isinstance(node, Client)}
+        return {c.name: c for c in self._nodes.get(Client.kind, set())}
 
     @property
     def machines(self) -> Dict[str, Machine]:
         """The machine nodes in the plant."""
-        return {name: node for name, node in self._nodes.items() if isinstance(node, Machine)}
+        return {m.name: m for m in self._nodes.get(Machine.kind, set())}
 
     @property
     def storages(self) -> Dict[str, Storage]:
         """The storage nodes in the plant."""
-        return {name: node for name, node in self._nodes.items() if isinstance(node, Storage)}
+        return {s.name: s for s in self._nodes.get(Storage.kind, set())}
 
-    def nodes(self, indexed: bool = False) -> Union[Dict[str, Dict[str, Node]], Dict[str, Node]]:
+    def nodes(self, indexed: bool = False) -> Dict[str, Union[Node, Dict[str, Node]]]:
         """Returns the nodes in the plant.
 
         :param indexed:
@@ -77,19 +76,14 @@ class Plant:
             Either a dictionary {type: {name: node}} or a simple dictionary {name: node}.
         """
         if indexed:
-            output = {}
-            for name, node in self._nodes.items():
-                sub_dict = output.get(node.kind, dict())
-                sub_dict[name] = node
-                output[node.kind] = sub_dict
+            return {kind: {n.name: n for n in nodes} for kind, nodes in self._nodes.items()}
         else:
-            output = {name: node for name, node in self._nodes.items()}
-        return output
+            return {n.name: n for nodes in self._nodes.values() for n in nodes}
 
     def edges(self,
               sources: Union[None, str, Iterable[str]] = None,
               destinations: Union[None, str, Iterable[str]] = None,
-              commodities: Union[None, str, Iterable[str]] = None) -> pd.DataFrame:
+              commodities: Union[None, str, Iterable[str]] = None) -> Dict[Tuple[str, str], Edge]:
         """Returns the edges in the plant indexed either via nodes, or via nodes and commodity.
 
         :param sources:
@@ -105,17 +99,16 @@ class Plant:
             Either a dictionary <(source, destination), Dict[commodity, edge]> with nodes pairs as key, or a dictionary
             <(source, destination, commodity), edge> with a triplet of nodes and commodity as key.
         """
-        # retrieve list of edges (filtered by sources) and get filtering functions for destinations and commodities
+        # get filtering functions for destinations and commodities
         check_sour = utils.get_filtering_function(user_input=sources)
         check_dest = utils.get_filtering_function(user_input=destinations)
         check_edge = utils.get_filtering_function(user_input=commodities)
         # build data structure containing all the necessary information
-        edges = [
-            (s, d, e.commodity, e)
-            for (s, d), e in self._edges.items()
-            if check_sour(s) and check_dest(d) and check_edge(e.commodity)
-        ]
-        return pd.DataFrame(edges, columns=['source', 'destination', 'commodity', 'edge'])
+        return {
+            (e.source.name, e.destination.name): e
+            for e in self._edges
+            if check_sour(e.source.name) and check_dest(e.destination.name) and check_edge(e.commodity)
+        }
 
     def graph(self, attributes: bool = False) -> nx.DiGraph:
         """Builds the graph representing the power plant.
@@ -128,13 +121,13 @@ class Plant:
         """
         g = nx.DiGraph()
         if attributes:
-            for name, node in self._nodes.items():
+            for name, node in self.nodes().items():
                 g.add_node(name, **node.dict)
-            for (source, destination), edge in self._edges.items():
-                g.add_edge(source, destination, **edge.dict)
+            for edge in self._edges:
+                g.add_edge(edge.source.name, edge.destination.name, **edge.dict)
         else:
-            g.add_nodes_from(self._nodes.keys())
-            g.add_edges_from(self._edges.keys())
+            g.add_nodes_from(self.nodes().keys())
+            g.add_edges_from(self.edges().keys())
         return g
 
     def copy(self):
@@ -143,11 +136,7 @@ class Plant:
         :return:
             A copy of the plant object.
         """
-        copy = Plant(horizon=self.horizon)
-        copy._commodities = set(self._commodities)
-        copy._nodes = dict(self._nodes)
-        copy._edges = dict(self._edges)
-        return copy
+        return copy.deepcopy(self)
 
     def _check_and_update(self,
                           node: Node,
@@ -159,18 +148,19 @@ class Plant:
         if node.commodity_in is not None:
             self._commodities.add(node.commodity_in)
         self._commodities.update(node.commodities_out)
-        # check that the node has a unique identifier
-        alias = self._nodes.get(node.name)
-        assert alias is None, f"There is already a {alias.kind} node '{node.name}', please use another identifier"
-        # append the node to the graph and to the designed internal data structure
-        self._nodes[node.name] = node
+        # check that the node has a unique identifier and append it to the designed internal data structure
+        for kind, nodes in self._nodes.items():
+            assert node not in nodes, f"There is already a {kind} node '{node.name}', please use another identifier"
+        node_set = self._nodes.get(node.kind, set())
+        node_set.add(node)
+        self._nodes[node.kind] = node_set
         # if the node is not a source (supplier), retrieve the node parent and check that is exists
         if parents is None:
             return
         parents = [parents] if isinstance(parents, str) else parents
         assert len(parents) > 0, f"{node.kind.title()} node must have at least one parent"
         for name in parents:
-            parent = self._nodes.get(name)
+            parent = self.nodes().get(name)
             assert parent is not None, f"Parent node '{name}' has not been added yet"
             assert node.commodity_in in parent.commodities_out, \
                 f"Parent node '{parent.name}' should return commodity '{node.commodity_in}', " \
@@ -184,7 +174,7 @@ class Plant:
                 max_flow=max_flow,
                 integer=integer
             )
-            self._edges[(parent.name, node.name)] = edge
+            self._edges.add(edge)
             # append parent and children to the respective lists
             parent.append(edge)
             node.append(edge)
@@ -434,10 +424,9 @@ class Plant:
             The matplotlib figsize parameter.
 
         :param node_pos:
-            If the string 'lp' is passed, arranges the nodes into layers using the Dijkstra algorithm with negative
-            unitary cost to get the longest path (it may fail sometimes due to negative paths). If the string 'sp' is
-            passed, arranges the nodes into layers using the Dijkstra algorithm with positive unitary cost to get the
-            shortest path. If a list is passed, it is considered as a mapping <layer: nodes> representing in which
+            If the string 'sp' is passed, arranges the nodes into layers using breadth first search to get the shortest
+            path. If the string 'lp' is passed, arranges the nodes into layers using negative unitary cost to get the
+            longest  path. If a list is passed, it is considered as a mapping <layer: nodes> representing in which
             layer to display the nodes (None values can be used to add placeholder nodes). If a dictionary is passed,
             it is considered as a mapping <node: position> representing where exactly to display each node.
 
@@ -488,12 +477,13 @@ class Plant:
             labels.append(handler)
         # retrieve edges' styling information and draw them accordingly
         styles = drawing.get_edge_style(colors=edge_colors, shapes=edge_styles, commodities=list(self._commodities))
-        for commodity, edge_list in self.edges().groupby('commodity'):
+        edges = pd.DataFrame([{'commodity': e.commodity, 'edge': e} for e in self.edges().values()])
+        for commodity, edge_list in edges.groupby('commodity'):
             commodity = str(commodity)
             drawing.draw_edges(
                 graph=graph,
                 pos=pos,
-                edges=edge_list[['source', 'destination']].values,
+                edges={(e.source.name, e.destination.name) for e in edge_list['edge']},
                 style=styles[commodity],
                 size=node_size,
                 width=edge_width,
@@ -530,13 +520,14 @@ class Plant:
         :return:
             A SimulationOutput object containing all the information about true prices, demands, setpoints, and storage.
         """
+        nodes, edges = self.nodes(), self.edges()
         action_fn = execution.default_action if action_fn is None else action_fn
-        plan = execution.process_plan(plan=plan, edges=set(self._edges.keys()), horizon=self._horizon)
+        plan = execution.process_plan(plan=plan, edges=edges.keys(), horizon=self._horizon)
         graph = self.graph(attributes=True)
         for idx, row in plan.iterrows():
             # updates the action graph with the last flow
             for (source, destination), flow in row.items():
                 graph[source][destination]['flow'] = flow
             flows = action_fn(idx, graph)
-            execution.run_update(nodes=self._nodes.values(), edges=self._edges.values(), flows=flows, rng=self._rng)
-        return execution.build_output(nodes=self._nodes.values(), edges=self._edges.values(), horizon=self._horizon)
+            execution.run_update(nodes=nodes.values(), edges=edges.values(), flows=flows, rng=self._rng)
+        return execution.build_output(nodes=nodes.values(), edges=edges.values(), horizon=self._horizon)

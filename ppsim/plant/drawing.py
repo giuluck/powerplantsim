@@ -66,15 +66,24 @@ def get_node_positions(graph: nx.DiGraph,
         return {k: v for k, v in pos.items() if k in nodes}
     # if the position info is a string representing the layering strategy, add the layers to each node accordingly
     graph = graph.copy()
-    if node_pos == 'lp':
-        weight = -1
-    elif node_pos == 'sp':
-        weight = 1
+    if node_pos == 'sp':
+        # use breadth first search for shortest paths
+        for it, nodes in enumerate(nx.bfs_layers(graph, sources=sources)):
+            for node in nodes:
+                graph.nodes[node]['layer'] = it
+    elif node_pos == 'lp':
+        # use floyd warshall algorithm to search for longest paths
+        #  - get the indices of the sources
+        #  - get the (negative) shortest path matrix and select only the paths from the sources
+        #  - get the (negative) minimum value for each node in the plant and negate it to get the layer
+        nx.set_edge_attributes(graph, values=-1, name='weight')
+        sources = set(sources)
+        sources = [i for i, node in enumerate(graph.nodes) if node in sources]
+        lp = -nx.floyd_warshall_numpy(graph)[sources].min(axis=0)
+        for i, node in enumerate(graph.nodes):
+            graph.nodes[node]['layer'] = lp[i]
     else:
         raise AssertionError(f"Unsupported node_pos: {node_pos}")
-    nx.set_edge_attributes(graph, values=weight, name='weight')
-    for node, layer in nx.multi_source_dijkstra_path_length(graph, sources=sources, weight='weight').items():
-        graph.nodes[node]['layer'] = weight * layer
     return nx.multipartite_layout(graph, subset_key='layer')
 
 

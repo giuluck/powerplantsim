@@ -62,7 +62,7 @@ class Customer(Client):
         flow = np.sum([e.flow_at(step=step) for e in self._in_edges])
         assert value <= flow, \
             f"Customer node '{self.name}' can accept at most {value} units at time step {step}, got {flow}"
-        self._values[step] = value
+        self._values.append(value)
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)

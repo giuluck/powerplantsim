@@ -108,4 +108,4 @@ class VarianceNode(Node, ABC):
         # compute the new values as the sum of the prediction and the variance obtained from the variance model
         step = self._step()
         value = self._predictions[step] + self._variance_fn(rng, self.values)
-        self._values[step] = value
+        self._values.append(value)

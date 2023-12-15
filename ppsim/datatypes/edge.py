@@ -77,8 +77,8 @@ class Edge(DataType):
         :param flow:
             The random number generator to be used for reproducible results.
         """
-        step = self._step()
+        self._step()
         assert flow >= self.min_flow, f"Flow for edge {self.key} should be >= {self.min_flow}, got {flow}"
         assert flow <= self.max_flow, f"Flow for edge {self.key} should be <= {self.max_flow}, got {flow}"
         assert not self.integer or flow.is_integer(), f"Flow for edge {self.key} should be integer, got {flow}"
-        self._flows[step] = flow
+        self._flows.append(flow)
