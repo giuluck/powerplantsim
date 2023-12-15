@@ -105,9 +105,9 @@ class Plant:
         check_edge = utils.get_filtering_function(user_input=commodities)
         # build data structure containing all the necessary information
         return {
-            (e.source.name, e.destination.name): e
+            (e.source, e.destination): e
             for e in self._edges
-            if check_sour(e.source.name) and check_dest(e.destination.name) and check_edge(e.commodity)
+            if check_sour(e.source) and check_dest(e.destination) and check_edge(e.commodity)
         }
 
     def graph(self, attributes: bool = False) -> nx.DiGraph:
@@ -124,7 +124,7 @@ class Plant:
             for name, node in self.nodes().items():
                 g.add_node(name, **node.dict)
             for edge in self._edges:
-                g.add_edge(edge.source.name, edge.destination.name, **edge.dict)
+                g.add_edge(edge.source, edge.destination, **edge.dict)
         else:
             g.add_nodes_from(self.nodes().keys())
             g.add_edges_from(self.edges().keys())
@@ -168,8 +168,8 @@ class Plant:
             # create an edge instance using the parent as source and the new node as destination
             edge = Edge(
                 _plant=self,
-                source=parent,
-                destination=node,
+                _source=parent,
+                _destination=node,
                 min_flow=min_flow,
                 max_flow=max_flow,
                 integer=integer
@@ -483,7 +483,7 @@ class Plant:
             drawing.draw_edges(
                 graph=graph,
                 pos=pos,
-                edges={(e.source.name, e.destination.name) for e in edge_list['edge']},
+                edges={(e.source, e.destination) for e in edge_list['edge']},
                 style=styles[commodity],
                 size=node_size,
                 width=edge_width,
@@ -509,8 +509,8 @@ class Plant:
             (source, destination).
 
         :param action_fn:
-            A function f(index: Any, graph: nx.DiGraph) -> updated_flows: Dict[Tuple[str, str], float].
-            This function models the recourse action for a given step (index), which is provided as input together with
+            A function f(step: int, graph: nx.DiGraph) -> updated_flows: Dict[Tuple[str, str], float].
+            This function models the recourse action for a given step (step), which is provided as input together with
             the topology of the power plant as returned by plant.graph(attributes=True), with an additional attribute
             'flow' stored in the edges which represent the flow provided by the original plan. The function must return
             a dictionary {<edge>: <updated_flow>} where an <edge> is identified by the tuple of the names of the node
@@ -524,10 +524,10 @@ class Plant:
         action_fn = execution.default_action if action_fn is None else action_fn
         plan = execution.process_plan(plan=plan, edges=edges.keys(), horizon=self._horizon)
         graph = self.graph(attributes=True)
-        for idx, row in plan.iterrows():
+        for step, (_, row) in enumerate(plan.iterrows()):
             # updates the action graph with the last flow
             for (source, destination), flow in row.items():
                 graph[source][destination]['flow'] = flow
-            flows = action_fn(idx, graph)
+            flows = action_fn(step, graph)
             execution.run_update(nodes=nodes.values(), edges=edges.values(), flows=flows, rng=self._rng)
         return execution.build_output(nodes=nodes.values(), edges=edges.values(), horizon=self._horizon)

@@ -42,6 +42,7 @@ class TestSupplier(TestDataType):
         s_pred = s_dict.pop('predicted_prices')
         self.assertEqual(s_dict, {
             'name': 's',
+            'kind': 'supplier',
             'commodity_in': None,
             'commodities_out': {'s_com'},
         }, msg='Wrong dictionary returned for supplier')

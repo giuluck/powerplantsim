@@ -75,10 +75,10 @@ class TestPlantBuilding(unittest.TestCase):
             msg='Wrong exception message returned for empty parent list'
         )
         p.add_client(name='single', commodity='out', parents='mac', predictions=1.)
-        edges = {e.source.name: e.commodity for e in p.edges(destinations='single').values()}
+        edges = {e.source: e.commodity for e in p.edges(destinations='single').values()}
         self.assertDictEqual(edges, {'mac': 'out'}, msg='Wrong edges stored for client with single parent')
         p.add_client(name='multiple', commodity='out', parents=['mac', 'sto'], predictions=1.)
-        edges = {e.source.name: e.commodity for e in p.edges(destinations='multiple').values()}
+        edges = {e.source: e.commodity for e in p.edges(destinations='multiple').values()}
         self.assertDictEqual(edges, {'mac': 'out', 'sto': 'out'}, msg='Wrong edges stored for client with many parents')
         # test client properties (and input)
         demands = [2., 2., 2.]
@@ -100,8 +100,8 @@ class TestPlantBuilding(unittest.TestCase):
         # test edge properties
         p.add_client(name='c', commodity='out', parents='mac', predictions=1.)
         e = list(p.edges(destinations='c').values())[0]
-        self.assertEqual(e.source.name, 'mac', msg="Wrong source name stored in edge built from client")
-        self.assertEqual(e.destination.name, 'c', msg="Wrong destination name stored in edge built from client")
+        self.assertEqual(e.source, 'mac', msg="Wrong source name stored in edge built from client")
+        self.assertEqual(e._destination.name, 'c', msg="Wrong destination name stored in edge built from client")
         self.assertEqual(e.commodity, 'out', msg="Wrong commodity stored in edge built from client")
         self.assertEqual(e.min_flow, 0.0, msg="Wrong min flow stored in edge built from client")
         self.assertEqual(e.max_flow, float('inf'), msg="Wrong max flow stored in edge built from client")
@@ -141,10 +141,10 @@ class TestPlantBuilding(unittest.TestCase):
             msg='Wrong exception message returned for empty parent list'
         )
         p.add_machine(name='single', commodity='in', parents='sup', setpoint={'setpoint': [1.], 'out': [1.]})
-        edges = {e.source.name: e.commodity for e in p.edges(destinations='single').values()}
+        edges = {e.source: e.commodity for e in p.edges(destinations='single').values()}
         self.assertDictEqual(edges, {'sup': 'in'}, msg='Wrong edges stored for machine with single parent')
         p.add_machine(name='multiple', commodity='out', parents=['mac', 'sto'], setpoint={'setpoint': [1.], 'in': [1.]})
-        edges = {e.source.name: e.commodity for e in p.edges(destinations='multiple').values()}
+        edges = {e.source: e.commodity for e in p.edges(destinations='multiple').values()}
         self.assertDictEqual(
             edges,
             {'mac': 'out', 'sto': 'out'},
@@ -194,8 +194,8 @@ class TestPlantBuilding(unittest.TestCase):
             integer=True
         )
         e = list(p.edges(destinations='m3').values())[0]
-        self.assertEqual(e.source.name, 'sup', msg="Wrong source name stored in edge built from machine")
-        self.assertEqual(e.destination.name, 'm3', msg="Wrong destination name stored in edge built from machine")
+        self.assertEqual(e.source, 'sup', msg="Wrong source name stored in edge built from machine")
+        self.assertEqual(e.destination, 'm3', msg="Wrong destination name stored in edge built from machine")
         self.assertEqual(e.commodity, 'in', msg="Wrong commodity stored in edge built from machine")
         self.assertEqual(e.min_flow, 30.0, msg="Wrong min flow stored in edge built from machine")
         self.assertEqual(e.max_flow, 50.0, msg="Wrong max flow stored in edge built from machine")
@@ -235,10 +235,10 @@ class TestPlantBuilding(unittest.TestCase):
             msg='Wrong exception message returned for empty parent list'
         )
         p.add_storage(name='single', commodity='out', parents='mac')
-        edges = {e.source.name: e.commodity for e in p.edges(destinations='single').values()}
+        edges = {e.source: e.commodity for e in p.edges(destinations='single').values()}
         self.assertDictEqual(edges, {'mac': 'out'}, msg='Wrong edges stored for storage with single parent')
         p.add_storage(name='multiple', commodity='out', parents=['mac', 'sto'])
-        edges = {e.source.name: e.commodity for e in p.edges(destinations='multiple').values()}
+        edges = {e.source: e.commodity for e in p.edges(destinations='multiple').values()}
         self.assertDictEqual(edges, {'mac': 'out', 'sto': 'out'}, msg='Wrong edges stored for client with many parents')
         # test storage properties and edge
         s = p.add_storage(
@@ -254,8 +254,8 @@ class TestPlantBuilding(unittest.TestCase):
         e = list(p.edges(destinations='s').values())[0]
         self.assertEqual(s.capacity, 25.0, msg="Wrong capacity stored for storage")
         self.assertEqual(s.dissipation, 0.3, msg="Wrong dissipation stored for storage")
-        self.assertEqual(e.source.name, 'mac', msg="Wrong source name stored in edge built from storage")
-        self.assertEqual(e.destination.name, 's', msg="Wrong destination name stored in edge built from storage")
+        self.assertEqual(e.source, 'mac', msg="Wrong source name stored in edge built from storage")
+        self.assertEqual(e.destination, 's', msg="Wrong destination name stored in edge built from storage")
         self.assertEqual(e.commodity, 'out', msg="Wrong commodity stored in edge built from storage")
         self.assertEqual(e.min_flow, 20.0, msg="Wrong min flow stored in edge built from storage")
         self.assertEqual(e.max_flow, 40.0, msg="Wrong max flow stored in edge built from storage")

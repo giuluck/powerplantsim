@@ -148,6 +148,7 @@ class TestStorage(TestDataType):
         s_storage = s_dict.pop('storage')
         self.assertEqual(s_dict, {
             'name': 's',
+            'kind': 'storage',
             'commodity_in': 's_com',
             'commodities_out': {'s_com'},
             'dissipation': 1.0,

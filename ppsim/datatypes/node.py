@@ -30,7 +30,7 @@ class Node(DataType, ABC):
 
     @classproperty
     def _properties(self) -> List[str]:
-        return ['name', 'commodity_in', 'commodities_out']
+        return ['name', 'kind', 'commodity_in', 'commodities_out']
 
     @property
     @abstractmethod
@@ -66,9 +66,9 @@ class Node(DataType, ABC):
         :param edge:
             The edge to append.
         """
-        if edge.source.name == self.name:
+        if edge.source == self.name:
             self._out_edges.append(edge)
-        elif edge.destination.name == self.name:
+        elif edge.destination == self.name:
             self._in_edges.append(edge)
         else:
             raise AssertionError(f"Trying to append {edge} to {self}, but the node is neither source nor destination")

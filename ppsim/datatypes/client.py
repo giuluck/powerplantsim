@@ -43,8 +43,8 @@ class Customer(Client):
 
     @classproperty
     def _properties(self) -> List[str]:
-        properties = super(VarianceNode, self)._properties
-        return properties + ['predicted_demands', 'demands']
+        properties = super(Customer, self)._properties
+        return properties + ['purchaser', 'predicted_demands', 'demands']
 
     @property
     def predicted_demands(self) -> pd.Series:
@@ -75,8 +75,8 @@ class Purchaser(Client):
 
     @classproperty
     def _properties(self) -> List[str]:
-        properties = super(VarianceNode, self)._properties
-        return properties + ['predicted_prices', 'prices']
+        properties = super(Purchaser, self)._properties
+        return properties + ['purchaser', 'predicted_prices', 'prices']
 
     @property
     def predicted_prices(self) -> pd.Series:

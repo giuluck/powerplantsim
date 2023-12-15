@@ -40,8 +40,8 @@ STORAGE_2 = Storage(
 )
 
 EDGE = Edge(
-    source=MACHINE,
-    destination=STORAGE_1,
+    _source=MACHINE,
+    _destination=STORAGE_1,
     min_flow=0.0,
     max_flow=100.0,
     integer=False,
@@ -58,14 +58,14 @@ class TestEdge(TestDataType):
 
     def test_inputs(self):
         # check correct flows
-        Edge(source=MACHINE, destination=STORAGE_1, min_flow=0.0, max_flow=1.0, integer=False, _plant=PLANT)
-        Edge(source=MACHINE, destination=STORAGE_1, min_flow=1.0, max_flow=2.0, integer=False, _plant=PLANT)
-        Edge(source=MACHINE, destination=STORAGE_1, min_flow=1.0, max_flow=1.0, integer=False, _plant=PLANT)
+        Edge(_source=MACHINE, _destination=STORAGE_1, min_flow=0.0, max_flow=1.0, integer=False, _plant=PLANT)
+        Edge(_source=MACHINE, _destination=STORAGE_1, min_flow=1.0, max_flow=2.0, integer=False, _plant=PLANT)
+        Edge(_source=MACHINE, _destination=STORAGE_1, min_flow=1.0, max_flow=1.0, integer=False, _plant=PLANT)
         # check incorrect flows
         with self.assertRaises(AssertionError, msg="Negative min flow should raise exception") as e:
             Edge(
-                source=MACHINE,
-                destination=STORAGE_1,
+                _source=MACHINE,
+                _destination=STORAGE_1,
                 min_flow=-1.0,
                 max_flow=100.0,
                 integer=False,
@@ -78,8 +78,8 @@ class TestEdge(TestDataType):
         )
         with self.assertRaises(AssertionError, msg="max flow < min flow should raise exception") as e:
             Edge(
-                source=MACHINE,
-                destination=STORAGE_1,
+                _source=MACHINE,
+                _destination=STORAGE_1,
                 min_flow=101.0,
                 max_flow=100.0,
                 integer=False,
@@ -93,8 +93,8 @@ class TestEdge(TestDataType):
         # check incorrect commodities
         with self.assertRaises(AssertionError, msg="Empty destination commodity should raise exception") as e:
             Edge(
-                source=MACHINE,
-                destination=SUPPLIER,
+                _source=MACHINE,
+                _destination=SUPPLIER,
                 min_flow=0.0,
                 max_flow=100.0,
                 integer=False,
@@ -107,8 +107,8 @@ class TestEdge(TestDataType):
         )
         with self.assertRaises(AssertionError, msg="Wrong source commodity should raise exception") as e:
             Edge(
-                source=STORAGE_1,
-                destination=MACHINE,
+                _source=STORAGE_1,
+                _destination=MACHINE,
                 min_flow=0.0,
                 max_flow=100.0,
                 integer=False,
@@ -123,8 +123,8 @@ class TestEdge(TestDataType):
     def test_hashing(self):
         # test equal hash
         e_equal = Edge(
-            source=MACHINE,
-            destination=STORAGE_1,
+            _source=MACHINE,
+            _destination=STORAGE_1,
             min_flow=50.0,
             max_flow=60.0,
             integer=True,
@@ -133,8 +133,8 @@ class TestEdge(TestDataType):
         self.assertEqual(EDGE, e_equal, msg="Nodes with the same name should be considered equal")
         # test different hash
         e_diff = Edge(
-            source=MACHINE,
-            destination=STORAGE_2,
+            _source=MACHINE,
+            _destination=STORAGE_2,
             min_flow=0.0,
             max_flow=100.0,
             integer=False,
@@ -154,8 +154,8 @@ class TestEdge(TestDataType):
         e_dict = EDGE.dict
         e_flows = e_dict.pop('flows')
         self.assertEqual(e_dict, {
-            'source': MACHINE,
-            'destination': STORAGE_1,
+            'source': 'm',
+            'destination': 's1',
             'commodity': 'out_com_1',
             'min_flow': 0.0,
             'max_flow': 100.0,

@@ -14,10 +14,10 @@ from ppsim.utils.typing import Flow
 class Edge(DataType):
     """An edge in the plant."""
 
-    source: Node = field(kw_only=True)
+    _source: Node = field(kw_only=True)
     """The source node."""
 
-    destination: Node = field(kw_only=True)
+    _destination: Node = field(kw_only=True)
     """The destination node."""
 
     min_flow: float = field(kw_only=True)
@@ -36,20 +36,30 @@ class Edge(DataType):
         assert self.min_flow >= 0, f"The minimum flow cannot be negative, got {self.min_flow}"
         assert self.max_flow >= self.min_flow, \
             f"The maximum flow cannot be lower than the minimum, got {self.max_flow} < {self.min_flow}"
-        assert self.destination.commodity_in is not None, \
-            f"Destination node '{self.destination.name}' does not accept any input commodity, but it should"
-        assert self.commodity in self.source.commodities_out, \
-            f"Source node '{self.source.name}' should return commodity '{self.commodity}', " \
-            f"but it returns {self.source.commodities_out}"
+        assert self._destination.commodity_in is not None, \
+            f"Destination node '{self._destination.name}' does not accept any input commodity, but it should"
+        assert self.commodity in self._source.commodities_out, \
+            f"Source node '{self._source.name}' should return commodity '{self.commodity}', " \
+            f"but it returns {self._source.commodities_out}"
 
     @classproperty
     def _properties(self) -> List[str]:
         return ['source', 'destination', 'commodity', 'min_flow', 'max_flow', 'integer', 'flows']
 
     @property
+    def source(self) -> str:
+        """The source node."""
+        return self._source.name
+
+    @property
+    def destination(self) -> str:
+        """The destination node."""
+        return self._destination.name
+
+    @property
     def commodity(self) -> str:
         """The type of commodity that flows in the edge, which can be uniquely determined by the destination input."""
-        return self.destination.commodity_in
+        return self._destination.commodity_in
 
     @property
     def flows(self) -> pd.Series:
@@ -58,7 +68,7 @@ class Edge(DataType):
 
     @property
     def key(self) -> EdgeID:
-        return self.source.name, self.destination.name
+        return self._source.name, self._destination.name
 
     def flow_at(self, step: int) -> float:
         """Returns the flow at the given index.

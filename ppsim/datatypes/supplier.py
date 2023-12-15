@@ -17,7 +17,7 @@ class Supplier(VarianceNode):
 
     @classproperty
     def _properties(self) -> List[str]:
-        properties = super(VarianceNode, self)._properties
+        properties = super(Supplier, self)._properties
         return properties + ['predicted_prices', 'prices']
 
     @property

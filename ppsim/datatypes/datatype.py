@@ -50,6 +50,22 @@ class DataType(ABC):
         """A dictionary containing all the information of the datatype object indexed via property name."""
         return {param: getattr(self, param) for param in self._properties}
 
+    def to_json(self) -> Dict[str, Any]:
+        """Function to make the object serializable.
+
+        :return:
+            A dictionary containing all the information of the datatype which can be dumped in a json file.
+        """
+        json = {}
+        for param in self._properties:
+            value = getattr(self, param)
+            if isinstance(value, set):
+                value = list(value)
+            elif isinstance(value, (pd.Series, pd.DataFrame)):
+                value = value.to_dict()
+            json[param] = value
+        return json
+
     def _step(self):
         """Checks and updates the internal simulation details.
 

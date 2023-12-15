@@ -64,6 +64,8 @@ class TestClient(TestDataType):
         c_pred = c_dict.pop('predicted_demands')
         self.assertEqual(c_dict, {
             'name': 'c',
+            'kind': 'client',
+            'purchaser': False,
             'commodity_in': 'c_com',
             'commodities_out': set(),
         }, msg='Wrong dictionary returned for customer')
@@ -74,6 +76,8 @@ class TestClient(TestDataType):
         p_pred = p_dict.pop('predicted_prices')
         self.assertEqual(p_dict, {
             'name': 'p',
+            'kind': 'client',
+            'purchaser': True,
             'commodity_in': 'p_com',
             'commodities_out': set(),
         }, msg='Wrong dictionary returned for purchaser')

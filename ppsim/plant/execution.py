@@ -69,11 +69,11 @@ def process_plan(plan: Union[Plan, pd.DataFrame], edges: Iterable[EdgeID], horiz
 
 
 # noinspection PyUnusedLocal
-def default_action(index: Any, graph: nx.DiGraph) -> Flows:
+def default_action(step: int, graph: nx.DiGraph) -> Flows:
     """Implements the default recourse action.
 
-    :param index:
-        The time index of the simulation.
+    :param step:
+        The time step of the simulation.
 
     :param graph:
         A graph representing the topology of the power plant, with flows included as attributes on edges.

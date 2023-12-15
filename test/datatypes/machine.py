@@ -199,6 +199,7 @@ class TestMachine(TestDataType):
         m_setpoint = m_dict.pop('setpoint')
         self.assertEqual(m_dict, {
             'name': 'm',
+            'kind': 'machine',
             'commodity_in': 'in_com',
             'commodities_out': {'out_com_1', 'out_com_2'},
             'discrete_setpoint': False,
