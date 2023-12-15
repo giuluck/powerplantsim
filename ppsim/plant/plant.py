@@ -141,12 +141,12 @@ class Plant:
     def _check_and_update(self,
                           node: Node,
                           parents: Union[None, str, Iterable[str]],
+                          commodity: Optional[str],
                           min_flow: Optional[float],
                           max_flow: Optional[float],
                           integer: Optional[bool]):
         # add the new commodities to the set
-        if node.commodity_in is not None:
-            self._commodities.add(node.commodity_in)
+        self._commodities.update(node.commodities_in)
         self._commodities.update(node.commodities_out)
         # check that the node has a unique identifier and append it to the designed internal data structure
         for kind, nodes in self._nodes.items():
@@ -162,14 +162,12 @@ class Plant:
         for name in parents:
             parent = self.nodes().get(name)
             assert parent is not None, f"Parent node '{name}' has not been added yet"
-            assert node.commodity_in in parent.commodities_out, \
-                f"Parent node '{parent.name}' should return commodity '{node.commodity_in}', " \
-                f"but it returns {parent.commodities_out}"
             # create an edge instance using the parent as source and the new node as destination
             edge = Edge(
                 _plant=self,
                 _source=parent,
                 _destination=node,
+                commodity=commodity,
                 min_flow=min_flow,
                 max_flow=max_flow,
                 integer=integer
@@ -217,7 +215,7 @@ class Plant:
             _predictions=predictions,
             _variance_fn=variance
         )
-        self._check_and_update(node=supplier, parents=None, min_flow=None, max_flow=None, integer=None)
+        self._check_and_update(node=supplier, parents=None, commodity=None, min_flow=None, max_flow=None, integer=None)
         return supplier
 
     def add_client(self,
@@ -279,7 +277,14 @@ class Plant:
                 _predictions=predictions,
                 _variance_fn=variance
             )
-        self._check_and_update(node=client, parents=parents, min_flow=0.0, max_flow=float('inf'), integer=False)
+        self._check_and_update(
+            node=client,
+            parents=parents,
+            commodity=commodity,
+            min_flow=0.0,
+            max_flow=float('inf'),
+            integer=False
+        )
         return client
 
     def add_machine(self,
@@ -345,7 +350,14 @@ class Plant:
             max_starting=max_starting,
             cost=cost
         )
-        self._check_and_update(node=machine, parents=parents, min_flow=min_flow, max_flow=max_flow, integer=integer)
+        self._check_and_update(
+            node=machine,
+            parents=parents,
+            commodity=commodity,
+            min_flow=min_flow,
+            max_flow=max_flow,
+            integer=integer
+        )
         return machine
 
     def add_storage(self,
@@ -402,7 +414,14 @@ class Plant:
             charge_rate=charge_rate,
             discharge_rate=discharge_rate
         )
-        self._check_and_update(node=storage, parents=parents, min_flow=min_flow, max_flow=max_flow, integer=integer)
+        self._check_and_update(
+            node=storage,
+            parents=parents,
+            commodity=commodity,
+            min_flow=min_flow,
+            max_flow=max_flow,
+            integer=integer
+        )
         return storage
 
     def draw(self,

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Set, Optional, Callable, List, Tuple
+from typing import Set, Callable, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -24,18 +24,18 @@ class Node(DataType, ABC):
 
     @classproperty
     def _properties(self) -> List[str]:
-        return ['name', 'kind', 'commodity_in', 'commodities_out']
+        return ['name', 'kind', 'commodities_in', 'commodities_out']
 
     @property
     @abstractmethod
-    def commodity_in(self) -> Optional[str]:
-        """The (optional) input commodities that is accepted (can be at most one)."""
+    def commodities_in(self) -> Set[str]:
+        """The set of input commodities that is accepted."""
         pass
 
     @property
     @abstractmethod
     def commodities_out(self) -> Set[str]:
-        """The set of output commodities that is returned (can be more than one)."""
+        """The set of output commodities that is returned."""
         pass
 
     @property

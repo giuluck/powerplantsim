@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Set, Optional, List
+from typing import Set, List
 
 import numpy as np
 import pandas as pd
@@ -51,8 +51,8 @@ class Storage(Node):
         return pd.Series(self._storage, dtype=float, index=self._horizon[:self._info.step + 1])
 
     @property
-    def commodity_in(self) -> Optional[str]:
-        return self.commodity
+    def commodities_in(self) -> Set[str]:
+        return {self.commodity}
 
     @property
     def commodities_out(self) -> Set[str]:

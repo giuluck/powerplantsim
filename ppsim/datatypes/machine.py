@@ -70,8 +70,8 @@ class Machine(Node):
         return self._setpoint.copy()
 
     @property
-    def commodity_in(self) -> Optional[str]:
-        return self.commodity
+    def commodities_in(self) -> Set[str]:
+        return {self.commodity}
 
     @property
     def commodities_out(self) -> Set[str]:

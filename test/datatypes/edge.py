@@ -42,6 +42,7 @@ STORAGE_2 = Storage(
 EDGE = Edge(
     _source=MACHINE,
     _destination=STORAGE_1,
+    commodity='out_com_1',
     min_flow=0.0,
     max_flow=100.0,
     integer=False,
@@ -52,20 +53,47 @@ MIN_FLOW_EXCEPTION = lambda v: f"The minimum flow cannot be negative, got {v}"
 MAX_FLOW_EXCEPTION = lambda v_min, v_max: f"The maximum flow cannot be lower than the minimum, got {v_max} < {v_min}"
 EMPTY_DESTINATION_EXCEPTION = lambda v: f"Destination node '{v}' does not accept any input commodity, but it should"
 INCONSISTENT_SOURCE_EXCEPTION = lambda n, c, s: f"Source node '{n}' should return commodity '{c}', but it returns {s}"
+INCONSISTENT_DESTINATION_EXCEPTION = \
+    lambda n, c, s: f"Destination node '{n}' should accept commodity '{c}', but it accepts {s}"
 
 
 class TestEdge(TestDataType):
 
     def test_inputs(self):
         # check correct flows
-        Edge(_source=MACHINE, _destination=STORAGE_1, min_flow=0.0, max_flow=1.0, integer=False, _plant=PLANT)
-        Edge(_source=MACHINE, _destination=STORAGE_1, min_flow=1.0, max_flow=2.0, integer=False, _plant=PLANT)
-        Edge(_source=MACHINE, _destination=STORAGE_1, min_flow=1.0, max_flow=1.0, integer=False, _plant=PLANT)
+        Edge(
+            _source=MACHINE,
+            _destination=STORAGE_1,
+            commodity='out_com_1',
+            min_flow=0.0,
+            max_flow=1.0,
+            integer=False,
+            _plant=PLANT
+        )
+        Edge(
+            _source=MACHINE,
+            _destination=STORAGE_1,
+            commodity='out_com_1',
+            min_flow=1.0,
+            max_flow=2.0,
+            integer=False,
+            _plant=PLANT
+        )
+        Edge(
+            _source=MACHINE,
+            _destination=STORAGE_1,
+            commodity='out_com_1',
+            min_flow=1.0,
+            max_flow=1.0,
+            integer=False,
+            _plant=PLANT
+        )
         # check incorrect flows
         with self.assertRaises(AssertionError, msg="Negative min flow should raise exception") as e:
             Edge(
                 _source=MACHINE,
                 _destination=STORAGE_1,
+                commodity='out',
                 min_flow=-1.0,
                 max_flow=100.0,
                 integer=False,
@@ -80,6 +108,7 @@ class TestEdge(TestDataType):
             Edge(
                 _source=MACHINE,
                 _destination=STORAGE_1,
+                commodity='out_com_1',
                 min_flow=101.0,
                 max_flow=100.0,
                 integer=False,
@@ -95,6 +124,7 @@ class TestEdge(TestDataType):
             Edge(
                 _source=MACHINE,
                 _destination=SUPPLIER,
+                commodity='out_com_1',
                 min_flow=0.0,
                 max_flow=100.0,
                 integer=False,
@@ -109,6 +139,7 @@ class TestEdge(TestDataType):
             Edge(
                 _source=STORAGE_1,
                 _destination=MACHINE,
+                commodity='in_com',
                 min_flow=0.0,
                 max_flow=100.0,
                 integer=False,
@@ -119,12 +150,28 @@ class TestEdge(TestDataType):
             INCONSISTENT_SOURCE_EXCEPTION('s1', 'in_com', {'out_com_1'}),
             msg='Wrong exception message returned for wrong source commodity on edge'
         )
+        with self.assertRaises(AssertionError, msg="Wrong destination commodity should raise exception") as e:
+            Edge(
+                _source=STORAGE_1,
+                _destination=MACHINE,
+                commodity='out_com_1',
+                min_flow=0.0,
+                max_flow=100.0,
+                integer=False,
+                _plant=PLANT
+            )
+        self.assertEqual(
+            str(e.exception),
+            INCONSISTENT_DESTINATION_EXCEPTION('m', 'out_com_1', {'in_com'}),
+            msg='Wrong exception message returned for wrong source commodity on edge'
+        )
 
     def test_hashing(self):
         # test equal hash
         e_equal = Edge(
             _source=MACHINE,
             _destination=STORAGE_1,
+            commodity='out_com_1',
             min_flow=50.0,
             max_flow=60.0,
             integer=True,
@@ -135,6 +182,7 @@ class TestEdge(TestDataType):
         e_diff = Edge(
             _source=MACHINE,
             _destination=STORAGE_2,
+            commodity='out_com_2',
             min_flow=0.0,
             max_flow=100.0,
             integer=False,

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Set, Optional, List
+from typing import Set, List
 
 import numpy as np
 import pandas as pd
@@ -25,8 +25,8 @@ class Client(VarianceNode, ABC):
         return 'client'
 
     @property
-    def commodity_in(self) -> Optional[str]:
-        return self.commodity
+    def commodities_in(self) -> Set[str]:
+        return {self.commodity}
 
     @property
     def commodities_out(self) -> Set[str]:

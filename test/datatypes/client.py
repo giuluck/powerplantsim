@@ -42,8 +42,8 @@ class TestClient(TestDataType):
         self.assertEqual(PURCHASER.kind, 'client', msg="Purchaser node is not labelled as client")
         self.assertFalse(CUSTOMER.purchaser, msg="Customer node is not labelled as non-purchaser")
         self.assertTrue(PURCHASER.purchaser, msg="Purchaser node is not labelled as purchaser")
-        self.assertEqual(CUSTOMER.commodity_in, 'c_com', msg="Wrong customer inputs stored")
-        self.assertEqual(PURCHASER.commodity_in, 'p_com', msg="Wrong purchaser inputs stored")
+        self.assertSetEqual(CUSTOMER.commodities_in, {'c_com'}, msg="Wrong customer inputs stored")
+        self.assertSetEqual(PURCHASER.commodities_in, {'p_com'}, msg="Wrong purchaser inputs stored")
         self.assertSetEqual(CUSTOMER.commodities_out, set(), msg="Wrong customer outputs stored")
         self.assertSetEqual(PURCHASER.commodities_out, set(), msg="Wrong purchaser outputs stored")
 
@@ -66,7 +66,7 @@ class TestClient(TestDataType):
             'name': 'c',
             'kind': 'client',
             'purchaser': False,
-            'commodity_in': 'c_com',
+            'commodities_in': {'c_com'},
             'commodities_out': set(),
         }, msg='Wrong dictionary returned for customer')
         self.assertDictEqual(c_val.to_dict(), {}, msg='Wrong dictionary returned for customer')
@@ -78,7 +78,7 @@ class TestClient(TestDataType):
             'name': 'p',
             'kind': 'client',
             'purchaser': True,
-            'commodity_in': 'p_com',
+            'commodities_in': {'p_com'},
             'commodities_out': set(),
         }, msg='Wrong dictionary returned for purchaser')
         self.assertDictEqual(p_val.to_dict(), {}, msg='Wrong dictionary returned for customer')

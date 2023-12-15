@@ -1,4 +1,4 @@
-from typing import Iterable, Any, Union
+from typing import Iterable, Union
 
 import networkx as nx
 import numpy as np

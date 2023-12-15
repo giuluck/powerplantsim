@@ -26,7 +26,7 @@ class TestSupplier(TestDataType):
     def test_properties(self):
         self.assertEqual(SUPPLIER.key, 's', msg="Wrong supplier key name stored")
         self.assertEqual(SUPPLIER.kind, 'supplier', msg="Supplier node is not labelled as supplier")
-        self.assertIsNone(SUPPLIER.commodity_in, msg="Wrong supplier inputs stored")
+        self.assertSetEqual(SUPPLIER.commodities_in, set(), msg="Wrong supplier inputs stored")
         self.assertSetEqual(SUPPLIER.commodities_out, {'s_com'}, msg="Wrong supplier outputs stored")
 
     def test_immutability(self):
@@ -43,7 +43,7 @@ class TestSupplier(TestDataType):
         self.assertEqual(s_dict, {
             'name': 's',
             'kind': 'supplier',
-            'commodity_in': None,
+            'commodities_in': set(),
             'commodities_out': {'s_com'},
         }, msg='Wrong dictionary returned for supplier')
         self.assertDictEqual(s_val.to_dict(), {}, msg='Wrong dictionary returned for supplier')

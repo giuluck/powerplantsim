@@ -178,7 +178,7 @@ class TestMachine(TestDataType):
     def test_properties(self):
         self.assertEqual(MACHINE.key, 'm', msg="Wrong machine key name stored")
         self.assertEqual(MACHINE.kind, 'machine', msg="Machine node is not labelled as machine")
-        self.assertEqual(MACHINE.commodity_in, 'in_com', msg="Wrong machine inputs stored")
+        self.assertSetEqual(MACHINE.commodities_in, {'in_com'}, msg="Wrong machine inputs stored")
         self.assertSetEqual(
             MACHINE.commodities_out,
             {'out_com_1', 'out_com_2'},
@@ -200,7 +200,7 @@ class TestMachine(TestDataType):
         self.assertEqual(m_dict, {
             'name': 'm',
             'kind': 'machine',
-            'commodity_in': 'in_com',
+            'commodities_in': {'in_com'},
             'commodities_out': {'out_com_1', 'out_com_2'},
             'discrete_setpoint': False,
             'max_starting': None,

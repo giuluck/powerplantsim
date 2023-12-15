@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Set, Optional, List
+from typing import Set, List
 
 import pandas as pd
 from descriptors import classproperty
@@ -31,8 +31,8 @@ class Supplier(VarianceNode):
         return self.values
 
     @property
-    def commodity_in(self) -> Optional[str]:
-        return None
+    def commodities_in(self) -> Set[str]:
+        return set()
 
     @property
     def commodities_out(self) -> Set[str]:

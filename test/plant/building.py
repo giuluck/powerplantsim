@@ -13,7 +13,6 @@ PLANT.add_storage(name='sto', parents='mac', commodity='out')
 PLANT.add_client(name='cli', parents=['mac', 'sto'], commodity='out', predictions=1.)
 
 NAME_CONFLICT_EXCEPTION = lambda k, n: f"There is already a {k} node '{n}', please use another identifier"
-PARENT_COMMODITY_EXCEPTION = lambda n, i, o: f"Parent node '{n}' should return commodity '{i}', but it returns {o}"
 PARENT_UNKNOWN_EXCEPTION = lambda n: f"Parent node '{n}' has not been added yet"
 EMPTY_PARENTS_EXCEPTION = lambda k: f"{k} node must have at least one parent"
 
@@ -36,7 +35,7 @@ class TestPlantBuilding(unittest.TestCase):
         for i, prc in enumerate(tests):
             s = p.add_supplier(name=f'sup_{i}', commodity='in', predictions=prc)
             self.assertEqual(s.name, f'sup_{i}', msg="Wrong name for supplier")
-            self.assertIsNone(s.commodity_in, msg="Wrong input commodity for supplier")
+            self.assertSetEqual(s.commodities_in, set(), msg="Wrong input commodity for supplier")
             self.assertSetEqual(s.commodities_out, {'in'}, msg="Wrong output commodity for supplier")
             self.assertListEqual(list(s.predictions.index), list(p.horizon), msg="Wrong predictions index for supplier")
             self.assertListEqual(list(s.predictions.values), prices, msg="Wrong predictions for supplier")
@@ -60,13 +59,6 @@ class TestPlantBuilding(unittest.TestCase):
             PARENT_UNKNOWN_EXCEPTION('unk'),
             msg='Wrong exception message returned for unknown parent'
         )
-        with self.assertRaises(AssertionError, msg="Wrong parent commodity for client should raise exception") as e:
-            p.add_client(name='parent_com', commodity='in', parents='mac', predictions=1.)
-        self.assertEqual(
-            str(e.exception),
-            PARENT_COMMODITY_EXCEPTION('mac', 'in', {'out'}),
-            msg='Wrong exception message returned for wrong parent commodity'
-        )
         with self.assertRaises(AssertionError, msg="Empty parent list for client should raise exception") as e:
             p.add_client(name='parent_emp', commodity='out', parents=[], predictions=1.)
         self.assertEqual(
@@ -89,7 +81,7 @@ class TestPlantBuilding(unittest.TestCase):
                 c = p.add_client(name=f'{kind}_{i}', commodity='out', parents='mac', predictions=dmn, purchaser=pur)
                 self.assertIsInstance(c, klass, msg=f"Wrong type for {kind}")
                 self.assertEqual(c.name, f'{kind}_{i}', msg=f"Wrong name for {kind}")
-                self.assertEqual(c.commodity_in, 'out', msg=f"Wrong input commodity for {kind}")
+                self.assertSetEqual(c.commodities_in, {'out'}, msg=f"Wrong input commodity for {kind}")
                 self.assertSetEqual(c.commodities_out, set(), msg=f"Wrong output commodity for {kind}")
                 self.assertListEqual(
                     list(c.predictions.index),
@@ -125,13 +117,6 @@ class TestPlantBuilding(unittest.TestCase):
             str(e.exception),
             PARENT_UNKNOWN_EXCEPTION('unk'),
             msg='Wrong exception message returned for unknown parent'
-        )
-        with self.assertRaises(AssertionError, msg="Wrong parent commodity for machine should raise exception") as e:
-            p.add_machine(name='parent_com', commodity='out', parents='sup', setpoint={'setpoint': [1.], 'out': [1.]})
-        self.assertEqual(
-            str(e.exception),
-            PARENT_COMMODITY_EXCEPTION('sup', 'out', {'in'}),
-            msg='Wrong exception message returned for wrong parent commodity'
         )
         with self.assertRaises(AssertionError, msg="Empty parent list for machine should raise exception") as e:
             p.add_machine(name='parent_emp', commodity='out', parents=[], setpoint={'setpoint': [1.], 'in': [1.]})
@@ -219,13 +204,6 @@ class TestPlantBuilding(unittest.TestCase):
             str(e.exception),
             PARENT_UNKNOWN_EXCEPTION('unk'),
             msg='Wrong exception message returned for unknown parent'
-        )
-        with self.assertRaises(AssertionError, msg="Wrong parent commodity for storage should raise exception") as e:
-            p.add_storage(name='parent_com', commodity='in', parents='mac')
-        self.assertEqual(
-            str(e.exception),
-            PARENT_COMMODITY_EXCEPTION('mac', 'in', {'out'}),
-            msg='Wrong exception message returned for wrong parent commodity'
         )
         with self.assertRaises(AssertionError, msg="Empty parent list for storage should raise exception") as e:
             p.add_storage(name='parent_emp', commodity='out', parents=[])

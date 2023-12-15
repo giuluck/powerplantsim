@@ -136,7 +136,7 @@ class TestStorage(TestDataType):
     def test_properties(self):
         self.assertEqual(STORAGE.key, 's', msg="Wrong storage key name stored")
         self.assertEqual(STORAGE.kind, 'storage', msg="Storage node is not labelled as supplier")
-        self.assertEqual(STORAGE.commodity_in, 's_com', msg="Wrong storage inputs stored")
+        self.assertSetEqual(STORAGE.commodities_in, {'s_com'}, msg="Wrong storage inputs stored")
         self.assertSetEqual(STORAGE.commodities_out, {'s_com'}, msg="Wrong storage outputs stored")
 
     def test_immutability(self):
@@ -149,7 +149,7 @@ class TestStorage(TestDataType):
         self.assertEqual(s_dict, {
             'name': 's',
             'kind': 'storage',
-            'commodity_in': 's_com',
+            'commodities_in': {'s_com'},
             'commodities_out': {'s_com'},
             'dissipation': 1.0,
             'capacity': 100.0,

@@ -20,6 +20,9 @@ class Edge(DataType):
     _destination: Node = field(kw_only=True)
     """The destination node."""
 
+    commodity: str = field(kw_only=True)
+    """The type of commodity that flows in the edge, which can be uniquely determined by the destination input."""
+
     min_flow: float = field(kw_only=True)
     """The minimal flow of commodity."""
 
@@ -36,11 +39,14 @@ class Edge(DataType):
         assert self.min_flow >= 0, f"The minimum flow cannot be negative, got {self.min_flow}"
         assert self.max_flow >= self.min_flow, \
             f"The maximum flow cannot be lower than the minimum, got {self.max_flow} < {self.min_flow}"
-        assert self._destination.commodity_in is not None, \
+        assert len(self._destination.commodities_in) != 0, \
             f"Destination node '{self._destination.name}' does not accept any input commodity, but it should"
         assert self.commodity in self._source.commodities_out, \
             f"Source node '{self._source.name}' should return commodity '{self.commodity}', " \
             f"but it returns {self._source.commodities_out}"
+        assert self.commodity in self._destination.commodities_in, \
+            f"Destination node '{self._destination.name}' should accept commodity '{self.commodity}', " \
+            f"but it accepts {self._destination.commodities_in}"
 
     @classproperty
     def _properties(self) -> List[str]:
@@ -55,11 +61,6 @@ class Edge(DataType):
     def destination(self) -> str:
         """The destination node."""
         return self._destination.name
-
-    @property
-    def commodity(self) -> str:
-        """The type of commodity that flows in the edge, which can be uniquely determined by the destination input."""
-        return self._destination.commodity_in
 
     @property
     def flows(self) -> pd.Series:

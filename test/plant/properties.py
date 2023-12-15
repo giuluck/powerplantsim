@@ -42,14 +42,39 @@ CLIENT = Customer(name='cli', commodity='out', _predictions=SERIES, _variance_fn
 EDGE_1 = Edge(
     _source=SUPPLIER,
     _destination=MACHINE,
+    commodity='in',
     min_flow=0.0,
     max_flow=float('inf'),
     integer=False,
     _plant=PLANT_1
 )
-EDGE_2 = Edge(_source=MACHINE, _destination=STORAGE, min_flow=0.0, max_flow=float('inf'), integer=False, _plant=PLANT_1)
-EDGE_3 = Edge(_source=MACHINE, _destination=CLIENT, min_flow=0.0, max_flow=float('inf'), integer=False, _plant=PLANT_1)
-EDGE_4 = Edge(_source=STORAGE, _destination=CLIENT, min_flow=0.0, max_flow=float('inf'), integer=False, _plant=PLANT_1)
+EDGE_2 = Edge(
+    _source=MACHINE,
+    _destination=STORAGE,
+    commodity='out',
+    min_flow=0.0,
+    max_flow=float('inf'),
+    integer=False,
+    _plant=PLANT_1
+)
+EDGE_3 = Edge(
+    _source=MACHINE,
+    _destination=CLIENT,
+    commodity='out',
+    min_flow=0.0,
+    max_flow=float('inf'),
+    integer=False,
+    _plant=PLANT_1
+)
+EDGE_4 = Edge(
+    _source=STORAGE,
+    _destination=CLIENT,
+    commodity='out',
+    min_flow=0.0,
+    max_flow=float('inf'),
+    integer=False,
+    _plant=PLANT_1
+)
 
 NEGATIVE_HORIZON_EXCEPTION = lambda v: f"The time horizon must be a strictly positive integer, got {v}"
 

@@ -49,3 +49,8 @@ class TestDataType(unittest.TestCase):
     def test_dict(self):
         """Tests that the correct dictionary of datatype properties is returned."""
         pass
+
+    # @abstractmethod
+    # def test_update(self):
+    #     """Tests that the update function works correctly."""
+    #     pass
