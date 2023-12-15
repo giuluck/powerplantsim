@@ -61,8 +61,9 @@ class Storage(Node):
     def update(self, rng: np.random.Generator):
         step = self._step()
         # compute total input and output flows from respective edges
-        in_flow = np.sum([e.flow_at(step=step) for e in self._in_edges])
-        out_flow = np.sum([e.flow_at(step=step) for e in self._out_edges])
+        in_edges, out_edges = self._edges
+        in_flow = np.sum([e.flow_at(step=step) for e in in_edges])
+        out_flow = np.sum([e.flow_at(step=step) for e in out_edges])
         # check that at least one of the two is null as from the constraints
         assert in_flow == 0.0 or out_flow == 0.0, \
             f"Storage node '{self.name}' can have either input or output flows in a single time step, got both"

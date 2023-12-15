@@ -175,9 +175,6 @@ class Plant:
                 integer=integer
             )
             self._edges.add(edge)
-            # append parent and children to the respective lists
-            parent.append(edge)
-            node.append(edge)
 
     def add_supplier(self,
                      name: str,

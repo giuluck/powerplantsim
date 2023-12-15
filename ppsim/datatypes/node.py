@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Set, Optional, Callable, List
+from typing import Set, Optional, Callable, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -15,12 +15,6 @@ class Node(DataType, ABC):
 
     name: str = field(kw_only=True)
     """The name of the node."""
-
-    _in_edges: list = field(kw_only=True, init=False, default_factory=list)
-    """A list of InternalEdge objects containing all the input edges (<source>, self)."""
-
-    _out_edges: list = field(kw_only=True, init=False, default_factory=list)
-    """A list  of InternalEdge objects containing all the output edges (self, <destination>)."""
 
     @classproperty
     @abstractmethod
@@ -48,6 +42,17 @@ class Node(DataType, ABC):
     def key(self) -> str:
         return self.name
 
+    @property
+    def _edges(self) -> Tuple[set, set]:
+        """A tuple <in_edges, out_edges> of sets of Edge objects containing all the input/output edges of this node."""
+        in_edges, out_edges = set(), set()
+        for edge in self._plant.edges():
+            if edge.source == self.name:
+                out_edges.add(edge)
+            elif edge.destination == self.name:
+                in_edges.add(edge)
+        return in_edges, out_edges
+
     def _instance(self, other) -> bool:
         return isinstance(other, Node)
 
@@ -59,19 +64,6 @@ class Node(DataType, ABC):
             The random number generator to be used for reproducible results.
         """
         pass
-
-    def append(self, edge):
-        """Appends an edge into the internal data structure.
-
-        :param edge:
-            The edge to append.
-        """
-        if edge.source == self.name:
-            self._out_edges.append(edge)
-        elif edge.destination == self.name:
-            self._in_edges.append(edge)
-        else:
-            raise AssertionError(f"Trying to append {edge} to {self}, but the node is neither source nor destination")
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
@@ -107,5 +99,6 @@ class VarianceNode(Node, ABC):
     def update(self, rng: np.random.Generator):
         # compute the new values as the sum of the prediction and the variance obtained from the variance model
         step = self._step()
-        value = self._predictions[step] + self._variance_fn(rng, self.values)
-        self._values.append(value)
+        values = pd.Series(self._values.copy(), dtype=float, index=self._horizon[:self._info.step])
+        next_value = self._predictions[step] + self._variance_fn(rng, values)
+        self._values.append(next_value)

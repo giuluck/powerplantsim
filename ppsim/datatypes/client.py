@@ -58,11 +58,12 @@ class Customer(Client):
 
     def update(self, rng: np.random.Generator):
         step = self._step()
-        value = self._predictions[step] + self._variance_fn(rng, self.values)
-        flow = np.sum([e.flow_at(step=step) for e in self._in_edges])
-        assert value <= flow, \
-            f"Customer node '{self.name}' can accept at most {value} units at time step {step}, got {flow}"
-        self._values.append(value)
+        values = pd.Series(self._values.copy(), dtype=float, index=self._horizon[:self._info.step])
+        next_value = self._predictions[step] + self._variance_fn(rng, values)
+        flow = np.sum([e.flow_at(step=step) for e in self._edges[0]])
+        assert next_value <= flow, \
+            f"Customer node '{self.name}' can accept at most {next_value} units at time step {step}, got {flow}"
+        self._values.append(next_value)
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)

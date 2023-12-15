@@ -81,7 +81,7 @@ class Machine(Node):
         step = self._step()
         setpoint = self._setpoint.index
         # compute total input and output flows from respective edges
-        in_flow = np.sum([e.flow_at(step=step) for e in self._in_edges])
+        in_flow = np.sum([e.flow_at(step=step) for e in self._edges[0]])
         if in_flow == 0.0:
             # zero outputs for machine off and input flow becomes None as it will be stored in the series of setpoints
             in_flow = np.nan
@@ -99,7 +99,7 @@ class Machine(Node):
             out_flows = {col: np.interp(in_flow, xp=setpoint, fp=self._setpoint[col]) for col in self._setpoint.columns}
         # check that the respective output flows are consistent
         out_true = {col: 0.0 for col in self._setpoint.columns}
-        for e in self._out_edges:
+        for e in self._edges[1]:
             out_true[e.commodity] += e.flow_at(step=step)
         for commodity, exp_flow in out_flows.items():
             true_flow = out_true[commodity]
