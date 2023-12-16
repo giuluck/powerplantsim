@@ -1,20 +1,30 @@
 from dataclasses import dataclass
-from typing import Any, Dict, Tuple, List, Iterable, Union
+from typing import Any, Dict, Tuple, List, Iterable, Optional, Union
+
+NodeID = str
+"""Datatype for node identifier, i.e, its name."""
+
+State = Optional[float]
+"""Datatype for a single machine state specification (None for machine off)."""
+
+States = Dict[NodeID, State]
+"""Datatype for machine states specification in a single time step, i.e., a dictionary <machine: state>."""
+
+Setpoint = Dict[str, Iterable[float] | Dict[str, Iterable[float]]]
+"""Datatype for machine setpoint specification, i.e., a dictionary of type:
+ {'setpoint': setpoint, 'input': {commodity: input_flows}, 'output': {commodity: output_flows}"""
 
 EdgeID = Tuple[str, str]
-"""Datatype for Edge Identifier (tuple <source, destination>)."""
+"""Datatype for edge identifier, i.e., a tuple (source, destination)."""
 
 Flow = float
-"""Datatype for Single Flow specification (null flow implies that the machine is off)."""
+"""Datatype for a single edge flow specification."""
 
 Flows = Dict[EdgeID, Flow]
-"""Datatype for Flows specification (dictionary <edge, flow>)."""
+"""Datatype for edge flows specification in a single time step, i.e., a dictionary <edge: flow>."""
 
-Plan = Dict[EdgeID, Union[Flow, Iterable[Flow]]]
-"""Datatype for Plan specification (dictionary <edge, flow/flows>)."""
-
-Setpoint = Dict[str, Iterable[float]]
-"""Datatype for Setpoint specification (dictionary <commodity>: <input/output flows>)."""
+Plan = Dict[Union[NodeID, EdgeID], Union[State, Flow, Iterable[State], Iterable[Flow]]]
+"""Datatype for plan specification, i.e., a dictionary <machine | edge: state/states | flow/flows>."""
 
 
 @dataclass(frozen=True, unsafe_hash=True, slots=True)

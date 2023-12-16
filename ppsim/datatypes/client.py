@@ -1,12 +1,13 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Set, List
+from typing import Set, List, Optional
 
 import numpy as np
 import pandas as pd
 from descriptors import classproperty
 
 from ppsim.datatypes.node import VarianceNode
+from ppsim.utils.typing import Flows, States
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
@@ -44,7 +45,7 @@ class Customer(Client):
     @classproperty
     def _properties(self) -> List[str]:
         properties = super(Customer, self)._properties
-        return properties + ['purchaser', 'predicted_demands', 'demands']
+        return properties + ['purchaser', 'predicted_demands', 'demands', 'current_demand']
 
     @property
     def predicted_demands(self) -> pd.Series:
@@ -56,14 +57,18 @@ class Customer(Client):
         """The series of actual demands, which is filled during the simulation."""
         return self.values
 
-    def update(self, rng: np.random.Generator):
-        step = self._step()
-        values = pd.Series(self._values.copy(), dtype=float, index=self._horizon[:self._info.step])
-        next_value = self._predictions[step] + self._variance_fn(rng, values)
-        flow = np.sum([e.flow_at(step=step) for e in self._edges[0]])
-        assert next_value <= flow, \
-            f"Customer node '{self.name}' can accept at most {next_value} units at time step {step}, got {flow}"
-        self._values.append(next_value)
+    @property
+    def current_demand(self) -> Optional[float]:
+        """The current demand of the node for this time step as computed using the variance model."""
+        return self._info['current_value']
+
+    def step(self, flows: Flows, states: States):
+        # check that the flow does not exceed the demand
+        demand = self._info['current_value']
+        self._info['current_value'] = None
+        flow = np.sum([flow for (_, destination), flow in flows.items() if destination == self.name])
+        assert flow <= demand, f"Customer node '{self.name}' can accept at most {demand} units, got {flow}"
+        self._values.append(demand)
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
@@ -77,7 +82,7 @@ class Purchaser(Client):
     @classproperty
     def _properties(self) -> List[str]:
         properties = super(Purchaser, self)._properties
-        return properties + ['purchaser', 'predicted_prices', 'prices']
+        return properties + ['purchaser', 'predicted_prices', 'prices', 'current_price']
 
     @property
     def predicted_prices(self) -> pd.Series:
@@ -88,3 +93,12 @@ class Purchaser(Client):
     def prices(self) -> pd.Series:
         """The series of actual buying prices, which is filled during the simulation."""
         return self.values
+
+    @property
+    def current_price(self) -> Optional[float]:
+        """The current buying price of the node for this time step as computed using the variance model."""
+        return self._info['current_value']
+
+    def step(self, flows: Flows, states: States):
+        self._values.append(self._info['current_value'])
+        self._info['current_value'] = None

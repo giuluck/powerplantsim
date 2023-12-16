@@ -12,16 +12,23 @@ PLANT_1.add_supplier(name='sup', commodity='in', predictions=1.)
 
 PLANT_2 = Plant(horizon=24)
 PLANT_2.add_supplier(name='sup', commodity='in', predictions=1.)
-PLANT_2.add_machine(name='mac', parents='sup', commodity='in', setpoint={'setpoint': [1.], 'out': [1.]})
+PLANT_2.add_machine(name='mac', parents='sup', setpoint={
+    'setpoint': [1.],
+    'input': {'in': [1.]},
+    'output': {'out': [1.]}
+})
 PLANT_2.add_storage(name='sto', parents='mac', commodity='out')
 PLANT_2.add_client(name='cli', parents=['mac', 'sto'], commodity='out', predictions=1.)
 
 SERIES = np.ones(24)
-SETPOINT = pd.DataFrame(data=[1.], columns=['out'], index=[1.])
+SETPOINT = pd.DataFrame(
+    data=[[1., 1.]],
+    columns=pd.MultiIndex.from_tuples([('input', 'in'), ('output', 'out')]),
+    index=[1.]
+)
 SUPPLIER = Supplier(name='sup', commodity='in', _predictions=SERIES, _variance_fn=VARIANCE_1, _plant=PLANT_1)
 MACHINE = Machine(
     name='mac',
-    commodity='in',
     _setpoint=SETPOINT,
     discrete_setpoint=False,
     max_starting=None,

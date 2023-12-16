@@ -6,7 +6,8 @@ import networkx as nx
 from matplotlib.lines import Line2D
 
 from ppsim import utils
-from ppsim.utils import NamedTuple, EdgeID
+from ppsim.utils import NamedTuple
+from ppsim.utils.typing import EdgeID
 
 
 @dataclass(frozen=True, unsafe_hash=True, slots=True, kw_only=True)

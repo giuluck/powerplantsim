@@ -1,27 +1,24 @@
 from abc import abstractmethod, ABC
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
+import numpy as np
 import pandas as pd
 from descriptors import classproperty
 
 from ppsim import utils
+from ppsim.utils.typing import Flows, States
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
 class DataType(ABC):
     """Abstract class that defines a datatype and has a unique key for comparison."""
 
-    @dataclass
-    class _InternalInfo:
-        """Internal class to handle mutable (non-frozen) information about the simulation"""
-        step: int = field(init=False, default=-1)
-
     _plant: Any = field(kw_only=True)
     """The power plant object to which this datatype is attached."""
 
-    _info: _InternalInfo = field(init=False, default_factory=_InternalInfo)
-    """Internal mutable simulation info."""
+    _info: Dict[str, Any] = field(init=False, default_factory=dict)
+    """Internal object for additional mutable information."""
 
     @classproperty
     @abstractmethod
@@ -31,19 +28,24 @@ class DataType(ABC):
 
     @property
     @abstractmethod
-    def key(self):
+    def key(self) -> Any:
         """An identifier of the object."""
         pass
 
     @property
-    def _horizon(self) -> pd.Index:
-        """The time horizon of the simulation in which the datatype is involved."""
-        return self._plant.horizon.copy()
+    def _step(self) -> Optional[int]:
+        """The current step of the simulation, or None if the simulation is not started yet."""
+        return self._plant.step
 
     @property
-    def _index(self):
-        """The current index of the simulation as for the given time horizon."""
-        return self._plant.horizon[self._info.step]
+    def _index(self) -> Optional:
+        """The current index of the simulation as in the time horizon, or None if the simulation is not started."""
+        return self._plant.index
+
+    @property
+    def _horizon(self) -> pd.Index:
+        """The time horizon of the simulation in which the datatype is involved."""
+        return self._plant.horizon
 
     @property
     def dict(self) -> Dict[str, Any]:
@@ -66,19 +68,36 @@ class DataType(ABC):
             json[param] = value
         return json
 
-    def _step(self):
-        """Checks and updates the internal simulation details.
-
-        :return:
-            The updated step of the simulation as for the given time horizon.
-        """
-        self._info.step += 1
-        assert self._info.step < len(self._horizon), f"{self} has reached maximal number of updates for the simulation"
-        return self._info.step
-
     def _instance(self, other) -> bool:
         """Checks whether a different object is matching the self instance for comparison."""
         return isinstance(other, self.__class__)
+
+    @abstractmethod
+    def update(self, rng: np.random.Generator, flows: Flows, states: States):
+        """Updates the current internal values of the datatype before the recourse action is called.
+
+        :param rng:
+            The random number generator to be used for reproducible results.
+
+        :param flows:
+            The user-defined edge flows for the current step.
+
+        :param states:
+            The user-defined machine states for the current step.
+        """
+        pass
+
+    @abstractmethod
+    def step(self, flows: Flows, states: States):
+        """Performs a step forward in the simulation by computing internal values after the recourse action is called.
+
+        :param flows:
+            The edge flows computed by the recourse action for the current step.
+
+        :param states:
+            The machine states computed by the recourse action for the current step.
+        """
+        pass
 
     def __eq__(self, other: Any) -> bool:
         return self._instance(other) and self.key == other.key

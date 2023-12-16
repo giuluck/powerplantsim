@@ -45,6 +45,7 @@ class TestSupplier(TestDataType):
             'kind': 'supplier',
             'commodities_in': set(),
             'commodities_out': {'s_com'},
+            'current_price': None,
         }, msg='Wrong dictionary returned for supplier')
         self.assertDictEqual(s_val.to_dict(), {}, msg='Wrong dictionary returned for supplier')
         self.assertDictEqual(s_pred.to_dict(), SERIES_1.to_dict(), msg='Wrong dictionary returned for supplier')

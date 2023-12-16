@@ -155,5 +155,6 @@ class TestStorage(TestDataType):
             'capacity': 100.0,
             'charge_rate': 10.0,
             'discharge_rate': 10.0,
+            'current_storage': None
         }, msg='Wrong dictionary returned for storage')
         self.assertDictEqual(s_storage.to_dict(), {}, msg='Wrong dictionary returned for storage')

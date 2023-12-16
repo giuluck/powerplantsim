@@ -3,7 +3,6 @@ from test.datatypes.datatype import TestDataType, SETPOINT, PLANT
 
 MACHINE = Machine(
     name='m',
-    commodity='in_com',
     _setpoint=SETPOINT,
     discrete_setpoint=False,
     max_starting=None,
@@ -15,8 +14,8 @@ COST_EXCEPTION = lambda v: f"The operating cost of the machine must be non-negat
 MAX_STARTING_EXCEPTION = lambda n: f"The number of starting must be a strictly positive integer, got {n}"
 TIMESTEP_STARTING_EXCEPTION = \
     lambda n, t: f"The number of starting must be strictly less than the number of time steps, got {n} >= {t}"
-SETPOINT_EXCEPTION = lambda v: f"Setpoints should be non-negative, got {v}"
-OUTPUT_FLOWS_EXCEPTION = lambda c, v: f"Output flows should be non-negative, got {c}: {v}"
+SETPOINT_INDEX_EXCEPTION = lambda v: f"Setpoints should be non-negative, got {v}"
+SETPOINT_FLOWS_EXCEPTION = lambda c, v: f"Setpoint flows should be non-negative, got {c}: {v}"
 DISCRETE_SETPOINT_EXCEPTION = lambda v: f"Unsupported flow {v} for discrete setpoint [50.0, 75.0, 100.0]"
 CONTINUOUS_SETPOINT_EXCEPTION = lambda v: f"Unsupported flow {v} for continuous setpoint 50.0 <= flow <= 100.0"
 
@@ -28,7 +27,6 @@ class TestMachine(TestDataType):
         with self.assertRaises(AssertionError, msg="Negative cost should raise exception") as e:
             Machine(
                 name='m',
-                commodity='in_com',
                 _setpoint=SETPOINT,
                 discrete_setpoint=True,
                 max_starting=None,
@@ -44,7 +42,6 @@ class TestMachine(TestDataType):
         with self.assertRaises(AssertionError, msg="Negative max starting should raise exception") as e:
             Machine(
                 name='m',
-                commodity='in_com',
                 _setpoint=SETPOINT,
                 discrete_setpoint=True,
                 max_starting=(-1, 3),
@@ -59,7 +56,6 @@ class TestMachine(TestDataType):
         with self.assertRaises(AssertionError, msg="Null max starting should raise exception") as e:
             Machine(
                 name='m',
-                commodity='in_com',
                 _setpoint=SETPOINT,
                 discrete_setpoint=True,
                 max_starting=(0, 3),
@@ -75,7 +71,6 @@ class TestMachine(TestDataType):
         with self.assertRaises(AssertionError, msg="Max starting lower than time steps should raise exception") as e:
             Machine(
                 name='m',
-                commodity='in_com',
                 _setpoint=SETPOINT,
                 discrete_setpoint=True,
                 max_starting=(5, 3),
@@ -92,7 +87,6 @@ class TestMachine(TestDataType):
         sp2.index = [50.0, 0.0, 100.0]
         Machine(
             name='m',
-            commodity='in_com',
             _setpoint=sp2,
             discrete_setpoint=False,
             max_starting=None,
@@ -103,7 +97,6 @@ class TestMachine(TestDataType):
         with self.assertRaises(AssertionError, msg="Negative input flows in setpoint should raise exception") as e:
             Machine(
                 name='m',
-                commodity='in_com',
                 _setpoint=sp2,
                 discrete_setpoint=False,
                 max_starting=None,
@@ -112,16 +105,15 @@ class TestMachine(TestDataType):
             )
         self.assertEqual(
             str(e.exception),
-            SETPOINT_EXCEPTION(-1.0),
+            SETPOINT_INDEX_EXCEPTION(-1.0),
             msg='Wrong exception message returned for negative setpoint on machine'
         )
         # test incorrect output flows
         sp2 = SETPOINT.copy()
-        sp2['out_com_1'] = [-1.0, 0.0, 0.5]
+        sp2[('input', 'in_com')] = [50.0, -10.0, 100.0]
         with self.assertRaises(AssertionError, msg="Negative output flows in setpoint should raise exception") as e:
             Machine(
                 name='m',
-                commodity='in_com',
                 _setpoint=sp2,
                 discrete_setpoint=False,
                 max_starting=None,
@@ -130,15 +122,14 @@ class TestMachine(TestDataType):
             )
         self.assertEqual(
             str(e.exception),
-            OUTPUT_FLOWS_EXCEPTION('out_com_1', -1.0),
+            SETPOINT_FLOWS_EXCEPTION(('input', 'in_com'), -10.0),
             msg='Wrong exception message returned for negative output flows on machine'
         )
         sp2 = SETPOINT.copy()
-        sp2['out_com_2'] = [60.0, -10.0, 30.0]
+        sp2[('output', 'out_com_1')] = [-1.0, 0.0, 0.5]
         with self.assertRaises(AssertionError, msg="Negative output flows in setpoint should raise exception") as e:
             Machine(
                 name='m',
-                commodity='in_com',
                 _setpoint=sp2,
                 discrete_setpoint=False,
                 max_starting=None,
@@ -147,7 +138,7 @@ class TestMachine(TestDataType):
             )
         self.assertEqual(
             str(e.exception),
-            OUTPUT_FLOWS_EXCEPTION('out_com_2', -10.0),
+            SETPOINT_FLOWS_EXCEPTION(('output', 'out_com_1'), -1.0),
             msg='Wrong exception message returned for negative output flows on machine'
         )
 
@@ -155,7 +146,6 @@ class TestMachine(TestDataType):
         # test equal hash
         m_equal = Machine(
             name='m',
-            commodity='in_com_2',
             _setpoint=SETPOINT.copy(),
             discrete_setpoint=True,
             max_starting=(1, 7),
@@ -166,7 +156,6 @@ class TestMachine(TestDataType):
         # test different hash
         m_diff = Machine(
             name='md',
-            commodity='in_com',
             _setpoint=SETPOINT,
             discrete_setpoint=False,
             max_starting=None,
@@ -190,7 +179,7 @@ class TestMachine(TestDataType):
         MACHINE.states[0] = 5.0
         MACHINE.setpoint.iloc[0, 0] = 5.0
         self.assertEqual(len(MACHINE.states), 0, msg="Machine states should be immutable")
-        self.assertEqual(MACHINE.setpoint.iloc[0, 0], 0.0, msg="Machine setpoint should be immutable")
+        self.assertEqual(MACHINE.setpoint.iloc[0, 0], 50.0, msg="Machine setpoint should be immutable")
 
     def test_dict(self):
         # pandas series and dataframes need to be tested separately due to errors in the equality check
@@ -204,7 +193,8 @@ class TestMachine(TestDataType):
             'commodities_out': {'out_com_1', 'out_com_2'},
             'discrete_setpoint': False,
             'max_starting': None,
-            'cost': 0
+            'cost': 0,
+            'current_state': None
         }, msg='Wrong dictionary returned for machine')
         self.assertDictEqual(m_states.to_dict(), {}, msg='Wrong dictionary returned for machine')
         self.assertDictEqual(m_setpoint.to_dict(), SETPOINT.to_dict(), msg='Wrong dictionary returned for machine')

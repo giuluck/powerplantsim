@@ -1,13 +1,13 @@
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Optional
 
+import numpy as np
 import pandas as pd
 from descriptors import classproperty
 
 from ppsim.datatypes.datatype import DataType
 from ppsim.datatypes.node import Node
-from ppsim.utils import EdgeID
-from ppsim.utils.typing import Flow
+from ppsim.utils.typing import EdgeID, Flow, Flows, States
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
@@ -36,6 +36,7 @@ class Edge(DataType):
     """The series of actual flows, which is filled during the simulation."""
 
     def __post_init__(self):
+        self._info['current_flow'] = None
         assert self.min_flow >= 0, f"The minimum flow cannot be negative, got {self.min_flow}"
         assert self.max_flow >= self.min_flow, \
             f"The maximum flow cannot be lower than the minimum, got {self.max_flow} < {self.min_flow}"
@@ -50,7 +51,7 @@ class Edge(DataType):
 
     @classproperty
     def _properties(self) -> List[str]:
-        return ['source', 'destination', 'commodity', 'min_flow', 'max_flow', 'integer', 'flows']
+        return ['source', 'destination', 'commodity', 'min_flow', 'max_flow', 'integer', 'flows', 'current_flow']
 
     @property
     def source(self) -> str:
@@ -65,30 +66,23 @@ class Edge(DataType):
     @property
     def flows(self) -> pd.Series:
         """The series of actual flows, which is filled during the simulation."""
-        return pd.Series(self._flows, dtype=float, index=self._horizon[:self._info.step + 1])
+        return pd.Series(self._flows, dtype=float, index=self._horizon[:len(self._flows)])
+
+    @property
+    def current_flow(self) -> Optional[Flow]:
+        """The current flow on the edge for this time step as provided by the user."""
+        return self._info['current_flow']
 
     @property
     def key(self) -> EdgeID:
         return self._source.name, self._destination.name
 
-    def flow_at(self, step: int) -> float:
-        """Returns the flow at the given index.
+    def update(self, rng: np.random.Generator, flows: Flows, states: States):
+        self._info['current_flow'] = flows[self.key]
 
-        :param step:
-            The time step of the simulation.
-
-        :return:
-            The corresponding flow.
-        """
-        return self._flows[step]
-
-    def update(self, flow: Flow):
-        """Updates the simulation by checking the value of the flow and appending it to the internal history.
-
-        :param flow:
-            The random number generator to be used for reproducible results.
-        """
-        self._step()
+    def step(self, flows: Flows, states: States):
+        self._info['current_flow'] = None
+        flow = flows[self.key]
         assert flow >= self.min_flow, f"Flow for edge {self.key} should be >= {self.min_flow}, got {flow}"
         assert flow <= self.max_flow, f"Flow for edge {self.key} should be <= {self.max_flow}, got {flow}"
         assert not self.integer or flow.is_integer(), f"Flow for edge {self.key} should be integer, got {flow}"

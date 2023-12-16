@@ -7,6 +7,7 @@ import pandas as pd
 from descriptors import classproperty
 
 from ppsim.datatypes.datatype import DataType
+from ppsim.utils.typing import NodeID, Flows, States
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
@@ -39,14 +40,14 @@ class Node(DataType, ABC):
         pass
 
     @property
-    def key(self) -> str:
+    def key(self) -> NodeID:
         return self.name
 
     @property
     def _edges(self) -> Tuple[set, set]:
         """A tuple <in_edges, out_edges> of sets of Edge objects containing all the input/output edges of this node."""
         in_edges, out_edges = set(), set()
-        for edge in self._plant.edges():
+        for edge in self._plant.edges().values():
             if edge.source == self.name:
                 out_edges.add(edge)
             elif edge.destination == self.name:
@@ -55,15 +56,6 @@ class Node(DataType, ABC):
 
     def _instance(self, other) -> bool:
         return isinstance(other, Node)
-
-    @abstractmethod
-    def update(self, rng: np.random.Generator):
-        """Updates the simulation by computing the internal values of the node.
-
-        :param rng:
-            The random number generator to be used for reproducible results.
-        """
-        pass
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
@@ -83,6 +75,7 @@ class VarianceNode(Node, ABC):
     """The series of actual values, which is filled during the simulation."""
 
     def __post_init__(self):
+        self._info['current_value'] = None
         assert len(self._predictions) == len(self._horizon), \
             f"Predictions should match length of horizon, got {len(self._predictions)} instead of {len(self._horizon)}"
 
@@ -94,11 +87,8 @@ class VarianceNode(Node, ABC):
     @property
     def values(self) -> pd.Series:
         """The series of actual values, which is filled during the simulation."""
-        return pd.Series(self._values.copy(), dtype=float, index=self._horizon[:self._info.step + 1])
+        return pd.Series(self._values.copy(), dtype=float, index=self._horizon[:len(self._values)])
 
-    def update(self, rng: np.random.Generator):
-        # compute the new values as the sum of the prediction and the variance obtained from the variance model
-        step = self._step()
-        values = pd.Series(self._values.copy(), dtype=float, index=self._horizon[:self._info.step])
-        next_value = self._predictions[step] + self._variance_fn(rng, values)
-        self._values.append(next_value)
+    def update(self, rng: np.random.Generator, flows: Flows, states: States):
+        # compute the new value as the sum of the prediction and the variance obtained from the variance model
+        self._info['current_value'] = self._predictions[self._step] + self._variance_fn(rng, self.values)

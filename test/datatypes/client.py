@@ -68,6 +68,7 @@ class TestClient(TestDataType):
             'purchaser': False,
             'commodities_in': {'c_com'},
             'commodities_out': set(),
+            'current_demand': None
         }, msg='Wrong dictionary returned for customer')
         self.assertDictEqual(c_val.to_dict(), {}, msg='Wrong dictionary returned for customer')
         self.assertDictEqual(c_pred.to_dict(), SERIES_1.to_dict(), msg='Wrong dictionary returned for customer')
@@ -80,6 +81,7 @@ class TestClient(TestDataType):
             'purchaser': True,
             'commodities_in': {'p_com'},
             'commodities_out': set(),
+            'current_price': None
         }, msg='Wrong dictionary returned for purchaser')
         self.assertDictEqual(p_val.to_dict(), {}, msg='Wrong dictionary returned for customer')
         self.assertDictEqual(p_pred.to_dict(), SERIES_1.to_dict(), msg='Wrong dictionary returned for purchaser')

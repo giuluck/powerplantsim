@@ -1,10 +1,11 @@
 from dataclasses import dataclass
-from typing import Set, List
+from typing import Set, List, Optional
 
 import pandas as pd
 from descriptors import classproperty
 
 from ppsim.datatypes.node import VarianceNode
+from ppsim.utils.typing import Flows, States
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
@@ -18,7 +19,7 @@ class Supplier(VarianceNode):
     @classproperty
     def _properties(self) -> List[str]:
         properties = super(Supplier, self)._properties
-        return properties + ['predicted_prices', 'prices']
+        return properties + ['predicted_prices', 'prices', 'current_price']
 
     @property
     def predicted_prices(self) -> pd.Series:
@@ -31,9 +32,18 @@ class Supplier(VarianceNode):
         return self.values
 
     @property
+    def current_price(self) -> Optional[float]:
+        """The current selling price of the node for this time step as computed using the variance model."""
+        return self._info['current_value']
+
+    @property
     def commodities_in(self) -> Set[str]:
         return set()
 
     @property
     def commodities_out(self) -> Set[str]:
         return {self.commodity}
+
+    def step(self, flows: Flows, states: States):
+        self._values.append(self._info['current_value'])
+        self._info['current_value'] = None

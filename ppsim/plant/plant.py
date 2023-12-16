@@ -9,7 +9,7 @@ import pandas as pd
 from ppsim import utils
 from ppsim.datatypes import Node, Client, Machine, Supplier, Edge, Storage, Purchaser, Customer
 from ppsim.plant import drawing, execution
-from ppsim.utils.typing import Plan, Flows, Setpoint
+from ppsim.utils.typing import Setpoint, Plan
 
 
 class Plant:
@@ -36,6 +36,17 @@ class Plant:
         self._commodities: Set[str] = set()
         self._nodes: Dict[str, Set[Node]] = dict()
         self._edges: Set[Edge] = set()
+        self._step: int = -1
+
+    @property
+    def step(self) -> Optional[int]:
+        """The current step of the simulation, or None if the simulation is not started yet."""
+        return None if self._step == -1 else self._step
+
+    @property
+    def index(self) -> Optional:
+        """The current index of the simulation as in the time horizon, or None if the simulation is not started."""
+        return None if self._step == -1 else self._horizon[self._step]
 
     @property
     def horizon(self) -> pd.Index:
@@ -289,7 +300,6 @@ class Plant:
 
     def add_machine(self,
                     name: str,
-                    commodity: str,
                     parents: Union[str, Iterable[str]],
                     setpoint: Union[Setpoint, pd.DataFrame],
                     discrete_setpoint: bool = False,
@@ -302,9 +312,6 @@ class Plant:
 
         :param name:
             The name of the machine node.
-
-        :param commodity:
-            The input commodity of the machine.
 
         :param parents:
             The identifier of the parent nodes that are connected with the input of this machine node.
@@ -339,13 +346,19 @@ class Plant:
         """
         # convert setpoint to a standard format (pd.Series)
         if isinstance(setpoint, dict):
-            setpoint = pd.DataFrame(setpoint).set_index('setpoint')
+            assert set(setpoint.keys()) == {'setpoint', 'input', 'output'}, \
+                f"Setpoint dictionary expects three keys ('setpoint', 'input', 'output'), got {set(setpoint)}"
+            assert len(setpoint['input']) == 1, \
+                f"Machines taking multiple input commodities are not supported, got inputs {set(setpoint['input'])}"
+            index = pd.Index(setpoint['setpoint'], dtype=float, name='setpoint')
+            input_flows = pd.DataFrame({c: f for c, f in setpoint['input'].items()}, dtype=float, index=index)
+            output_flows = pd.DataFrame({c: f for c, f in setpoint['output'].items()}, dtype=float, index=index)
+            setpoint = pd.concat((input_flows, output_flows), keys=['input', 'output'], axis=1)
         # create an internal machine node and add it to the internal data structure and the graph
         machine = Machine(
             _plant=self,
             name=name,
             _setpoint=setpoint,
-            commodity=commodity,
             discrete_setpoint=discrete_setpoint,
             max_starting=max_starting,
             cost=cost
@@ -353,7 +366,7 @@ class Plant:
         self._check_and_update(
             node=machine,
             parents=parents,
-            commodity=commodity,
+            commodity=setpoint['input'].columns[0],
             min_flow=min_flow,
             max_flow=max_flow,
             integer=integer
@@ -514,36 +527,45 @@ class Plant:
 
     def run(self,
             plan: Union[Plan, pd.DataFrame],
-            action_fn: Optional[Callable[[Any, nx.DiGraph], Flows]] = None) -> execution.SimulationOutput:
+            action_fn: Optional[Callable[[int, nx.DiGraph], Plan]] = None) -> execution.SimulationOutput:
         """Runs a simulation up to the time horizon using the given plan.
 
         :param plan:
-            The energetic plan of the power plant defined as vectors of flows within the edges of the power plant.
-            It can be a dictionary <(source, destination), flows> that maps each edge (source, destination) to either
-            a fixed flow or an iterable of such which should match the time horizon of the simulation, or it can be a
-            dataframe where the index matches the time horizon of the simulation and the columns are indexed by tuple
-            (source, destination).
+            The energetic plan of the power plant defined as vectors of edge flows and machine states. It can be a
+            dictionary <machine | edge: states | flows> that maps each machine (indexed by its name) to either a fixed
+            state or an iterable of such which should match the time horizon of the simulation, and each edge (indexed
+            by the tuple of source and destination) to either a fixed flow or an iterable of such which should match
+            the time horizon of the simulation. Otherwise, it can be a dataframe where each column is indexed by the
+            machine name of the edge key, and the value is a vector of states or flows, respectively, with the index
+            of the dataframe that matches the time horizon of the simulation.
 
         :param action_fn:
-            A function f(step: int, graph: nx.DiGraph) -> updated_flows: Dict[Tuple[str, str], float].
-            This function models the recourse action for a given step (step), which is provided as input together with
-            the topology of the power plant as returned by plant.graph(attributes=True), with an additional attribute
-            'flow' stored in the edges which represent the flow provided by the original plan. The function must return
-            a dictionary {<edge>: <updated_flow>} where an <edge> is identified by the tuple of the names of the node
-            that is connecting, and <updated_flow> is a floating point value of the actual flow.
-            If None is passed, a default greedy recourse action is used instead.
+            A function f(step, plant) -> (updated_flows, updated_states). This function models the recourse action for
+            a given step (step), which is provided as input together with the topology of the power plant as returned
+            by plant.graph(attributes=True). The function must return a dictionary
+            {machine | edge: updated_state | updated_flow} where a machine is identified by its name and an edge is
+            identified by the tuple of the names of the node that is connecting, while updated_state and  updated_flow
+            is the value of the actual state/flow. If None is passed, a default recourse action is used instead.
 
         :return:
             A SimulationOutput object containing all the information about true prices, demands, setpoints, and storage.
         """
-        nodes, edges = self.nodes(), self.edges()
+        nodes, machines, edges = self.nodes(), self.nodes(indexed=True)['machine'], self.edges()
         action_fn = execution.default_action if action_fn is None else action_fn
-        plan = execution.process_plan(plan=plan, edges=edges.keys(), horizon=self._horizon)
-        graph = self.graph(attributes=True)
-        for step, (_, row) in enumerate(plan.iterrows()):
-            # updates the action graph with the last flow
-            for (source, destination), flow in row.items():
-                graph[source][destination]['flow'] = flow
-            flows = action_fn(step, graph)
-            execution.run_update(nodes=nodes.values(), edges=edges.values(), flows=flows, rng=self._rng)
+        plan = execution.process_plan(plan=plan, machines=machines.keys(), edges=edges.keys(), horizon=self._horizon)
+        for _, row in plan.iterrows():
+            self._step += 1
+            # update the simulation objects before the recourse action
+            for datatypes in [edges, nodes]:
+                for datatype in datatypes.values():
+                    datatype.update(rng=self._rng, flows=row['flows'], states=row['states'])
+            # compute the updated flows and states using the recourse action
+            updated_states, updated_flows = {}, {}
+            for key, value in action_fn(self._step, self.graph(attributes=True)).items():
+                container = updated_states if isinstance(key, str) else updated_flows
+                container[key] = value
+            # update the simulation objects after the recourse action
+            for datatypes in [edges, nodes]:
+                for datatype in datatypes.values():
+                    datatype.step(flows=updated_flows, states=updated_states)
         return execution.build_output(nodes=nodes.values(), edges=edges.values(), horizon=self._horizon)

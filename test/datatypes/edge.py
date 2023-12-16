@@ -3,7 +3,6 @@ from test.datatypes.datatype import TestDataType, SETPOINT, SERIES_1, VARIANCE_1
 
 MACHINE = Machine(
     name='m',
-    commodity='in_com',
     _setpoint=SETPOINT,
     discrete_setpoint=False,
     max_starting=None,
@@ -207,6 +206,7 @@ class TestEdge(TestDataType):
             'commodity': 'out_com_1',
             'min_flow': 0.0,
             'max_flow': 100.0,
-            'integer': False
+            'integer': False,
+            'current_flow': None
         }, msg='Wrong dictionary returned for edge')
         self.assertDictEqual(e_flows.to_dict(), {}, msg='Wrong dictionary returned for edge')

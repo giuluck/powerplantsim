@@ -19,8 +19,12 @@ VARIANCE_1 = lambda rng, series: rng.normal()
 VARIANCE_2 = lambda rng, series: rng.random() - 0.5
 
 SETPOINT = pd.DataFrame(
-    data={'out_com_1': [1.0, 0.0, 0.5], 'out_com_2': [60.0, 10.0, 30.0]},
-    index=[100.0, 50.0, 75.0]
+    data={
+        ('input', 'in_com'): [100.0, 50.0, 75.0],
+        ('output', 'out_com_1'): [1.0, 0.0, 0.5],
+        ('output', 'out_com_2'): [60.0, 10.0, 30.0]
+    },
+    index=[1.0, 0.5, 0.75]
 )
 
 

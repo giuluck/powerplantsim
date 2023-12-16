@@ -8,13 +8,19 @@ from ppsim.datatypes import Purchaser, Customer
 
 PLANT = Plant(horizon=3)
 PLANT.add_supplier(name='sup', commodity='in', predictions=1.)
-PLANT.add_machine(name='mac', parents='sup', commodity='in', setpoint={'setpoint': [1.], 'out': [1.]})
+PLANT.add_machine(name='mac', parents='sup', setpoint={
+    'setpoint': [1.],
+    'input': {'in': [1.]},
+    'output': {'out': [1.]}
+})
 PLANT.add_storage(name='sto', parents='mac', commodity='out')
 PLANT.add_client(name='cli', parents=['mac', 'sto'], commodity='out', predictions=1.)
 
 NAME_CONFLICT_EXCEPTION = lambda k, n: f"There is already a {k} node '{n}', please use another identifier"
 PARENT_UNKNOWN_EXCEPTION = lambda n: f"Parent node '{n}' has not been added yet"
 EMPTY_PARENTS_EXCEPTION = lambda k: f"{k} node must have at least one parent"
+WRONG_SETPOINT_KEYS = lambda k: f"Setpoint dictionary expects three keys ('setpoint', 'input', 'output'), got {k}"
+MULTIPLE_INPUT_COMMODITIES = lambda c: f"Machines taking multiple input commodities are not supported, got inputs {c}"
 
 
 class TestPlantBuilding(unittest.TestCase):
@@ -104,7 +110,11 @@ class TestPlantBuilding(unittest.TestCase):
         # test node name conflicts
         for kind, name in {(k, n) for k, node in p.nodes(indexed=True).items() for n in node.keys()}:
             with self.assertRaises(AssertionError, msg="Name conflict for new machine should raise exception") as e:
-                p.add_machine(name=name, commodity='in', parents='sup', setpoint={'setpoint': [1.], 'out': [1.]})
+                p.add_machine(name=name, parents='sup', setpoint={
+                    'setpoint': [1.],
+                    'input': {'in': [1.]},
+                    'output': {'out': [1.]}
+                })
             self.assertEqual(
                 str(e.exception),
                 NAME_CONFLICT_EXCEPTION(kind, name),
@@ -112,23 +122,39 @@ class TestPlantBuilding(unittest.TestCase):
             )
         # test parents
         with self.assertRaises(AssertionError, msg="Unknown parent for machine should raise exception") as e:
-            p.add_machine(name='parent_unk', commodity='out', parents='unk', setpoint={'setpoint': [1.], 'out': [1.]})
+            p.add_machine(name='parent_unk', parents='unk', setpoint={
+                'setpoint': [1.],
+                'input': {'in': [1.]},
+                'output': {'out': [1.]}
+            })
         self.assertEqual(
             str(e.exception),
             PARENT_UNKNOWN_EXCEPTION('unk'),
             msg='Wrong exception message returned for unknown parent'
         )
         with self.assertRaises(AssertionError, msg="Empty parent list for machine should raise exception") as e:
-            p.add_machine(name='parent_emp', commodity='out', parents=[], setpoint={'setpoint': [1.], 'in': [1.]})
+            p.add_machine(name='parent_emp', parents=[], setpoint={
+                'setpoint': [1.],
+                'input': {'in': [1.]},
+                'output': {'out': [1.]}
+            })
         self.assertEqual(
             str(e.exception),
             EMPTY_PARENTS_EXCEPTION('Machine'),
             msg='Wrong exception message returned for empty parent list'
         )
-        p.add_machine(name='single', commodity='in', parents='sup', setpoint={'setpoint': [1.], 'out': [1.]})
+        p.add_machine(name='single', parents='sup', setpoint={
+            'setpoint': [1.],
+            'input': {'in': [1.]},
+            'output': {'out': [1.]}
+        })
         edges = {e.source: e.commodity for e in p.edges(destinations='single').values()}
         self.assertDictEqual(edges, {'sup': 'in'}, msg='Wrong edges stored for machine with single parent')
-        p.add_machine(name='multiple', commodity='out', parents=['mac', 'sto'], setpoint={'setpoint': [1.], 'in': [1.]})
+        p.add_machine(name='multiple', parents=['mac', 'sto'], setpoint={
+            'setpoint': [1.],
+            'input': {'out': [1.]},
+            'output': {'in': [1.]}
+        })
         edges = {e.source: e.commodity for e in p.edges(destinations='multiple').values()}
         self.assertDictEqual(
             edges,
@@ -138,42 +164,63 @@ class TestPlantBuilding(unittest.TestCase):
         # test machine properties (and input)
         m1 = p.add_machine(
             name='m1',
-            commodity='in',
             parents='sup',
-            setpoint={'setpoint': [3., 5.], 'out': [5., 9.]},
+            setpoint={'setpoint': [0., 1.], 'input': {'in': [3., 5.]}, 'output': {'out': [5., 9.]}},
             discrete_setpoint=False,
             max_starting=None,
             cost=0.0
         )
         self.assertEqual(m1.setpoint.index.name, 'setpoint', msg="Wrong setpoint name stored for machine")
-        self.assertListEqual(list(m1.setpoint.index), [3., 5.], msg="Wrong setpoint stored for machine")
-        self.assertListEqual(list(m1.setpoint.columns), ['out'], msg="Wrong output flows names stored for machine")
-        self.assertListEqual(list(m1.setpoint['out']), [5., 9.], msg="Wrong output flows stored for machine")
+        self.assertDictEqual(m1.setpoint.to_dict(), {
+            ('input', 'in'): {0.0: 3.0, 1.0: 5.0},
+            ('output', 'out'): {0.0: 5.0, 1.0: 9.0}
+        }, msg="Wrong setpoint stored for machine")
         self.assertFalse(m1.discrete_setpoint, msg="Wrong discrete setpoint flag stored for machine")
         self.assertIsNone(m1.max_starting, msg="Wrong max starting stored for machine")
         self.assertEqual(m1.cost, 0.0, msg="Wrong cost stored for machine")
         m2 = p.add_machine(
             name='m2',
-            commodity='in',
             parents='sup',
-            setpoint=pd.DataFrame([5., 9.], columns=['out'], index=[3., 5.]),
+            setpoint=pd.DataFrame(
+                [[3., 5.], [5., 9.]],
+                columns=pd.MultiIndex.from_tuples([('input', 'in'), ('output', 'out')]),
+                index=[0., 1.]
+            ),
             discrete_setpoint=True,
             max_starting=(3, 24),
             cost=50.0
         )
         self.assertEqual(m2.setpoint.index.name, 'setpoint', msg="Wrong setpoint name stored for machine")
-        self.assertListEqual(list(m2.setpoint.index), [3., 5.], msg="Wrong setpoint stored for machine")
-        self.assertListEqual(list(m2.setpoint.columns), ['out'], msg="Wrong output flows names stored for machine")
-        self.assertListEqual(list(m2.setpoint['out']), [5., 9.], msg="Wrong output flows stored for machine")
+        self.assertDictEqual(m2.setpoint.to_dict(), {
+            ('input', 'in'): {0.0: 3.0, 1.0: 5.0},
+            ('output', 'out'): {0.0: 5.0, 1.0: 9.0}
+        }, msg="Wrong setpoint stored for machine")
         self.assertTrue(m2.discrete_setpoint, msg="Wrong discrete setpoint flag stored for machine")
         self.assertTupleEqual(m2.max_starting, (3, 24), msg="Wrong max starting stored for machine")
         self.assertEqual(m2.cost, 50.0, msg="Wrong cost stored for machine")
+        with self.assertRaises(AssertionError, msg="Wrong setpoint keys passed") as e:
+            p.add_machine(name='wrong_keys', parents='sup', setpoint={'setpoint': [1.], 'in': [1.], 'out': [1.]})
+        self.assertEqual(
+            str(e.exception),
+            WRONG_SETPOINT_KEYS({'setpoint', 'in', 'out'}),
+            msg='Wrong exception message returned for empty parent list'
+        )
+        with self.assertRaises(AssertionError, msg="Multiple input commodities passed") as e:
+            p.add_machine(name='wrong_keys', parents='sup', setpoint={
+                'setpoint': [1.],
+                'input': {'in': [1.], 'out': [1.]},
+                'output': {}
+            })
+        self.assertEqual(
+            str(e.exception),
+            MULTIPLE_INPUT_COMMODITIES({'in', 'out'}),
+            msg='Wrong exception message returned for empty parent list'
+        )
         # test edge properties
         p.add_machine(
             name='m3',
-            commodity='in',
             parents='sup',
-            setpoint={'setpoint': [1.], 'out': [1.]},
+            setpoint={'setpoint': [1.], 'input': {'in': [1.]}, 'output': {'out': [1.]}},
             min_flow=30.0,
             max_flow=50.0,
             integer=True
