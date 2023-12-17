@@ -199,10 +199,10 @@ class TestPlantBuilding(unittest.TestCase):
         self.assertTupleEqual(m2.max_starting, (3, 24), msg="Wrong max starting stored for machine")
         self.assertEqual(m2.cost, 50.0, msg="Wrong cost stored for machine")
         with self.assertRaises(AssertionError, msg="Wrong setpoint keys passed") as e:
-            p.add_machine(name='wrong_keys', parents='sup', setpoint={'setpoint': [1.], 'in': [1.], 'out': [1.]})
+            p.add_machine(name='wrong_keys', parents='sup', setpoint={'setpoint': [1.]})
         self.assertEqual(
             str(e.exception),
-            WRONG_SETPOINT_KEYS({'setpoint', 'in', 'out'}),
+            WRONG_SETPOINT_KEYS({'setpoint'}),
             msg='Wrong exception message returned for empty parent list'
         )
         with self.assertRaises(AssertionError, msg="Multiple input commodities passed") as e:

@@ -9,6 +9,7 @@ import pandas as pd
 from ppsim import utils
 from ppsim.datatypes import Node, Client, Machine, Supplier, Edge, Storage, Purchaser, Customer
 from ppsim.plant import drawing, execution
+from ppsim.plant.execution import check_plan
 from ppsim.utils.typing import Setpoint, Plan
 
 
@@ -540,16 +541,17 @@ class Plant:
             of the dataframe that matches the time horizon of the simulation.
 
         :param action_fn:
-            A function f(step, plant) -> (updated_flows, updated_states). This function models the recourse action for
-            a given step (step), which is provided as input together with the topology of the power plant as returned
-            by plant.graph(attributes=True). The function must return a dictionary
-            {machine | edge: updated_state | updated_flow} where a machine is identified by its name and an edge is
-            identified by the tuple of the names of the node that is connecting, while updated_state and  updated_flow
-            is the value of the actual state/flow. If None is passed, a default recourse action is used instead.
+            A function f(step, plant) -> (updated_plan). This function models the recourse action for a given step
+            (step), which is provided as input together with the topology of the power plant as returned by
+            plant.graph(attributes=True). The function must return a dictionary {machine | edge: updated_<state | flow>}
+            where a machine is identified by its name and an edge is identified by the tuple of the names of the node
+            that is connecting, while updated_state and  updated_flow is the value of the actual state/flow. If None is
+            passed, a default recourse action is used instead.
 
         :return:
             A SimulationOutput object containing all the information about true prices, demands, setpoints, and storage.
         """
+        assert self._step == -1, "Simulation for this plant was already run, create a new instance to run another one"
         nodes = self.nodes()
         edges = self.edges()
         machines = self.machines
@@ -562,14 +564,11 @@ class Plant:
             for datatype in datatypes.values():
                 datatype.update(rng=self._rng, flows=row['flows'], states=row['states'])
             # compute the updated flows and states using the recourse action
-            updated_states, updated_flows = {}, {}
-            for key, value in action_fn(self._step, self.graph(attributes=True)).items():
-                if key in machines:
-                    updated_states[key] = value
-                else:
-                    edge = edges.get(key)
-                    assert edge is not None, f"Key {utils.stringify(key)} is not present in the plant"
-                    updated_flows[key[0], key[1], edge.commodity] = value
+            updated_states, updated_flows = check_plan(
+                plan=action_fn(self._step, self.graph(attributes=True)),
+                machines=machines,
+                edges=edges
+            )
             # update the simulation objects after the recourse action
             for datatype in datatypes.values():
                 datatype.step(flows=updated_flows, states=updated_states)

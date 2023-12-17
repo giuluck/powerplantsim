@@ -1,4 +1,4 @@
-from typing import Iterable, Union, Sized, Dict
+from typing import Iterable, Union, Sized, Dict, Tuple
 
 import networkx as nx
 import pandas as pd
@@ -56,31 +56,55 @@ def process_plan(plan: Union[Plan, pd.DataFrame],
     :return:
         The energetic plan in standard format.
     """
-    machines, edges = machines.copy(), edges.copy()
     # convert dictionary to dataframe if needed, and check consistency of flow vectors
     if isinstance(plan, dict):
         df = pd.DataFrame(index=horizon)
         for datatype, vector in plan.items():
             assert not isinstance(vector, Sized) or len(vector) == len(horizon), \
-                f"Vector for object '{datatype}' has length {len(vector)}, expected {len(horizon)}"
+                f"Vector for key '{datatype}' has length {len(vector)}, expected {len(horizon)}"
             df[datatype] = pd.Series(vector, index=horizon)
         plan = df
     # distinguish between states and flows while checking that all the datatypes (columns) are in the given sets
-    states, flows = pd.DataFrame(index=horizon), pd.DataFrame(index=horizon)
-    for key in plan.columns:
+    # and return a concatenated version of the states and flows dataframes with a higher level column index
+    states, flows = check_plan(plan=plan, machines=machines, edges=edges)
+    s, f = pd.DataFrame(states, index=horizon), pd.DataFrame(flows, index=horizon)
+    # this is needed to avoid multi-column index
+    f.columns = [k for k in flows.keys()]
+    return pd.concat((s, f), keys=['states', 'flows'], axis=1)
+
+
+def check_plan(plan: Union[Plan, pd.DataFrame], machines: Dict[NodeID, Machine], edges: Dict[EdgeID, Edge]) -> \
+        Tuple[Dict[NodeID, float | Iterable[float]], Dict[Tuple[str, str, str], float | Iterable[float]]]:
+    """Checks that the given plan is correctly specified and returns the dictionaries of states and flows.
+
+    :param plan:
+        The energetic plan of the power plant defined as vectors of states/flows.
+
+    :param machines:
+        The dictionary of all the machine nodes in the plant for which a vector of states must be provided.
+
+    :param edges:
+        The dictionary of all the edges in the plant for which a vector of flows must be provided.
+
+    :return:
+        A tuple (states, flows), where state is a dictionary <node: state/states> and flows is a dictionary
+        <(source, destination, commodity): flow/flows>.
+    """
+    machines, edges = machines.copy(), edges.copy()
+    states, flows = {}, {}
+    for key, value in plan.items():
         if key in machines:
             machines.pop(key)
-            states[key] = plan[key]
+            states[key] = value
         elif key in edges:
             edge = edges.pop(key)
-            flows[key[0], key[1], edge.commodity] = plan[key]
+            flows[key[0], key[1], edge.commodity] = value
         else:
             raise AssertionError(f"Key {utils.stringify(key)} is not present in the plant")
     # check that the remaining sets are empty, i.e., there is no missing states/flows in the dataframe
     assert len(machines) == 0, f"No states vector has been passed for machines {list(machines.keys())}"
     assert len(edges) == 0, f"No flows vector has been passed for edges {list(edges.keys())}"
-    # return a concatenated version of the states and flows dataframes with a higher level column index
-    return pd.concat((states, flows), keys=['states', 'flows'], axis=1)
+    return states, flows
 
 
 # noinspection PyUnusedLocal
@@ -125,7 +149,7 @@ def build_output(nodes: Iterable[Node], edges: Iterable[Edge], horizon: pd.Index
     """
     output = SimulationOutput(horizon=horizon)
     for edge in edges:
-        output.flows[edge.key] = edge.flows
+        output.flows[edge.key[0], edge.key[1], edge.commodity] = edge.flows
     for node in nodes:
         if isinstance(node, Machine):
             output.states[node.name] = node.states
