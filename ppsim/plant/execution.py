@@ -1,4 +1,4 @@
-from typing import Iterable, Union, Sized
+from typing import Iterable, Union, Sized, Dict
 
 import networkx as nx
 import pandas as pd
@@ -36,8 +36,8 @@ class SimulationOutput:
 
 
 def process_plan(plan: Union[Plan, pd.DataFrame],
-                 machines: Iterable[NodeID],
-                 edges: Iterable[EdgeID],
+                 machines: Dict[NodeID, Machine],
+                 edges: Dict[EdgeID, Edge],
                  horizon: pd.Index) -> pd.DataFrame:
     """Checks that the given plan is correctly specified and converts it to a standard format.
 
@@ -45,10 +45,10 @@ def process_plan(plan: Union[Plan, pd.DataFrame],
         The energetic plan of the power plant defined as vectors of states/flows.
 
     :param machines:
-        The set of all the machine nodes in the plant for which a vector of states must be provided.
+        The dictionary of all the machine nodes in the plant for which a vector of states must be provided.
 
     :param edges:
-        The set of all the edges in the plant for which a vector of flows must be provided.
+        The dictionary of all the edges in the plant for which a vector of flows must be provided.
 
     :param horizon:
         The time horizon of the simulation.
@@ -56,7 +56,7 @@ def process_plan(plan: Union[Plan, pd.DataFrame],
     :return:
         The energetic plan in standard format.
     """
-    machines, edges = set(machines), set(edges)
+    machines, edges = machines.copy(), edges.copy()
     # convert dictionary to dataframe if needed, and check consistency of flow vectors
     if isinstance(plan, dict):
         df = pd.DataFrame(index=horizon)
@@ -66,21 +66,21 @@ def process_plan(plan: Union[Plan, pd.DataFrame],
             df[datatype] = pd.Series(vector, index=horizon)
         plan = df
     # distinguish between states and flows while checking that all the datatypes (columns) are in the given sets
-    states, flows = [], []
+    states, flows = pd.DataFrame(index=horizon), pd.DataFrame(index=horizon)
     for key in plan.columns:
         if key in machines:
-            states.append(key)
-            machines.remove(key)
+            machines.pop(key)
+            states[key] = plan[key]
         elif key in edges:
-            flows.append(key)
-            edges.remove(key)
+            edge = edges.pop(key)
+            flows[key[0], key[1], edge.commodity] = plan[key]
         else:
             raise AssertionError(f"Key {utils.stringify(key)} is not present in the plant")
     # check that the remaining sets are empty, i.e., there is no missing states/flows in the dataframe
-    assert len(machines) == 0, f"No states vector has been passed for machines {machines}"
-    assert len(edges) == 0, f"No flows vector has been passed for edges {edges}"
+    assert len(machines) == 0, f"No states vector has been passed for machines {list(machines.keys())}"
+    assert len(edges) == 0, f"No flows vector has been passed for edges {list(edges.keys())}"
     # return a concatenated version of the states and flows dataframes with a higher level column index
-    return pd.concat((plan[states], plan[flows]), keys=['states', 'flows'], axis=1)
+    return pd.concat((states, flows), keys=['states', 'flows'], axis=1)
 
 
 # noinspection PyUnusedLocal

@@ -71,7 +71,7 @@ class Storage(Node):
     def step(self, flows: Flows, states: States):
         # compute total input and output flows from respective edges
         in_flow, out_flow = 0.0, 0.0
-        for (source, destination), flow in flows.items():
+        for (source, destination, _), flow in flows.items():
             in_flow += flow if destination == self.name else 0.0
             out_flow += flow if source == self.name else 0.0
         # check that at least one of the two is null as from the constraints
@@ -80,12 +80,12 @@ class Storage(Node):
         # check that the input and output flows are compatible with the charge rates
         assert in_flow <= self.charge_rate, \
             f"Storage node '{self.name}' should have maximal input flow {self.charge_rate}, got {in_flow}"
-        assert out_flow <= self.charge_rate, \
+        assert out_flow <= self.discharge_rate, \
             f"Storage node '{self.name}' should have maximal output flow {self.discharge_rate}, got {out_flow}"
         # compute and check new storage from previous one (discounted by 1 - dissipation) and difference between flows
         storage = self._info['current_storage'] + in_flow - out_flow
-        self._info['current_storage'] = None
         assert storage >= 0.0, f"Storage node '{self.name}' cannot contain negative amount, got {storage}"
         assert storage <= self.capacity, \
             f"Storage node '{self.name}' cannot contain more than {self.capacity} amount, got {storage}"
         self._storage.append(storage)
+        self._info['current_storage'] = None

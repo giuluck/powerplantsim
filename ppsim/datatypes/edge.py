@@ -78,12 +78,12 @@ class Edge(DataType):
         return self._source.name, self._destination.name
 
     def update(self, rng: np.random.Generator, flows: Flows, states: States):
-        self._info['current_flow'] = flows[self.key]
+        self._info['current_flow'] = flows[(self.source, self.destination, self.commodity)]
 
     def step(self, flows: Flows, states: States):
-        self._info['current_flow'] = None
-        flow = flows[self.key]
+        flow = flows[(self.source, self.destination, self.commodity)]
         assert flow >= self.min_flow, f"Flow for edge {self.key} should be >= {self.min_flow}, got {flow}"
         assert flow <= self.max_flow, f"Flow for edge {self.key} should be <= {self.max_flow}, got {flow}"
         assert not self.integer or flow.is_integer(), f"Flow for edge {self.key} should be integer, got {flow}"
         self._flows.append(flow)
+        self._info['current_flow'] = None

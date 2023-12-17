@@ -89,20 +89,18 @@ class Machine(Node):
         self._info['current_state'] = states[self.key]
 
     def step(self, flows: Flows, states: States):
-        self._info['current_state'] = None
         state = states[self.key]
         # compute total input and output flows from respective edges
-        flows = {}
-        edges = self._plant.edges()
-        for (source, destination), flow in flows.items():
-            commodity = edges[(source, destination)].commodity
+        machine_flows = {('input', commodity): 0.0 for commodity in self.commodities_in}
+        machine_flows.update({('output', commodity): 0.0 for commodity in self.commodities_out})
+        for (source, destination, commodity), flow in flows.items():
+            if source == self.name:
+                machine_flows[('output', commodity)] += flow
             if destination == self.name:
-                flows[('input', commodity)] = flows.get(('input', commodity), 0.0) + flow
-            if destination == self.name:
-                flows[('output', commodity)] = flows.get(('output', commodity), 0.0) + flow
+                machine_flows[('input', commodity)] += flow
         # if the flow is 0.0 or nan, return nan state (off), check that the input/output flows are null
         if state is None or np.isnan(state):
-            for (key, commodity), flow in flows.items():
+            for (key, commodity), flow in machine_flows.items():
                 assert np.isclose(flow, 0.0), \
                     f"Got non-zero {key} flow for '{commodity}' despite null setpoint for machine '{self.name}'"
             self._states.append(state)
@@ -112,7 +110,7 @@ class Machine(Node):
         #  - check that the flows match the given state
         if self.discrete_setpoint:
             assert state in self._setpoint.index, f"Unsupported state {state} for machine '{self.name}'"
-            for (key, commodity), flow in flows.items():
+            for (key, commodity), flow in machine_flows.items():
                 expected = self._setpoint[(key, commodity)].loc[state]
                 assert np.isclose(expected, flow), \
                     f"Flow {expected} expected for machine '{self.name}' with state {state}, got {flow}"
@@ -121,21 +119,22 @@ class Machine(Node):
         else:
             lb, ub = self._setpoint.index[[0, -1]]
             assert lb <= state <= ub, f"Unsupported state {state} for machine '{self.name}'"
-            for (key, commodity), flow in flows.items():
+            for (key, commodity), flow in machine_flows.items():
                 expected = np.interp(state, xp=self._setpoint.index, fp=self._setpoint[(key, commodity)])
                 assert np.isclose(expected, flow), \
-                    f"Flow {expected} expected for machine '{self.name}' with state {state}, got {flow}"
+                    f"Expected flow {expected} for {key} commodity '{commodity}' in machine '{self.name}', got {flow}"
         # check maximal number of starting:
         #  - create a list of the last T states, prepend nan (machine starts off) and append the last one
         #  - check consecutive pairs and increase the counter if we pass from a NaN to a real number
         #  - if the counter gets greater than N, raise an error
         if self.max_starting is not None:
             n, t = self.max_starting
-            t = min(t, len(self._states))
+            t = min(t, len(self._states) + 1)
             count = 0
             states = [np.nan, *self._states[-t:], state]
             for s1, s2 in zip(states[-t - 1:-1], states[-t:]):
-                if np.isnan(s1) and not np.isnan(s2):
+                if (s1 is None or np.isnan(s1)) and not (s2 is None or np.isnan(s2)):
                     count += 1
                     assert count <= n, f"Machine '{self.name}' cannot be started for more than {n} times in {t} steps"
         self._states.append(state)
+        self._info['current_state'] = None

@@ -1,3 +1,5 @@
+import numpy as np
+
 from ppsim.datatypes import Supplier
 from test.datatypes.datatype import TestDataType, SERIES_1, SERIES_2, VARIANCE_1, VARIANCE_2, PLANT
 
@@ -49,3 +51,16 @@ class TestSupplier(TestDataType):
         }, msg='Wrong dictionary returned for supplier')
         self.assertDictEqual(s_val.to_dict(), {}, msg='Wrong dictionary returned for supplier')
         self.assertDictEqual(s_pred.to_dict(), SERIES_1.to_dict(), msg='Wrong dictionary returned for supplier')
+
+    def test_operation(self):
+        s = SUPPLIER.copy()
+        rng = np.random.default_rng(0)
+        val = 3.0 + np.random.default_rng(0).normal()
+        self.assertDictEqual(s.prices.to_dict(), {}, msg=f"Supplier prices should be empty before the simulation")
+        self.assertIsNone(s.current_price, msg=f"Supplier current price should be None outside of the simulation")
+        s.update(rng=rng, flows={}, states={})
+        self.assertDictEqual(s.prices.to_dict(), {}, msg=f"Supplier prices should be empty before step")
+        self.assertEqual(s.current_price, val, msg=f"Supplier current price should be stored after update")
+        s.step(flows={}, states={})
+        self.assertDictEqual(s.prices.to_dict(), {0: val}, msg=f"Supplier prices should be filled after step")
+        self.assertIsNone(s.current_price, msg=f"Supplier current price should be None outside of the simulation")

@@ -1,3 +1,4 @@
+import copy
 from abc import abstractmethod, ABC
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
@@ -67,6 +68,14 @@ class DataType(ABC):
                 value = value.to_dict()
             json[param] = value
         return json
+
+    def copy(self):
+        """Copies the datatype.
+
+        :return:
+            A copy of the datatype.
+        """
+        return copy.deepcopy(self)
 
     def _instance(self, other) -> bool:
         """Checks whether a different object is matching the self instance for comparison."""

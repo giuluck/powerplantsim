@@ -1,11 +1,22 @@
+import numpy as np
+
 from ppsim.datatypes import Machine
 from test.datatypes.datatype import TestDataType, SETPOINT, PLANT
 
-MACHINE = Machine(
+DISCRETE_MACHINE = Machine(
+    name='m',
+    _setpoint=SETPOINT,
+    discrete_setpoint=True,
+    max_starting=None,
+    cost=0,
+    _plant=PLANT
+)
+
+CONTINUOUS_MACHINE = Machine(
     name='m',
     _setpoint=SETPOINT,
     discrete_setpoint=False,
-    max_starting=None,
+    max_starting=(1, 3),
     cost=0,
     _plant=PLANT
 )
@@ -16,8 +27,10 @@ TIMESTEP_STARTING_EXCEPTION = \
     lambda n, t: f"The number of starting must be strictly less than the number of time steps, got {n} >= {t}"
 SETPOINT_INDEX_EXCEPTION = lambda v: f"Setpoints should be non-negative, got {v}"
 SETPOINT_FLOWS_EXCEPTION = lambda c, v: f"Setpoint flows should be non-negative, got {c}: {v}"
-DISCRETE_SETPOINT_EXCEPTION = lambda v: f"Unsupported flow {v} for discrete setpoint [50.0, 75.0, 100.0]"
-CONTINUOUS_SETPOINT_EXCEPTION = lambda v: f"Unsupported flow {v} for continuous setpoint 50.0 <= flow <= 100.0"
+NONZERO_OFF_FLOWS_EXCEPTION = lambda k, c, n: f"Got non-zero {k} flow for '{c}' despite null setpoint for machine '{n}'"
+UNSUPPORTED_STATE_EXCEPTION = lambda s, m: f"Unsupported state {s} for machine '{m}'"
+WRONG_FLOW_EXCEPTION = lambda e, m, s, f: f"Flow {e} expected for machine '{m}' with state {s}, got {f}"
+TOO_MANY_STARTING_EXCEPTION = lambda m, n, t: f"Machine '{m}' cannot be started for more than {n} times in {t} steps"
 
 
 class TestMachine(TestDataType):
@@ -152,7 +165,7 @@ class TestMachine(TestDataType):
             cost=100,
             _plant=PLANT
         )
-        self.assertEqual(MACHINE, m_equal, msg="Nodes with the same name should be considered equal")
+        self.assertEqual(DISCRETE_MACHINE, m_equal, msg="Nodes with the same name should be considered equal")
         # test different hash
         m_diff = Machine(
             name='md',
@@ -162,28 +175,28 @@ class TestMachine(TestDataType):
             cost=0,
             _plant=PLANT
         )
-        self.assertNotEqual(MACHINE, m_diff, msg="Nodes with different names should be considered different")
+        self.assertNotEqual(DISCRETE_MACHINE, m_diff, msg="Nodes with different names should be considered different")
 
     def test_properties(self):
-        self.assertEqual(MACHINE.key, 'm', msg="Wrong machine key name stored")
-        self.assertEqual(MACHINE.kind, 'machine', msg="Machine node is not labelled as machine")
-        self.assertSetEqual(MACHINE.commodities_in, {'in_com'}, msg="Wrong machine inputs stored")
+        self.assertEqual(DISCRETE_MACHINE.key, 'm', msg="Wrong machine key name stored")
+        self.assertEqual(DISCRETE_MACHINE.kind, 'machine', msg="Machine node is not labelled as machine")
+        self.assertSetEqual(DISCRETE_MACHINE.commodities_in, {'in_com'}, msg="Wrong machine inputs stored")
         self.assertSetEqual(
-            MACHINE.commodities_out,
+            DISCRETE_MACHINE.commodities_out,
             {'out_com_1', 'out_com_2'},
             msg="Wrong machine outputs stored"
         )
-        self.assertDictEqual(MACHINE.setpoint.to_dict(), SETPOINT.to_dict(), msg='Wrong setpoint stored')
+        self.assertDictEqual(DISCRETE_MACHINE.setpoint.to_dict(), SETPOINT.to_dict(), msg='Wrong setpoint stored')
 
     def test_immutability(self):
-        MACHINE.states[0] = 5.0
-        MACHINE.setpoint.iloc[0, 0] = 5.0
-        self.assertEqual(len(MACHINE.states), 0, msg="Machine states should be immutable")
-        self.assertEqual(MACHINE.setpoint.iloc[0, 0], 50.0, msg="Machine setpoint should be immutable")
+        DISCRETE_MACHINE.states[0] = 5.0
+        DISCRETE_MACHINE.setpoint.iloc[0, 0] = 5.0
+        self.assertEqual(len(DISCRETE_MACHINE.states), 0, msg="Machine states should be immutable")
+        self.assertEqual(DISCRETE_MACHINE.setpoint.iloc[0, 0], 50.0, msg="Machine setpoint should be immutable")
 
     def test_dict(self):
         # pandas series and dataframes need to be tested separately due to errors in the equality check
-        m_dict = MACHINE.dict
+        m_dict = DISCRETE_MACHINE.dict
         m_states = m_dict.pop('states')
         m_setpoint = m_dict.pop('setpoint')
         self.assertEqual(m_dict, {
@@ -191,7 +204,7 @@ class TestMachine(TestDataType):
             'kind': 'machine',
             'commodities_in': {'in_com'},
             'commodities_out': {'out_com_1', 'out_com_2'},
-            'discrete_setpoint': False,
+            'discrete_setpoint': True,
             'max_starting': None,
             'cost': 0,
             'current_state': None
@@ -199,76 +212,164 @@ class TestMachine(TestDataType):
         self.assertDictEqual(m_states.to_dict(), {}, msg='Wrong dictionary returned for machine')
         self.assertDictEqual(m_setpoint.to_dict(), SETPOINT.to_dict(), msg='Wrong dictionary returned for machine')
 
-# def test_operation(self):
-#     # test discrete setpoint
-#     m = InternalMachine(
-#         name='m',
-#         commodity='in_com',
-#         _setpoint=SETPOINT,
-#         discrete_setpoint=True,
-#         max_starting=None,
-#         cost=0,
-#         _plant=PLANT
-#     )
-#     self.assertIsNone(m.operate(0.0), msg="Operate function should return None if the input is null")
-#     self.assertDictEqual(m.operate(50.0), {'out_com_1': 0.0, 'out_com_2': 10.0}, msg="Wrong operation output")
-#     self.assertDictEqual(m.operate(75.0), {'out_com_1': 0.5, 'out_com_2': 30.0}, msg="Wrong operation output")
-#     self.assertDictEqual(m.operate(100.0), {'out_com_1': 1.0, 'out_com_2': 60.0}, msg="Wrong operation output")
-#     with self.assertRaises(AssertionError, msg="Discrete setpoint should not return values for out-of-data") as e:
-#         m.operate(70.0)
-#     self.assertEqual(
-#         str(e.exception),
-#         DISCRETE_SETPOINT_EXCEPTION(70.0),
-#         msg='Wrong exception message returned for discrete setpoint operation on machine'
-#     )
-#     with self.assertRaises(AssertionError, msg="Discrete setpoint should not return values for out-of-data") as e:
-#         m.operate(90.0)
-#     self.assertEqual(
-#         str(e.exception),
-#         DISCRETE_SETPOINT_EXCEPTION(90.0),
-#         msg='Wrong exception message returned for discrete setpoint operation on machine'
-#     )
-#     with self.assertRaises(AssertionError, msg="Discrete setpoint should not return values for out-of-bound") as e:
-#         m.operate(20.0)
-#     self.assertEqual(
-#         str(e.exception),
-#         DISCRETE_SETPOINT_EXCEPTION(20.0),
-#         msg='Wrong exception message returned for discrete setpoint operation on machine'
-#     )
-#     with self.assertRaises(AssertionError, msg="Discrete setpoint should not return values for out-of-bound") as e:
-#         m.operate(110.0)
-#     self.assertEqual(
-#         str(e.exception),
-#         DISCRETE_SETPOINT_EXCEPTION(110.0),
-#         msg='Wrong exception message returned for discrete setpoint operation on machine'
-#     )
-#     # test continuous setpoint
-#     m = InternalMachine(
-#         name='m',
-#         commodity='in_com',
-#         _setpoint=SETPOINT,
-#         discrete_setpoint=False,
-#         max_starting=None,
-#         cost=0,
-#         _plant=PLANT
-#     )
-#     self.assertIsNone(m.operate(0.0), msg="Operate function should return None if the input is null")
-#     self.assertDictEqual(m.operate(50.0), {'out_com_1': 0.0, 'out_com_2': 10.0}, msg="Wrong operation output")
-#     self.assertDictEqual(m.operate(75.0), {'out_com_1': 0.5, 'out_com_2': 30.0}, msg="Wrong operation output")
-#     self.assertDictEqual(m.operate(100.0), {'out_com_1': 1.0, 'out_com_2': 60.0}, msg="Wrong operation output")
-#     self.assertDictEqual(m.operate(70.0), {'out_com_1': 0.4, 'out_com_2': 26.0}, msg="Wrong operation output")
-#     self.assertDictEqual(m.operate(90.0), {'out_com_1': 0.8, 'out_com_2': 48.0}, msg="Wrong operation output")
-#     with self.assertRaises(AssertionError, msg="Discrete setpoint should not return values for out-of-bound") as e:
-#         m.operate(20.0)
-#     self.assertEqual(
-#         str(e.exception),
-#         CONTINUOUS_SETPOINT_EXCEPTION(20.0),
-#         msg='Wrong exception message returned for continuous setpoint operation on machine'
-#     )
-#     with self.assertRaises(AssertionError, msg="Discrete setpoint should not return values for out-of-bound") as e:
-#         m.operate(110.0)
-#     self.assertEqual(
-#         str(e.exception),
-#         CONTINUOUS_SETPOINT_EXCEPTION(110.0),
-#         msg='Wrong exception message returned for continuous setpoint operation on machine'
-#     )
+    def test_operation(self):
+        # test basics
+        m = DISCRETE_MACHINE.copy()
+        self.assertDictEqual(m.states.to_dict(), {}, msg=f"Machine states should be empty before the simulation")
+        self.assertIsNone(m.current_state, msg=f"Machine current state should be None outside of the simulation")
+        m.update(rng=None, flows={}, states={'m': 0.5})
+        self.assertDictEqual(m.states.to_dict(), {}, msg=f"Machine states should be empty before step")
+        self.assertEqual(m.current_state, 0.5, msg=f"Machine current state should be stored after update")
+        m.step(states={'m': 1.0}, flows={
+            ('input', 'm', 'in_com'): 100.0,
+            ('m', 'output', 'out_com_1'): 1.0,
+            ('m', 'output', 'out_com_2'): 60.0
+        })
+        self.assertDictEqual(m.states.to_dict(), {0: 1.0}, msg=f"Machine states should be filled after step")
+        self.assertIsNone(m.current_state, msg=f"Machine current state should be None outside of the simulation")
+        # test null state
+        m = DISCRETE_MACHINE.copy()
+        m.step(states={'m': None}, flows={
+            ('input', 'm', 'in_com'): 0.0,
+            ('m', 'output', 'out_com_1'): 0.0,
+            ('m', 'output', 'out_com_2'): 0.0
+        })
+        self.assertDictEqual(m.states.isna().to_dict(), {0: True}, msg=f"Wrong machine states stored after null state")
+        m = CONTINUOUS_MACHINE.copy()
+        m.step(states={'m': np.nan}, flows={
+            ('input', 'm', 'in_com'): 0.0,
+            ('m', 'output', 'out_com_1'): 0.0,
+            ('m', 'output', 'out_com_2'): 0.0
+        })
+        self.assertDictEqual(m.states.isna().to_dict(), {0: True}, msg=f"Wrong machine states stored after null state")
+        m = DISCRETE_MACHINE.copy()
+        with self.assertRaises(AssertionError, msg="Non-zero flows after null state should raise exception") as e:
+            m.step(states={'m': np.nan}, flows={
+                ('input', 'm', 'in_com'): 10.0,
+                ('m', 'output', 'out_com_1'): 0.0,
+                ('m', 'output', 'out_com_2'): 0.0
+            })
+        self.assertEqual(
+            str(e.exception),
+            NONZERO_OFF_FLOWS_EXCEPTION('input', 'in_com', 'm'),
+            msg='Wrong exception message returned for on-zero flows after null state on machine'
+        )
+        m = CONTINUOUS_MACHINE.copy()
+        with self.assertRaises(AssertionError, msg="Non-zero flows after null state should raise exception") as e:
+            m.step(states={'m': np.nan}, flows={
+                ('input', 'm', 'in_com'): 0.0,
+                ('m', 'output', 'out_com_1'): 10.0,
+                ('m', 'output', 'out_com_2'): 0.0
+            })
+        self.assertEqual(
+            str(e.exception),
+            NONZERO_OFF_FLOWS_EXCEPTION('output', 'out_com_1', 'm'),
+            msg='Wrong exception message returned for on-zero flows after null state on machine'
+        )
+        # test discrete setpoint
+        # noinspection DuplicatedCode
+        m = DISCRETE_MACHINE.copy()
+        m.step(states={'m': 0.5}, flows={
+            ('input', 'm', 'in_com'): 50.0,
+            ('m', 'output', 'out_com_1'): 0.0,
+            ('m', 'output', 'out_com_2'): 10.0
+        })
+        self.assertDictEqual(m.states.to_dict(), {0: 0.5}, msg=f"Wrong machine states stored with discrete setpoint")
+        m = DISCRETE_MACHINE.copy()
+        m.step(states={'m': 0.75}, flows={
+            ('input', 'm', 'in_com'): 75.0,
+            ('m', 'output', 'out_com_1'): 0.5,
+            ('m', 'output', 'out_com_2'): 30.0
+        })
+        self.assertDictEqual(m.states.to_dict(), {0: 0.75}, msg=f"Wrong machine states stored with discrete setpoint")
+        m = DISCRETE_MACHINE.copy()
+        m.step(states={'m': 1.0}, flows={
+            ('input', 'm', 'in_com'): 100.0,
+            ('m', 'output', 'out_com_1'): 1.0,
+            ('m', 'output', 'out_com_2'): 60.0
+        })
+        self.assertDictEqual(m.states.to_dict(), {0: 1.0}, msg=f"Wrong machine states stored with discrete setpoint")
+        with self.assertRaises(AssertionError, msg="Unexpected discrete setpoint should raise exception") as e:
+            m.step(states={'m': 0.7}, flows={})
+        self.assertEqual(
+            str(e.exception),
+            UNSUPPORTED_STATE_EXCEPTION(0.7, 'm'),
+            msg='Wrong exception message returned for discrete setpoint operation on machine'
+        )
+        with self.assertRaises(AssertionError, msg="Unexpected discrete setpoint should raise exception") as e:
+            m.step(states={'m': 0.2}, flows={})
+        self.assertEqual(
+            str(e.exception),
+            UNSUPPORTED_STATE_EXCEPTION(0.2, 'm'),
+            msg='Wrong exception message returned for discrete setpoint operation on machine'
+        )
+        with self.assertRaises(AssertionError, msg="Unexpected discrete setpoint should raise exception") as e:
+            m.step(states={'m': 1.3}, flows={})
+        self.assertEqual(
+            str(e.exception),
+            UNSUPPORTED_STATE_EXCEPTION(1.3, 'm'),
+            msg='Wrong exception message returned for discrete setpoint operation on machine'
+        )
+        # test continuous setpoint
+        # noinspection DuplicatedCode
+        m = CONTINUOUS_MACHINE.copy()
+        m.step(states={'m': 0.5}, flows={
+            ('input', 'm', 'in_com'): 50.0,
+            ('m', 'output', 'out_com_1'): 0.0,
+            ('m', 'output', 'out_com_2'): 10.0
+        })
+        self.assertDictEqual(m.states.to_dict(), {0: 0.5}, msg=f"Wrong machine states stored with continuous setpoint")
+        m = CONTINUOUS_MACHINE.copy()
+        m.step(states={'m': 0.75}, flows={
+            ('input', 'm', 'in_com'): 75.0,
+            ('m', 'output', 'out_com_1'): 0.5,
+            ('m', 'output', 'out_com_2'): 30.0
+        })
+        self.assertDictEqual(m.states.to_dict(), {0: 0.75}, msg=f"Wrong machine states stored with continuous setpoint")
+        m = CONTINUOUS_MACHINE.copy()
+        m.step(states={'m': 1.0}, flows={
+            ('input', 'm', 'in_com'): 100.0,
+            ('m', 'output', 'out_com_1'): 1.0,
+            ('m', 'output', 'out_com_2'): 60.0
+        })
+        self.assertDictEqual(m.states.to_dict(), {0: 1.0}, msg=f"Wrong machine states stored with continuous setpoint")
+        m = CONTINUOUS_MACHINE.copy()
+        m.step(states={'m': 0.7}, flows={
+            ('input', 'm', 'in_com'): 70.0,
+            ('m', 'output', 'out_com_1'): 0.4,
+            ('m', 'output', 'out_com_2'): 26.0
+        })
+        self.assertDictEqual(m.states.to_dict(), {0: 0.7}, msg=f"Wrong machine states stored with continuous setpoint")
+        with self.assertRaises(AssertionError, msg="Unexpected continuous setpoint should raise exception") as e:
+            m.step(states={'m': 0.2}, flows={})
+        self.assertEqual(
+            str(e.exception),
+            UNSUPPORTED_STATE_EXCEPTION(0.2, 'm'),
+            msg='Wrong exception message returned for continuous setpoint operation on machine'
+        )
+        with self.assertRaises(AssertionError, msg="Unexpected continuous setpoint should raise exception") as e:
+            m.step(states={'m': 1.3}, flows={})
+        self.assertEqual(
+            str(e.exception),
+            UNSUPPORTED_STATE_EXCEPTION(1.3, 'm'),
+            msg='Wrong exception message returned for continuous setpoint operation on machine'
+        )
+        # test max starting
+        m = CONTINUOUS_MACHINE.copy()
+        m.step(states={'m': 1.0}, flows={
+            ('input', 'm', 'in_com'): 100.0,
+            ('m', 'output', 'out_com_1'): 1.0,
+            ('m', 'output', 'out_com_2'): 60.0
+        })
+        m.step(states={'m': None}, flows={})
+        with self.assertRaises(AssertionError, msg="Too many starting should raise exception") as e:
+            m.step(states={'m': 0.5}, flows={
+                ('input', 'm', 'in_com'): 50.0,
+                ('m', 'output', 'out_com_1'): 0.0,
+                ('m', 'output', 'out_com_2'): 10.0
+            })
+        self.assertEqual(
+            str(e.exception),
+            TOO_MANY_STARTING_EXCEPTION('m', 1, 3),
+            msg='Wrong exception message returned for continuous setpoint operation on machine'
+        )

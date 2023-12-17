@@ -550,22 +550,27 @@ class Plant:
         :return:
             A SimulationOutput object containing all the information about true prices, demands, setpoints, and storage.
         """
-        nodes, machines, edges = self.nodes(), self.nodes(indexed=True)['machine'], self.edges()
+        nodes = self.nodes()
+        edges = self.edges()
+        machines = self.machines
+        datatypes = {**edges, **nodes}
         action_fn = execution.default_action if action_fn is None else action_fn
-        plan = execution.process_plan(plan=plan, machines=machines.keys(), edges=edges.keys(), horizon=self._horizon)
+        plan = execution.process_plan(plan=plan, machines=machines, edges=edges, horizon=self._horizon)
         for _, row in plan.iterrows():
             self._step += 1
             # update the simulation objects before the recourse action
-            for datatypes in [edges, nodes]:
-                for datatype in datatypes.values():
-                    datatype.update(rng=self._rng, flows=row['flows'], states=row['states'])
+            for datatype in datatypes.values():
+                datatype.update(rng=self._rng, flows=row['flows'], states=row['states'])
             # compute the updated flows and states using the recourse action
             updated_states, updated_flows = {}, {}
             for key, value in action_fn(self._step, self.graph(attributes=True)).items():
-                container = updated_states if isinstance(key, str) else updated_flows
-                container[key] = value
+                if key in machines:
+                    updated_states[key] = value
+                else:
+                    edge = edges.get(key)
+                    assert edge is not None, f"Key {utils.stringify(key)} is not present in the plant"
+                    updated_flows[key[0], key[1], edge.commodity] = value
             # update the simulation objects after the recourse action
-            for datatypes in [edges, nodes]:
-                for datatype in datatypes.values():
-                    datatype.step(flows=updated_flows, states=updated_states)
+            for datatype in datatypes.values():
+                datatype.step(flows=updated_flows, states=updated_states)
         return execution.build_output(nodes=nodes.values(), edges=edges.values(), horizon=self._horizon)

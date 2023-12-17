@@ -44,7 +44,7 @@ EDGE = Edge(
     commodity='out_com_1',
     min_flow=0.0,
     max_flow=100.0,
-    integer=False,
+    integer=True,
     _plant=PLANT
 )
 
@@ -54,6 +54,9 @@ EMPTY_DESTINATION_EXCEPTION = lambda v: f"Destination node '{v}' does not accept
 INCONSISTENT_SOURCE_EXCEPTION = lambda n, c, s: f"Source node '{n}' should return commodity '{c}', but it returns {s}"
 INCONSISTENT_DESTINATION_EXCEPTION = \
     lambda n, c, s: f"Destination node '{n}' should accept commodity '{c}', but it accepts {s}"
+RECEIVED_MIN_FLOW_EXCEPTION = lambda e, m, f: f"Flow for edge {e} should be >= {m}, got {f}"
+RECEIVED_MAX_FLOW_EXCEPTION = lambda e, m, f: f"Flow for edge {e} should be <= {m}, got {f}"
+RECEIVED_REAL_FLOW_EXCEPTION = lambda e, f: f"Flow for edge {e} should be integer, got {f}"
 
 
 class TestEdge(TestDataType):
@@ -206,7 +209,49 @@ class TestEdge(TestDataType):
             'commodity': 'out_com_1',
             'min_flow': 0.0,
             'max_flow': 100.0,
-            'integer': False,
+            'integer': True,
             'current_flow': None
         }, msg='Wrong dictionary returned for edge')
         self.assertDictEqual(e_flows.to_dict(), {}, msg='Wrong dictionary returned for edge')
+
+    def test_operation(self):
+        e = EDGE.copy()
+        self.assertDictEqual(e.flows.to_dict(), {}, msg=f"Edge flows should be empty before the simulation")
+        self.assertIsNone(e.current_flow, msg=f"Edge current flow should be None outside of the simulation")
+        e.update(rng=None, flows={('m', 's1', 'out_com_1'): 1.0}, states={})
+        self.assertDictEqual(e.flows.to_dict(), {}, msg=f"Edge flows should be empty before step")
+        self.assertEqual(e.current_flow, 1.0, msg=f"Edge current flow should be stored after update")
+        e.step(flows={('m', 's1', 'out_com_1'): 0.0}, states={})
+        self.assertDictEqual(e.flows.to_dict(), {0: 0.0}, msg=f"Edge flows should be filled after step")
+        self.assertIsNone(e.current_flow, msg=f"Edge flow should be None outside of the simulation")
+        # test min flow exception
+        flows = {('m', 's1', 'out_com_1'): -1.0}
+        with self.assertRaises(AssertionError, msg="Under bound received flow should raise exception") as x:
+            e.step(flows=flows, states={})
+        self.assertEqual(
+            str(x.exception),
+            RECEIVED_MIN_FLOW_EXCEPTION(('m', 's1'), 0.0, -1.0),
+            msg='Wrong exception message returned for under bound received flow on edge'
+        )
+        # test max flow exception
+        flows = {('m', 's1', 'out_com_1'): 101.0}
+        e = EDGE.copy()
+        e.update(rng=None, flows=flows, states={})
+        with self.assertRaises(AssertionError, msg="Over bound received flow should raise exception") as x:
+            e.step(flows=flows, states={})
+        self.assertEqual(
+            str(x.exception),
+            RECEIVED_MAX_FLOW_EXCEPTION(('m', 's1'), 100.0, 101.0),
+            msg='Wrong exception message returned for over bound received flow on edge'
+        )
+        # test non-integer exception
+        flows = {('m', 's1', 'out_com_1'): 7.8}
+        e = EDGE.copy()
+        e.update(rng=None, flows=flows, states={})
+        with self.assertRaises(AssertionError, msg="Non-integer received flow should raise exception") as x:
+            e.step(flows=flows, states={})
+        self.assertEqual(
+            str(x.exception),
+            RECEIVED_REAL_FLOW_EXCEPTION(('m', 's1'), 7.8),
+            msg='Wrong exception message returned for non-integer received flow on edge'
+        )

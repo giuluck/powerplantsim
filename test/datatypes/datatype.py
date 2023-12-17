@@ -1,12 +1,21 @@
 import unittest
 from abc import abstractmethod
+from typing import Optional
 
 import numpy as np
 import pandas as pd
 
 from ppsim import Plant
 
-PLANT = Plant(horizon=3)
+
+# test plant with step = 0 to simulate first time step
+class TestPlant(Plant):
+    @property
+    def step(self) -> Optional[int]:
+        return 0
+
+
+PLANT = TestPlant(horizon=3)
 
 HORIZON = pd.Index(np.arange(3))
 
@@ -54,7 +63,7 @@ class TestDataType(unittest.TestCase):
         """Tests that the correct dictionary of datatype properties is returned."""
         pass
 
-    # @abstractmethod
-    # def test_update(self):
-    #     """Tests that the update function works correctly."""
-    #     pass
+    @abstractmethod
+    def test_operation(self):
+        """Tests that the datatype works correctly during the simulation."""
+        pass

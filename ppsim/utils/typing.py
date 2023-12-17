@@ -20,8 +20,8 @@ EdgeID = Tuple[str, str]
 Flow = float
 """Datatype for a single edge flow specification."""
 
-Flows = Dict[EdgeID, Flow]
-"""Datatype for edge flows specification in a single time step, i.e., a dictionary <edge: flow>."""
+Flows = Dict[Tuple[str, str, str], Flow]
+"""Datatype for edge flows specification in a single time step, i.e., <(source, destination, commodity): flow>."""
 
 Plan = Dict[Union[NodeID, EdgeID], Union[State, Flow, Iterable[State], Iterable[Flow]]]
 """Datatype for plan specification, i.e., a dictionary <machine | edge: state/states | flow/flows>."""
