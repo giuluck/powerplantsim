@@ -98,12 +98,12 @@ class Machine(Node):
                 machine_flows[('output', commodity)] += flow
             if destination == self.name:
                 machine_flows[('input', commodity)] += flow
-        # if the flow is 0.0 or nan, return nan state (off), check that the input/output flows are null
+        # if the state or nan, check that the input/output flows are null
         if state is None or np.isnan(state):
             for (key, commodity), flow in machine_flows.items():
                 assert np.isclose(flow, 0.0), \
                     f"Got non-zero {key} flow for '{commodity}' despite null setpoint for machine '{self.name}'"
-            self._states.append(state)
+            self._states.append(np.nan)
             return
         # if discrete setpoint
         #  - check that the given state is valid
@@ -133,7 +133,7 @@ class Machine(Node):
             count = 0
             states = [np.nan, *self._states[-t:], state]
             for s1, s2 in zip(states[-t - 1:-1], states[-t:]):
-                if (s1 is None or np.isnan(s1)) and not (s2 is None or np.isnan(s2)):
+                if np.isnan(s1) and not np.isnan(s2):
                     count += 1
                     assert count <= n, f"Machine '{self.name}' cannot be started for more than {n} times in {t} steps"
         self._states.append(state)

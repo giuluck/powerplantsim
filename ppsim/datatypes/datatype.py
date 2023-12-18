@@ -64,8 +64,10 @@ class DataType(ABC):
             value = getattr(self, param)
             if isinstance(value, set):
                 value = list(value)
-            elif isinstance(value, (pd.Series, pd.DataFrame)):
+            elif isinstance(value, pd.Series):
                 value = value.to_dict()
+            elif isinstance(value, pd.DataFrame):
+                value = value.to_dict(orient='tight')
             json[param] = value
         return json
 

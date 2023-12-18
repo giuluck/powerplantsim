@@ -74,7 +74,7 @@ def process_plan(plan: Union[Plan, pd.DataFrame],
 
 
 def check_plan(plan: Union[Plan, pd.DataFrame], machines: Dict[NodeID, Machine], edges: Dict[EdgeID, Edge]) -> \
-        Tuple[Dict[NodeID, float | Iterable[float]], Dict[Tuple[str, str, str], float | Iterable[float]]]:
+        Tuple[Dict[NodeID, Union[float, Iterable[float]]], Dict[Tuple[str, str, str], Union[float, Iterable[float]]]]:
     """Checks that the given plan is correctly specified and returns the dictionaries of states and flows.
 
     :param plan:
