@@ -1,6 +1,5 @@
 from typing import Iterable, Union, Sized, Dict, Tuple
 
-import networkx as nx
 import pandas as pd
 
 from ppsim import utils
@@ -105,31 +104,6 @@ def check_plan(plan: Union[Plan, pd.DataFrame], machines: Dict[NodeID, Machine],
     assert len(machines) == 0, f"No states vector has been passed for machines {list(machines.keys())}"
     assert len(edges) == 0, f"No flows vector has been passed for edges {list(edges.keys())}"
     return states, flows
-
-
-# noinspection PyUnusedLocal
-def default_action(step: int, graph: nx.DiGraph) -> Plan:
-    """Implements the default recourse action.
-
-    :param step:
-        The time step of the simulation.
-
-    :param graph:
-        A graph representing the topology of the power plant, with flows included as attributes on edges.
-
-    :return:
-        A dictionary {machine | edge: updated_state | updated_flow} where a machine is identified by its name and an
-        edge is identified by the tuple of the names of the node that is connecting, while updated_state and
-        updated_flow is the value of the actual state/flow.
-    """
-    # TODO: implement default action
-    output = {}
-    for name, attributes in graph.nodes(data=True):
-        if attributes['kind'] == 'machine':
-            output[name] = attributes['current_state']
-    for source, destination, attributes in graph.edges(data=True):
-        output[(source, destination)] = attributes['current_flow']
-    return output
 
 
 def build_output(nodes: Iterable[Node], edges: Iterable[Edge], horizon: pd.Index) -> SimulationOutput:

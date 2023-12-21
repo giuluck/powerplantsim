@@ -9,6 +9,7 @@ import pandas as pd
 from ppsim import utils
 from ppsim.datatypes import Node, Client, Machine, Supplier, Edge, Storage, Purchaser, Customer
 from ppsim.plant import drawing, execution
+from ppsim.plant.actions.action import RecourseAction
 from ppsim.plant.execution import check_plan
 from ppsim.utils.typing import Setpoint, Plan
 
@@ -556,7 +557,7 @@ class Plant:
         edges = self.edges()
         machines = self.machines
         datatypes = {**edges, **nodes}
-        action_fn = execution.default_action if action_fn is None else action_fn
+        action_fn = RecourseAction().__call__ if action_fn is None else action_fn
         plan = execution.process_plan(plan=plan, machines=machines, edges=edges, horizon=self._horizon)
         for _, row in plan.iterrows():
             self._step += 1
