@@ -22,8 +22,9 @@ class RecourseAction:
             graph : a networkx object storing the power plant to model (topology, costs, demands) and the prediceted plan (flows and machine state)
         """
 
-        self.predicted_machines = {}
         self.predicted_flows = {}
+        self.predicted_machines = {}
+        self.predicted_storages = {}
 
         # Nodes
         for node in graph.nodes:
@@ -54,7 +55,9 @@ class RecourseAction:
                                                 in node['commodities_out']})
 
             elif node['kind'] == 'storage':
-                pass
+                self.predicted_storages = {(node['name'], node['commodity']): node['current_storage']}
+                unit = Storage(name=node['name'], storage={node['commodity']: (
+                node['current_storage'], node['capacity'], node['charge_rate'], node['discharge_rate'])})
 
             elif node['kind'] == 'client':
                 if node['purchaser']:
@@ -65,7 +68,7 @@ class RecourseAction:
             self.plant.add_node(unit)
 
         # Edges
-        for edge in graph.edges.keys():
+        for edge in graph.edges:
             edge = graph.edges[edge]
             node_out, node_in, commodity, lb, ub, flow = edge['source'], edge['destination'], edge['commodity'], edge[
                 'min_flow'], edge['max_flow'], edge['current_flow']
@@ -75,43 +78,61 @@ class RecourseAction:
         self.plant.expand_network()
 
         # Predicted Plan
-        self.plant.add_predicted_plan(flows=self.predicted_flows, machines=self.predicted_machines)
+        self.plant.add_predicted_plan(flows=self.predicted_flows, machines=self.predicted_machines,
+                                      storages=self.predicted_storages)
 
-    def _solve(self, cost_weight: float = 1, machine_weight: dict[str, tuple[float, float, float]] | float = 1):
+    def _solve(self, cost_weight: float = 1, machine_weight: dict[str, tuple[float, float, float]] | float = 1,
+               storage_weight: dict[tuple[str, str], float] | float = 1):
         """Solves the mathematical model to obtain a new feaibile plan, starting from the predicted one
 
         Args:
             cost_weight : the objective coefficient for the total cost of the produced plan
             machine_weight: either a float used as the objective coefficient of the total difference between the predicted and the produced plan in terms of machine states, or a dictionary
-                            {machine : (switchon, switchoff, setpoint)} containing the objective coefficients of the switchon, switchoff and setpoint difference for each individual machine
+                            {machine : (switchon, switchoff, setpoint)} containing the objective coefficients of the switchon, switchoff and setpoint difference for individual machines
+            storage_weight: either a float used as the objective coefficient for the total difference between the predicted and the produced plan in terms of storage states, or a dictionary
+                            {(storage, commodity) : accumulated_storage_diff} containing the objective coefficients of the accumulated storage difference for individual storages
         """
 
-        self.plant.add_objective(cost_weight=cost_weight, machine_weight=machine_weight)
-        opt = pyo.SolverFactory(self.solver)
-        opt.solve(self.plant.model)
+        self.plant.add_objective(cost_weight=cost_weight, machine_weight=machine_weight, storage_weight=storage_weight)
+        solver = pyo.SolverFactory(self.solver)
+        results = solver.solve(self.plant.model)
+        self.termination = results.solver.termination_condition
 
     def __call__(self, step, graph, cost_weight: float = 1,
-                 machine_weight: dict[str, tuple[float, float, float]] | float = 1):
+                 machine_weight: dict[str, tuple[float, float, float]] | float = 1,
+                 storage_weight: dict[tuple[str, str], float] | float = 1):
         """Builds and solves the mathematical model to obtain a new feaibile plan, starting from the predicted one
 
         Args:
             graph : a networkx object storing the power plant to model (topology, costs, demands) and the prediceted plan (flows and machine state)
             cost_weight : the objective coefficient for the total cost of the produced plan
             machine_weight: either a float used as the objective coefficient of the total difference between the predicted and the produced plan in terms of machine states, or a dictionary
-                            {machine : (switchon, switchoff, setpoint)} containing the objective coefficients of the switchon, switchoff and setpoint difference for each individual machine
+                            {machine : (switchon, switchoff, setpoint)} containing the objective coefficients of the switchon, switchoff and setpoint difference for individual machines
+            storage_weight: either a float used as the objective coefficient for the total difference between the predicted and the produced plan in terms of storage states, or a dictionary
+                            {(storage, commodity) : accumulated_storage_diff} containing the objective coefficients of the accumulated storage difference for individual storages
         """
 
         self.plant = Plant()
         self._build(graph)
-        self._solve(cost_weight=cost_weight, machine_weight=machine_weight)
+        self._solve(cost_weight=cost_weight, machine_weight=machine_weight, storage_weight=storage_weight)
 
-        machines = {node: (
-            pyo.value(self.plant.model.component(node).switch), pyo.value(self.plant.model.component(node).setpoint))
-            for
-            node, node_type in self.plant.nodes if node_type == 'machine'}
-        flows = {edge: pyo.value(self.plant.model.flows[edge]) for edge in self.plant.edges}
+        if self.termination == 'optimal':
+            flows = {edge: self.plant.model.flows[edge].value for edge in self.plant.edges}
+            machines = {}
+            storages = {}
+            for node, node_type in self.plant.nodes:
+                if node_type == 'machine':
+                    machines[node] = (
+                        self.plant.model.component(node).switch.value, self.plant.model.component(node).setpoint.value)
+                elif node_type == 'storage':
+                    for commodity in self.plant.model.component(node).storage_index.data():
+                        storages[(node, commodity)] = self.plant.model.component(node).storage[commodity].value
 
-        return {
-            **{k: v[1] if v[0] == 1 else np.nan for k, v in machines.items()},
-            **{(k[0], k[1]): v for k, v in flows.items()}
-        }
+            return {
+                **{k: v[1] if v[0] == 1 else np.nan for k, v in machines.items()},
+                **{(k[0], k[1]): v for k, v in flows.items()}
+            }
+        else:
+            print(self.termination)
+
+            return None, None, None

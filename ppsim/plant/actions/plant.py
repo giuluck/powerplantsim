@@ -64,12 +64,13 @@ class Plant:
                     self.edges if node_out == node.name and com == commodity)
 
     def add_predicted_plan(self, flows: dict[tuple[str, str, str, float, float], float],
-                           machines: dict[str, tuple[bool, float]]):
+                           machines: dict[str, tuple[bool, float]], storages: dict[tuple[str, str], float]):
         """Declare the variables and constraints that describe the predicted plan, from which the recourse action generates a new plan
 
         Args:
             flows : a dictionary {(node_in, node_out, commodity, lb, ub) : flow} indicating the predicted flow for each edge
-            machine: a dictionary {machine : (switch, setpoint)} indicating the predicted state for each machine
+            machines: a dictionary {machine : (switch, setpoint)} indicating the predicted state for each machine
+            storages: a dictionary {(storage, commodity) : accumulated_commodity} indicating the predicted state for each machine
         """
 
         self.model.d_flows = pyo.Var(self.edges, domain=pyo.NonNegativeReals)
@@ -108,13 +109,28 @@ class Plant:
             node = model.component(machine)
             return model.d_setpoints[machine] >= machines[machine][1] - node.setpoint
 
-    def add_objective(self, cost_weight: float = 1, machine_weight: dict[str, tuple[float, float, float]] | float = 1):
+        self.model.d_storages = pyo.Var(storages.keys(), domain=pyo.NonNegativeReals)
+
+        @self.model.Constraint(storages)
+        def storage_distance_geq(model, storage, commodity):
+            node = model.component(storage)
+            return model.d_storages[storage, commodity] >= node.storage[commodity] - storages[storage, commodity]
+
+        @self.model.Constraint(storages)
+        def storage_distance_leq(model, storage, commodity):
+            node = model.component(storage)
+            return model.d_storages[storage, commodity] >= storages[storage, commodity] - node.storage[commodity]
+
+    def add_objective(self, cost_weight: float = 1, machine_weight: dict[str, tuple[float, float, float]] | float = 1,
+                      storage_weight: dict[tuple[str, str], float] | float = 1):
         """Declare the objective function
 
         Args:
             cost_weight : the objective coefficient for the total cost of the produced plan 
             machine_weight: either a float used as the objective coefficient for the total difference between the predicted and the produced plan in terms of machine states, or a dictionary 
-                            {machine : (switchon, switchoff, setpoint)} containing the objective coefficients of the switchon, switchoff and setpoint difference for each individual machine
+                            {machine : (switchon, switchoff, setpoint_diff)} containing the objective coefficients of the switchon, switchoff and setpoint difference for individual machines
+            storage_weight: either a float used as the objective coefficient for the total difference between the predicted and the produced plan in terms of storage states, or a dictionary 
+                            {(storage, commodity) : accumulated_storage_diff} containing the objective coefficients of the accumulated storage difference for individual storages
         """
 
         expr = 0
@@ -128,14 +144,23 @@ class Plant:
 
         if machine_weight:
             if type(machine_weight) != dict:
-                machine_weight = {node: (machine_weight, machine_weight, machine_weight) for node, node_type in
-                                  self.nodes if node_type == 'machine'}
+                expr += machine_weight * sum(
+                    self.model.switchoffs[node] + self.model.switchons[node] + self.model.d_setpoints[node] for
+                    node, node_type in self.nodes if node_type == 'machine')
+            else:
+                expr += sum(machine_weight[node][0] * self.model.switchoffs[node] + machine_weight[node][1] *
+                            self.model.switchons[node] for node in machine_weight.keys())
+                expr += sum(machine_weight[node][2] * self.model.d_setpoints[node] for node in machine_weight.keys())
 
-            expr += sum(
-                machine_weight[node][0] * self.model.switchoffs[node] + machine_weight[node][1] * self.model.switchons[
-                    node] for node, node_type in self.nodes if node_type == 'machine')
-            expr += sum(machine_weight[node][2] * self.model.d_setpoints[node] for node, node_type in self.nodes if
-                        node_type == 'machine')
+        if storage_weight:
+            if type(storage_weight) != dict:
+                expr += storage_weight * sum(
+                    self.model.d_storages[node, commodity] for node, node_type in self.nodes if node_type == 'storage'
+                    for commodity in self.model.component(node).storage_index)
+            else:
+                expr += sum(
+                    storage_weight[node, commodity] * self.model.d_storages[node, commodity] for node, commodity in
+                    storage_weight.keys())
 
         self.model.objective = pyo.Objective(expr=expr, sense=pyo.minimize)
 
@@ -208,7 +233,7 @@ class Purchaser(Node):
 
         super().__init__(name, gates_in=list(profits.keys()), gates_out=[])
         self.profits = profits
-        self.node_type = 'grid'
+        self.node_type = 'purchaser'
 
     def _add_to_plant(self, plant: Plant):
         # Block
@@ -294,7 +319,7 @@ class Storage(Node):
                       and the charge and discharge rate for each storable commodity
         """
 
-        super().__init__(name, gates_in=storage.keys(), gates_out=storage.keys())
+        super().__init__(name, gates_in=list(storage.keys()), gates_out=list(storage.keys()))
         self.storage = storage
         self.node_type = 'storage'
 
