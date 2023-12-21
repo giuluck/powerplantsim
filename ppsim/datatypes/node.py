@@ -25,7 +25,7 @@ class Node(DataType, ABC):
 
     @classproperty
     def _properties(self) -> List[str]:
-        return ['name', 'kind', 'commodities_in', 'commodities_out']
+        return ['name', 'kind']
 
     @property
     @abstractmethod
@@ -79,10 +79,10 @@ class VarianceNode(Node, ABC):
         assert len(self._predictions) == len(self._horizon), \
             f"Predictions should match length of horizon, got {len(self._predictions)} instead of {len(self._horizon)}"
 
-    @property
-    def predictions(self) -> pd.Series:
-        """The series of predictions."""
-        return pd.Series(self._predictions.copy(), dtype=float, index=self._horizon)
+    @classproperty
+    def _properties(self) -> List[str]:
+        properties = super(VarianceNode, self)._properties
+        return properties + ['commodity']
 
     @property
     def values(self) -> pd.Series:

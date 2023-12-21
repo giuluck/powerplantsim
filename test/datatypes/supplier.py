@@ -33,24 +33,19 @@ class TestSupplier(TestDataType):
 
     def test_immutability(self):
         SUPPLIER.prices[0] = 5.0
-        SUPPLIER.predicted_prices[0] = 5.0
         self.assertEqual(len(SUPPLIER.prices), 0, msg="Supplier prices should be immutable")
-        self.assertEqual(SUPPLIER.predicted_prices[0], 3.0, msg="Supplier predicted prices should be immutable")
 
     def test_dict(self):
         # pandas series need to be tested separately due to errors in the equality check
         s_dict = SUPPLIER.dict
         s_val = s_dict.pop('prices')
-        s_pred = s_dict.pop('predicted_prices')
         self.assertEqual(s_dict, {
             'name': 's',
             'kind': 'supplier',
-            'commodities_in': set(),
-            'commodities_out': {'s_com'},
+            'commodity': 's_com',
             'current_price': None,
         }, msg='Wrong dictionary returned for supplier')
         self.assertDictEqual(s_val.to_dict(), {}, msg='Wrong dictionary returned for supplier')
-        self.assertDictEqual(s_pred.to_dict(), SERIES_1.to_dict(), msg='Wrong dictionary returned for supplier')
 
     def test_operation(self):
         s = SUPPLIER.copy()

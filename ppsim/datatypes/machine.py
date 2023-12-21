@@ -59,7 +59,16 @@ class Machine(Node):
     @classproperty
     def _properties(self) -> List[str]:
         properties = super(Machine, self)._properties
-        return properties + ['setpoint', 'discrete_setpoint', 'max_starting', 'cost', 'states', 'current_state']
+        return properties + [
+            'commodities_in',
+            'commodities_out',
+            'setpoint',
+            'discrete_setpoint',
+            'max_starting',
+            'cost',
+            'states',
+            'current_state'
+        ]
 
     @property
     def states(self) -> pd.Series:

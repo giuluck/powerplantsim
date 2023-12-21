@@ -219,7 +219,10 @@ class Plant:
         :return:
             The added supplier node.
         """
-        predictions = np.ones_like(self._horizon) * predictions if isinstance(predictions, float) else predictions
+        if isinstance(predictions, float):
+            predictions = np.ones_like(self._horizon) * predictions
+        else:
+            predictions = np.array(predictions)
         # create an internal supplier node and add it to the internal data structure and the graph
         supplier = Supplier(
             _plant=self,
@@ -272,7 +275,10 @@ class Plant:
         :return:
             The added client node.
         """
-        predictions = np.ones_like(self._horizon) * predictions if isinstance(predictions, float) else predictions
+        if isinstance(predictions, float):
+            predictions = np.ones_like(self._horizon) * predictions
+        else:
+            predictions = np.array(predictions)
         # create an internal client node (with specified type) and add it to the internal data structure and the graph
         if purchaser:
             client = Purchaser(

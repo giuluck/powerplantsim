@@ -19,12 +19,7 @@ class Supplier(VarianceNode):
     @classproperty
     def _properties(self) -> List[str]:
         properties = super(Supplier, self)._properties
-        return properties + ['predicted_prices', 'prices', 'current_price']
-
-    @property
-    def predicted_prices(self) -> pd.Series:
-        """The series of predicted selling prices."""
-        return self.predictions
+        return properties + ['prices', 'current_price']
 
     @property
     def prices(self) -> pd.Series:

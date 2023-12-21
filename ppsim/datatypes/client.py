@@ -45,12 +45,7 @@ class Customer(Client):
     @classproperty
     def _properties(self) -> List[str]:
         properties = super(Customer, self)._properties
-        return properties + ['purchaser', 'predicted_demands', 'demands', 'current_demand']
-
-    @property
-    def predicted_demands(self) -> pd.Series:
-        """The series of predicted demands."""
-        return self.predictions
+        return properties + ['purchaser', 'demands', 'current_demand']
 
     @property
     def demands(self) -> pd.Series:
@@ -82,12 +77,7 @@ class Purchaser(Client):
     @classproperty
     def _properties(self) -> List[str]:
         properties = super(Purchaser, self)._properties
-        return properties + ['purchaser', 'predicted_prices', 'prices', 'current_price']
-
-    @property
-    def predicted_prices(self) -> pd.Series:
-        """The series of predicted buying prices."""
-        return self.predictions
+        return properties + ['purchaser', 'prices', 'current_price']
 
     @property
     def prices(self) -> pd.Series:

@@ -155,8 +155,7 @@ class TestStorage(TestDataType):
         self.assertEqual(s_dict, {
             'name': 's',
             'kind': 'storage',
-            'commodities_in': {'s_com'},
-            'commodities_out': {'s_com'},
+            'commodity': 's_com',
             'dissipation': 0.1,
             'capacity': 5.0,
             'charge_rate': 10.0,

@@ -45,7 +45,15 @@ class Storage(Node):
     @classproperty
     def _properties(self) -> List[str]:
         properties = super(Storage, self)._properties
-        return properties + ['capacity', 'dissipation', 'charge_rate', 'discharge_rate', 'storage', 'current_storage']
+        return properties + [
+            'commodity',
+            'capacity',
+            'dissipation',
+            'charge_rate',
+            'discharge_rate',
+            'storage',
+            'current_storage'
+        ]
 
     @property
     def storage(self) -> pd.Series:

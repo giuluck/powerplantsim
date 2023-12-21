@@ -55,45 +55,35 @@ class TestClient(TestDataType):
     def test_immutability(self):
         # test customer
         CUSTOMER.demands[0] = 5.0
-        CUSTOMER.predicted_demands[0] = 5.0
         self.assertEqual(len(CUSTOMER.demands), 0, msg="Customer demands should be immutable")
-        self.assertEqual(CUSTOMER.predicted_demands[0], 3.0, msg="Customer predicted demands should be immutable")
         # test purchaser
         PURCHASER.prices[0] = 5.0
-        PURCHASER.predicted_prices[0] = 5.0
         self.assertEqual(len(PURCHASER.prices), 0, msg="Purchaser prices should be immutable")
-        self.assertEqual(PURCHASER.predicted_prices[0], 3.0, msg="Purchaser predicted prices should be immutable")
 
     def test_dict(self):
         # pandas series need to be tested separately due to errors in the equality check
         # test customer
         c_dict = CUSTOMER.dict
         c_val = c_dict.pop('demands')
-        c_pred = c_dict.pop('predicted_demands')
         self.assertEqual(c_dict, {
             'name': 'c',
             'kind': 'client',
             'purchaser': False,
-            'commodities_in': {'c_com'},
-            'commodities_out': set(),
+            'commodity': 'c_com',
             'current_demand': None
         }, msg='Wrong dictionary returned for customer')
         self.assertDictEqual(c_val.to_dict(), {}, msg='Wrong dictionary returned for customer')
-        self.assertDictEqual(c_pred.to_dict(), SERIES_1.to_dict(), msg='Wrong dictionary returned for customer')
         # test purchaser
         p_dict = PURCHASER.dict
         p_val = p_dict.pop('prices')
-        p_pred = p_dict.pop('predicted_prices')
         self.assertEqual(p_dict, {
             'name': 'p',
             'kind': 'client',
             'purchaser': True,
-            'commodities_in': {'p_com'},
-            'commodities_out': set(),
+            'commodity': 'p_com',
             'current_price': None
         }, msg='Wrong dictionary returned for purchaser')
         self.assertDictEqual(p_val.to_dict(), {}, msg='Wrong dictionary returned for customer')
-        self.assertDictEqual(p_pred.to_dict(), SERIES_1.to_dict(), msg='Wrong dictionary returned for purchaser')
 
     def test_operation(self):
         # test customer

@@ -30,8 +30,7 @@ class RecourseAction:
             node = graph.nodes[node]
 
             if node['kind'] == 'supplier':
-                unit = Supplier(name=node['name'],
-                                costs={commodity: node['current_price'] for commodity in node['commodities_out']})
+                unit = Supplier(name=node['name'], costs={node['commodity']: node['current_price']})
 
             elif node['kind'] == 'machine':
                 if np.isnan(node['current_state']):
@@ -59,11 +58,9 @@ class RecourseAction:
 
             elif node['kind'] == 'client':
                 if node['purchaser']:
-                    unit = Purchaser(name=node['name'],
-                                     profits={commodity: node['current_price'] for commodity in node['commodities_in']})
+                    unit = Purchaser(name=node['name'], profits={node['commodity']: node['current_price']})
                 else:
-                    unit = Consumer(name=node['name'],
-                                    demands={commodity: node['current_demand'] for commodity in node['commodities_in']})
+                    unit = Consumer(name=node['name'], demands={node['commodity']: node['current_demand']})
 
             self.plant.add_node(unit)
 
