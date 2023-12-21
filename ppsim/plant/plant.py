@@ -9,7 +9,7 @@ import pandas as pd
 from ppsim import utils
 from ppsim.datatypes import Node, Client, Machine, Supplier, Edge, Storage, Purchaser, Customer
 from ppsim.plant import drawing, execution
-from ppsim.plant.actions.action import RecourseAction
+from ppsim.plant.actions.action import DefaultRecourseAction, RecourseAction
 from ppsim.plant.execution import check_plan
 from ppsim.utils.typing import Setpoint, Plan
 
@@ -535,7 +535,7 @@ class Plant:
 
     def run(self,
             plan: Union[Plan, pd.DataFrame],
-            action_fn: Optional[Callable[[int, nx.DiGraph], Plan]] = None) -> execution.SimulationOutput:
+            action: RecourseAction = DefaultRecourseAction()) -> execution.SimulationOutput:
         """Runs a simulation up to the time horizon using the given plan.
 
         :param plan:
@@ -547,23 +547,19 @@ class Plant:
             machine name of the edge key, and the value is a vector of states or flows, respectively, with the index
             of the dataframe that matches the time horizon of the simulation.
 
-        :param action_fn:
-            A function f(step, plant) -> (updated_plan). This function models the recourse action for a given step
-            (step), which is provided as input together with the topology of the power plant as returned by
-            plant.graph(attributes=True). The function must return a dictionary {machine | edge: updated_<state | flow>}
-            where a machine is identified by its name and an edge is identified by the tuple of the names of the node
-            that is connecting, while updated_state and  updated_flow is the value of the actual state/flow. If None is
-            passed, a default recourse action is used instead.
+        :param action:
+            A RecourseAction objects which models the recourse action for a given step and returns a dictionary of
+            updated machine states and edge flows. By default, it uses a greedy recourse action.
 
         :return:
             A SimulationOutput object containing all the information about true prices, demands, setpoints, and storage.
         """
         assert self._step == -1, "Simulation for this plant was already run, create a new instance to run another one"
+        action.build(plant=self)
         nodes = self.nodes()
         edges = self.edges()
         machines = self.machines
         datatypes = {**edges, **nodes}
-        action_fn = RecourseAction().__call__ if action_fn is None else action_fn
         plan = execution.process_plan(plan=plan, machines=machines, edges=edges, horizon=self._horizon)
         for _, row in plan.iterrows():
             self._step += 1
@@ -572,7 +568,7 @@ class Plant:
                 datatype.update(rng=self._rng, flows=row['flows'], states=row['states'])
             # compute the updated flows and states using the recourse action
             updated_states, updated_flows = check_plan(
-                plan=action_fn(self._step, self.graph(attributes=True)),
+                plan=action.execute(),
                 machines=machines,
                 edges=edges
             )

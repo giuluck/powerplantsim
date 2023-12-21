@@ -134,14 +134,13 @@ class Plant:
         """
 
         expr = 0
-
         if cost_weight:
-            expr += cost_weight * sum(self.costs[node, commodity] * self.model.component(node).gates_out[commodity] for
-                                      (node, commodity), cost in self.costs.items() if cost >= 0)
             expr += cost_weight * sum(
-                self.costs[node, commodity] * self.model.component(node).gates_in[commodity] for (node, commodity), cost
-                in self.costs.items() if cost < 0)
-
+                cost * self.model.component(n).gates_out[c] for (n, c), cost in self.costs.items() if cost >= 0
+            )
+            expr += cost_weight * sum(
+                cost * self.model.component(n).gates_in[c] for (n, c), cost in self.costs.items() if cost < 0
+            )
         if machine_weight:
             if type(machine_weight) != dict:
                 expr += machine_weight * sum(

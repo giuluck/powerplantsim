@@ -55,7 +55,7 @@ class Customer(Client):
     @property
     def current_demand(self) -> Optional[float]:
         """The current demand of the node for this time step as computed using the variance model."""
-        return self._info['current_value']
+        return self.current_value
 
     def step(self, flows: Flows, states: States):
         # check that the flow does not exceed the demand
@@ -87,7 +87,7 @@ class Purchaser(Client):
     @property
     def current_price(self) -> Optional[float]:
         """The current buying price of the node for this time step as computed using the variance model."""
-        return self._info['current_value']
+        return self.current_value
 
     def step(self, flows: Flows, states: States):
         self._values.append(self._info['current_value'])

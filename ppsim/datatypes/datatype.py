@@ -53,6 +53,14 @@ class DataType(ABC):
         """A dictionary containing all the information of the datatype object indexed via property name."""
         return {param: getattr(self, param) for param in self._properties}
 
+    def copy(self):
+        """Copies the datatype.
+
+        :return:
+            A copy of the datatype.
+        """
+        return copy.deepcopy(self)
+
     def to_json(self) -> Dict[str, Any]:
         """Function to make the object serializable.
 
@@ -70,14 +78,6 @@ class DataType(ABC):
                 value = value.to_dict(orient='tight')
             json[param] = value
         return json
-
-    def copy(self):
-        """Copies the datatype.
-
-        :return:
-            A copy of the datatype.
-        """
-        return copy.deepcopy(self)
 
     def _instance(self, other) -> bool:
         """Checks whether a different object is matching the self instance for comparison."""

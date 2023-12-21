@@ -89,6 +89,11 @@ class VarianceNode(Node, ABC):
         """The series of actual values, which is filled during the simulation."""
         return pd.Series(self._values.copy(), dtype=float, index=self._horizon[:len(self._values)])
 
+    @property
+    def current_value(self) -> float:
+        """The current value of the node for this time step as computed using the variance model."""
+        return self._info['current_value']
+
     def update(self, rng: np.random.Generator, flows: Flows, states: States):
         # compute the new value as the sum of the prediction and the variance obtained from the variance model
         self._info['current_value'] = self._predictions[self._step] + self._variance_fn(rng, self.values)

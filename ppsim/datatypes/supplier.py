@@ -29,7 +29,7 @@ class Supplier(VarianceNode):
     @property
     def current_price(self) -> Optional[float]:
         """The current selling price of the node for this time step as computed using the variance model."""
-        return self._info['current_value']
+        return self.current_value
 
     @property
     def commodities_in(self) -> Set[str]:
