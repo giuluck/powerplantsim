@@ -3,7 +3,10 @@ from typing import Set, Optional, Tuple, List
 
 import numpy as np
 import pandas as pd
+import pyomo.environ as pyo
+# noinspection PyPackageRequirements
 from descriptors import classproperty
+from pyomo.core import Piecewise
 
 from ppsim import utils
 from ppsim.datatypes.node import Node
@@ -70,6 +73,28 @@ class Machine(Node):
             'current_state'
         ]
 
+    def starts(self, t: int) -> int:
+        """Computes the number of times the machine has been started in the past <t> steps.
+
+        :param t:
+            The number of past steps to consider.
+
+        :return:
+            The number of machine starts.
+        """
+        if t <= 0:
+            return 0
+        count = 0
+        # create a list of the last T states
+        t = min(t, len(self._states))
+        # prepend nan (machine starts off) and append the last one
+        states = [np.nan, *self._states[-t:]]
+        # check consecutive pairs and increase the counter if we pass from a NaN to a real number
+        for s1, s2 in zip(states[:-1], states[1:]):
+            if np.isnan(s1) and not np.isnan(s2):
+                count += 1
+        return count
+
     @property
     def states(self) -> pd.Series:
         """The series of actual input setpoints (NaN for machine off), which is filled during the simulation."""
@@ -79,6 +104,11 @@ class Machine(Node):
     def current_state(self) -> Optional[State]:
         """The current state of the machine for this time step as provided by the user."""
         return self._info['current_state']
+
+    @property
+    def previous_state(self) -> State:
+        """The state of the machine in the previous time step (or np.nan if this is the first time step)."""
+        return np.nan if len(self._states) == 0 else self._states[-1]
 
     @property
     def setpoint(self) -> pd.DataFrame:
@@ -94,6 +124,81 @@ class Machine(Node):
     def commodities_out(self) -> Set[str]:
         return set(self._setpoint['output'].columns)
 
+    # noinspection PyUnresolvedReferences, PyTypeChecker
+    def to_pyomo(self, mutable: bool = False) -> pyo.Block:
+        # start from the default node block and store aliases for setpoint lower and upper bounds
+        node = super(Machine, self).to_pyomo(mutable=mutable)
+        lb, ub = self._setpoint.index[[0, -1]]
+        # add a parameter representing the current state (and initialize it if needed)
+        current_state = self.current_state
+        kwargs = dict(mutable=True) if mutable else dict(initialize=lb if np.isnan(current_state) else current_state)
+        node.current_state = pyo.Param(domain=pyo.NonNegativeReals, **kwargs)
+        # create a variable for the machine binary state (on/off) then, if the number of starts in the last <t - 1>
+        # steps is already maximal, set the variable bounds as (0, 0) so that the machine will be forced to be off
+        n, t = (1, 1) if self.max_starting is None else self.max_starting
+        node.switch = pyo.Var(domain=pyo.Binary, bounds=(0, 1 if self.starts(t=t - 1) < n else 0), initialize=0)
+        # compute the cost of operating the machine (in case it is on)
+        node.cost = self.cost * node.switch
+        # handle setpoint for discrete and continuous machines
+        if self.discrete_setpoint:
+            # build a one-hot encoded selector that has a single entry if the machine is on (i.e., node.switch == 1)
+            # or no entry if the machine is off (i.e., node.switch == 0)
+            node.selector = pyo.Var(range(len(self._setpoint)), domain=pyo.Binary, initialize=0)
+            node.selector_cst = pyo.Constraint(rule=sum(node.selector.values()) == node.switch)
+            # build a variable for the actual setpoint so that it is equal to the value indexed by the selector
+            #  - use a variable instead of a plain equation in order to access it via the ".value" property
+            node.state = pyo.Var(domain=pyo.NonNegativeReals)
+            node.state_cst = pyo.Constraint(rule=node.state == sum(node.selector * self._setpoint.index))
+            # impose constraints on input/output flows so that they match the correct setpoint indexed by the selector
+            node.input_flows_cst = pyo.Constraint(
+                node.in_flows.index_set(),
+                rule=lambda _, com: node.in_flows[com] == sum(node.selector * self._setpoint.input[com])
+            )
+            node.output_flows_cst = pyo.Constraint(
+                node.out_flows.index_set(),
+                rule=lambda _, com: node.out_flows[com] == sum(node.selector * self._setpoint.output[com])
+            )
+        else:
+            # build a state variable that is bounded within the min and max setpoint
+            breakpoints = self._setpoint.index.values
+            node.state = pyo.Var(domain=pyo.NonNegativeReals, bounds=(lb, ub), initialize=node.current_state)
+            # for each tuple of (input/output, commodity) flows:
+            #  - build a flow variable which is bounded within the min and max flow
+            #  - enforce a piecewise_linear constraint between the node state and the flow
+            #  - constraint the respective flow "node.in_flows/out_flows[commodity]" to be node.switch * flow
+            #    (i.e., if the machine is on then the final flow is equal to "flow", otherwise it is zero)
+            for key, var in [('input', node.in_flows), ('output', node.out_flows)]:
+                for commodity, values in self._setpoint[key].items():
+                    # create the flow variable and add it to the node
+                    v_min, v_max = values.min(), values.max()
+                    flow = pyo.Var(domain=pyo.NonNegativeReals, bounds=(v_min, v_max))
+                    node.add_component(f'{key}_{commodity}_flow', flow)
+                    # create the piecewise linear constraint so that it:
+                    #  - stores the output in the "flow" variable
+                    #  - takes as input the "node.state" variable
+                    #  - is defined via the setpoint index (breakpoints) and the respective flows (values)
+                    #  - require tight equality bounds and is modelled using the SOS2 formulation
+                    pwl_cst = Piecewise(
+                        flow,
+                        node.state,
+                        pw_pts=list(breakpoints),
+                        f_rule=list(values),
+                        pw_constr_type='EQ',
+                        pw_repn='SOS2'
+                    )
+                    node.add_component(f'{key}_{commodity}_pwl_cst', pwl_cst)
+                    # constraint the final flow (var[commodity]) by linearizing the product node.switch * flow, i.e.:
+                    #  - var[commodity] is upper-bounded by the actual value of the flow
+                    #  - var[commodity] is greater than flow if node.switch = 1, otherwise the constraint is trivial
+                    #  - var[commodity] is lower than zero if node.switch = 0, otherwise the constraint is trivial
+                    flow_cst_ub = pyo.Constraint(rule=var[commodity] <= flow)
+                    flow_cst_on = pyo.Constraint(rule=var[commodity] >= flow - (1 - node.switch) * v_max)
+                    flow_cst_off = pyo.Constraint(rule=var[commodity] <= node.switch * v_max)
+                    node.add_component(f'{key}_{commodity}_flow_cst_ub', flow_cst_ub)
+                    node.add_component(f'{key}_{commodity}_flow_cst_on', flow_cst_on)
+                    node.add_component(f'{key}_{commodity}_flow_cst_off', flow_cst_off)
+        return node
+
     def update(self, rng: np.random.Generator, flows: Flows, states: States):
         self._info['current_state'] = states[self.key]
 
@@ -107,8 +212,8 @@ class Machine(Node):
                 machine_flows[('output', commodity)] += flow
             if destination == self.name:
                 machine_flows[('input', commodity)] += flow
-        # if the state or nan, check that the input/output flows are null
-        if state is None or np.isnan(state):
+        # if the state is nan, check that the input/output flows are null
+        if np.isnan(state):
             for (key, commodity), flow in machine_flows.items():
                 assert np.isclose(flow, 0.0), \
                     f"Got non-zero {key} flow for '{commodity}' despite null setpoint for machine '{self.name}'"
@@ -132,18 +237,13 @@ class Machine(Node):
                 expected = np.interp(state, xp=self._setpoint.index, fp=self._setpoint[(key, commodity)])
                 assert np.isclose(expected, flow), \
                     f"Expected flow {expected} for {key} commodity '{commodity}' in machine '{self.name}', got {flow}"
-        # check maximal number of starting:
-        #  - create a list of the last T states, prepend nan (machine starts off) and append the last one
-        #  - check consecutive pairs and increase the counter if we pass from a NaN to a real number
-        #  - if the counter gets greater than N, raise an error
+        # check maximal number of starting by checking that at least one of the following conditions is met:
+        #  - the machine is off in this time step
+        #  - the machine was on in the previous time step
+        #  - the number of starts in the last <t - 1> steps is strictly lower than the maximal value required
         if self.max_starting is not None:
             n, t = self.max_starting
-            t = min(t, len(self._states) + 1)
-            count = 0
-            states = [np.nan, *self._states[-t:], state]
-            for s1, s2 in zip(states[-t - 1:-1], states[-t:]):
-                if np.isnan(s1) and not np.isnan(s2):
-                    count += 1
-                    assert count <= n, f"Machine '{self.name}' cannot be started for more than {n} times in {t} steps"
+            assert np.isnan(state) or not np.isnan(self.previous_state) or self.starts(t=t - 1) < n, \
+                f"Machine '{self.name}' cannot be started for more than {n} times in {t} steps"
         self._states.append(state)
         self._info['current_state'] = None

@@ -229,7 +229,7 @@ class TestMachine(TestDataType):
         self.assertIsNone(m.current_state, msg=f"Machine current state should be None outside of the simulation")
         # test null state
         m = DISCRETE_MACHINE.copy()
-        m.step(states={'m': None}, flows={
+        m.step(states={'m': np.nan}, flows={
             ('input', 'm', 'in_com'): 0.0,
             ('m', 'output', 'out_com_1'): 0.0,
             ('m', 'output', 'out_com_2'): 0.0
@@ -361,7 +361,7 @@ class TestMachine(TestDataType):
             ('m', 'output', 'out_com_1'): 1.0,
             ('m', 'output', 'out_com_2'): 60.0
         })
-        m.step(states={'m': None}, flows={})
+        m.step(states={'m': np.nan}, flows={})
         with self.assertRaises(AssertionError, msg="Too many starting should raise exception") as e:
             m.step(states={'m': 0.5}, flows={
                 ('input', 'm', 'in_com'): 50.0,

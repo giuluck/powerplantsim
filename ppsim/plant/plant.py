@@ -5,11 +5,12 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import pandas as pd
+import pyomo.environ as pyo
 
 from ppsim import utils
 from ppsim.datatypes import Node, Client, Machine, Supplier, Edge, Storage, Purchaser, Customer
 from ppsim.plant import drawing, execution
-from ppsim.plant.actions.action import DefaultRecourseAction, RecourseAction
+from ppsim.plant.action import DefaultRecourseAction, CallableRecourseAction, RecourseAction
 from ppsim.plant.execution import check_plan
 from ppsim.utils.typing import Setpoint, Plan
 
@@ -109,8 +110,7 @@ class Plant:
             The identifier of the commodities, used to filter just the edges ending in this node.
 
         :return:
-            Either a dictionary <(source, destination), Dict[commodity, edge]> with nodes pairs as key, or a dictionary
-            <(source, destination, commodity), edge> with a triplet of nodes and commodity as key.
+            A dictionary <(source, destination), edge> with nodes pairs as key and edge info as value.
         """
         # get filtering functions for destinations and commodities
         check_sour = utils.get_filtering_function(user_input=sources)
@@ -156,8 +156,7 @@ class Plant:
                           parents: Union[None, str, Iterable[str]],
                           commodity: Optional[str],
                           min_flow: Optional[float],
-                          max_flow: Optional[float],
-                          integer: Optional[bool]):
+                          max_flow: Optional[float]):
         # add the new commodities to the set
         self._commodities.update(node.commodities_in)
         self._commodities.update(node.commodities_out)
@@ -182,8 +181,7 @@ class Plant:
                 _destination=node,
                 commodity=commodity,
                 min_flow=min_flow,
-                max_flow=max_flow,
-                integer=integer
+                max_flow=max_flow
             )
             self._edges.add(edge)
 
@@ -231,7 +229,7 @@ class Plant:
             _predictions=predictions,
             _variance_fn=variance
         )
-        self._check_and_update(node=supplier, parents=None, commodity=None, min_flow=None, max_flow=None, integer=None)
+        self._check_and_update(node=supplier, parents=None, commodity=None, min_flow=None, max_flow=None)
         return supplier
 
     def add_client(self,
@@ -301,8 +299,7 @@ class Plant:
             parents=parents,
             commodity=commodity,
             min_flow=0.0,
-            max_flow=float('inf'),
-            integer=False
+            max_flow=float('inf')
         )
         return client
 
@@ -314,8 +311,7 @@ class Plant:
                     max_starting: Optional[Tuple[int, int]] = None,
                     cost: float = 0.0,
                     min_flow: float = 0.0,
-                    max_flow: float = float('inf'),
-                    integer: bool = False) -> Machine:
+                    max_flow: float = float('inf')) -> Machine:
         """Adds a machine node to the topology.
 
         :param name:
@@ -346,9 +342,6 @@ class Plant:
         :param max_flow:
             The maximal flow of commodity that can pass in the edge.
 
-        :param integer:
-            Whether the flow must be integer or not.
-
         :return:
             The added machine node.
         """
@@ -376,8 +369,7 @@ class Plant:
             parents=parents,
             commodity=setpoint['input'].columns[0],
             min_flow=min_flow,
-            max_flow=max_flow,
-            integer=integer
+            max_flow=max_flow
         )
         return machine
 
@@ -389,8 +381,7 @@ class Plant:
                     dissipation: float = 0.0,
                     rates: Union[float, Tuple[float, float]] = float('inf'),
                     min_flow: float = 0.0,
-                    max_flow: float = float('inf'),
-                    integer: bool = False) -> Storage:
+                    max_flow: float = float('inf')) -> Storage:
         """Adds a storage node to the topology.
 
         :param name:
@@ -418,9 +409,6 @@ class Plant:
         :param max_flow:
             The maximal flow of commodity that can pass in the edge.
 
-        :param integer:
-            Whether the flow must be integer or not.
-
         :return:
             The added storage node.
         """
@@ -440,8 +428,7 @@ class Plant:
             parents=parents,
             commodity=commodity,
             min_flow=min_flow,
-            max_flow=max_flow,
-            integer=integer
+            max_flow=max_flow
         )
         return storage
 
@@ -535,7 +522,7 @@ class Plant:
 
     def run(self,
             plan: Union[Plan, pd.DataFrame],
-            action: RecourseAction = DefaultRecourseAction()) -> execution.SimulationOutput:
+            action: Union[None, RecourseAction, Callable[[Any], Plan]] = None) -> execution.SimulationOutput:
         """Runs a simulation up to the time horizon using the given plan.
 
         :param plan:
@@ -548,19 +535,27 @@ class Plant:
             of the dataframe that matches the time horizon of the simulation.
 
         :param action:
-            A RecourseAction objects which models the recourse action for a given step and returns a dictionary of
-            updated machine states and edge flows. By default, it uses a greedy recourse action.
+            Either a RecourseAction object or a function f(plant) -> plan which models the recourse action for a given
+            step and returns a dictionary of updated machine states and edge flows. If None is passed, it uses a greedy
+            recourse action.
 
         :return:
             A SimulationOutput object containing all the information about true prices, demands, setpoints, and storage.
         """
         assert self._step == -1, "Simulation for this plant was already run, create a new instance to run another one"
+        # handle recourse action (if None use default action, if Callable build a custom recourse action)
+        if action is None:
+            action = DefaultRecourseAction()
+        elif isinstance(action, Callable):
+            action = CallableRecourseAction(action=action)
         action.build(plant=self)
+        # retrieve data and process input plan
         nodes = self.nodes()
         edges = self.edges()
         machines = self.machines
         datatypes = {**edges, **nodes}
         plan = execution.process_plan(plan=plan, machines=machines, edges=edges, horizon=self._horizon)
+        # start the simulation
         for _, row in plan.iterrows():
             self._step += 1
             # update the simulation objects before the recourse action
@@ -576,3 +571,47 @@ class Plant:
             for datatype in datatypes.values():
                 datatype.step(flows=updated_flows, states=updated_states)
         return execution.build_output(nodes=nodes.values(), edges=edges.values(), horizon=self._horizon)
+
+    def to_pyomo(self, mutable: bool = False) -> pyo.ConcreteModel:
+        """Encodes the plant as a Pyomo model.
+
+        :param mutable:
+            Whether to set simulation-specific parameters (e.g., current_price/current_demand/etc.) as mutable and
+            without an initialization value, or to initialize them based on their specific value of the current step.
+
+        :return:
+            A pyomo.environment.ConcreteModel object modeling the plant.
+        """
+        # build model and define data sets for nodes and commodities
+        model = pyo.ConcreteModel(name='plant')
+        model.nodes = pyo.Set(initialize=[node.name for nodes in self._nodes.values() for node in nodes])
+        model.commodities = pyo.Set(initialize=list(self._commodities))
+
+        # create components for datatypes and add them to the model
+        edges = {(e.source, e.destination, e.commodity): e.to_pyomo(mutable=mutable) for e in self._edges}
+        nodes = {n.name: n.to_pyomo(mutable=mutable) for nodes in self._nodes.values() for n in nodes}
+        for component in [*nodes.values(), *edges.values()]:
+            model.add_component(component.name, component)
+
+        # add constraints between edges variables and nodes variables
+        #  - compute the input and output flows for pairs (node, commodity) as a sum of edges flows
+        #  - then, use the cross product "nodes x commodities" to both the computed flow sums and the nodes' flows
+        #  - finally, use these two variables (flow sums and nodes' flows) to impose an equality constraint
+        in_flows = {(destination, commodity): 0.0 for _, destination, commodity in edges.keys()}
+        out_flows = {(source, commodity): 0.0 for source, _, commodity in edges.keys()}
+        for (source, destination, commodity), edge in edges.items():
+            in_flows[(destination, commodity)] += edge.flow
+            out_flows[(source, commodity)] += edge.flow
+
+        @model.Constraint(model.nodes * model.commodities)
+        def in_constraints(_, destination, commodity):
+            flows = in_flows.get((destination, commodity))
+            return pyo.Constraint.Skip if flows is None else flows == nodes[destination].in_flows[commodity]
+
+        @model.Constraint(model.nodes * model.commodities)
+        def out_constraints(_, source, commodity):
+            flows = out_flows.get((source, commodity))
+            return pyo.Constraint.Skip if flows is None else flows == nodes[source].out_flows[commodity]
+
+        # eventually return the model
+        return model

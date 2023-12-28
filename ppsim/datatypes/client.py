@@ -4,6 +4,8 @@ from typing import Set, List, Optional
 
 import numpy as np
 import pandas as pd
+import pyomo.environ as pyo
+# noinspection PyPackageRequirements
 from descriptors import classproperty
 
 from ppsim.datatypes.node import VarianceNode
@@ -57,12 +59,24 @@ class Customer(Client):
         """The current demand of the node for this time step as computed using the variance model."""
         return self.current_value
 
+    # noinspection PyUnresolvedReferences
+    def to_pyomo(self, mutable: bool = False) -> pyo.Block:
+        # start from the default node block
+        node = super(Customer, self).to_pyomo(mutable=mutable)
+        # add a parameter representing the current demand (and initialize it if needed)
+        kwargs = dict(mutable=True) if mutable else dict(initialize=self.current_demand)
+        node.current_demand = pyo.Param(domain=pyo.NonNegativeReals, **kwargs)
+        # constraint the demand so that it matches the input flow of the (unique) commodity
+        node.satisfy_demand = pyo.Constraint(rule=node.current_demand == node.in_flows[self.commodity])
+        return node
+
     def step(self, flows: Flows, states: States):
         # check that the flow does not exceed the demand
         demand = self._info['current_value']
         self._info['current_value'] = None
         flow = np.sum([flow for (_, destination, _), flow in flows.items() if destination == self.name])
         assert flow <= demand, f"Customer node '{self.name}' can accept at most {demand} units, got {flow}"
+        # assert np.isclose(flow, demand), f"Customer node '{self.name}' needs {demand} units, got {flow}"
         self._values.append(demand)
 
 
@@ -88,6 +102,17 @@ class Purchaser(Client):
     def current_price(self) -> Optional[float]:
         """The current buying price of the node for this time step as computed using the variance model."""
         return self.current_value
+
+    # noinspection PyUnresolvedReferences
+    def to_pyomo(self, mutable: bool = False) -> pyo.Block:
+        # start from the default node block
+        node = super(Purchaser, self).to_pyomo(mutable=mutable)
+        # add a parameter representing the current price (and initialize it if needed)
+        kwargs = dict(mutable=True) if mutable else dict(initialize=self.current_price)
+        node.current_price = pyo.Param(domain=pyo.NonNegativeReals, **kwargs)
+        # compute the cost from the input flow for the (unique) commodity and the price
+        node.cost = -node.current_price * node.in_flows[self.commodity]
+        return node
 
     def step(self, flows: Flows, states: States):
         self._values.append(self._info['current_value'])

@@ -3,6 +3,8 @@ from typing import Set, List, Optional
 
 import numpy as np
 import pandas as pd
+import pyomo.environ as pyo
+# noinspection PyPackageRequirements
 from descriptors import classproperty
 
 from ppsim.datatypes.node import Node
@@ -73,8 +75,28 @@ class Storage(Node):
     def commodities_out(self) -> Set[str]:
         return {self.commodity}
 
+    # noinspection PyUnresolvedReferences, PyTypeChecker
+    def to_pyomo(self, mutable: bool = False) -> pyo.Block:
+        # start from the default node block and create aliases for the flows of the (unique) commodity
+        node = super(Storage, self).to_pyomo(mutable=mutable)
+        in_flow, out_flow = node.in_flows[self.commodity], node.out_flows[self.commodity]
+        # add a parameter representing the current storage (and initialize it if needed)
+        kwargs = dict(mutable=True) if mutable else dict(initialize=self.current_storage)
+        node.current_storage = pyo.Param(domain=pyo.NonNegativeReals, **kwargs)
+        # model the storage as the sum of between the current storage and the input and output flows
+        node.storage = node.current_storage + in_flow - out_flow
+        node.capacity_cst = pyo.Constraint(rule=node.storage <= self.capacity)
+        # impose constraints on either input or output flows
+        #  - create a binary variable where 0 means that there is an output flow, 1 means that there is an input flow
+        #  - impose big-M constraints on input and output flows using the change/discharge rates as M
+        #  - this definition automatically allow to impose the charge/discharge rate upper bounds
+        node.flow_selector = pyo.Var(domain=pyo.Binary, initialize=0)
+        node.input_flow_cst = pyo.Constraint(rule=in_flow <= node.flow_selector * self.charge_rate)
+        node.output_flow_cst = pyo.Constraint(rule=out_flow <= (1 - node.flow_selector) * self.discharge_rate)
+        return node
+
     def update(self, rng: np.random.Generator, flows: Flows, states: States):
-        self._info['current_storage'] = 0 if len(self._storage) == 0 else (1 - self.dissipation) * self._storage[-1]
+        self._info['current_storage'] = 0.0 if len(self._storage) == 0 else (1 - self.dissipation) * self._storage[-1]
 
     def step(self, flows: Flows, states: States):
         # compute total input and output flows from respective edges

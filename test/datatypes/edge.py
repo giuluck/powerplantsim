@@ -44,7 +44,6 @@ EDGE = Edge(
     commodity='out_com_1',
     min_flow=0.0,
     max_flow=100.0,
-    integer=True,
     _plant=PLANT
 )
 
@@ -69,7 +68,6 @@ class TestEdge(TestDataType):
             commodity='out_com_1',
             min_flow=0.0,
             max_flow=1.0,
-            integer=False,
             _plant=PLANT
         )
         Edge(
@@ -78,7 +76,6 @@ class TestEdge(TestDataType):
             commodity='out_com_1',
             min_flow=1.0,
             max_flow=2.0,
-            integer=False,
             _plant=PLANT
         )
         Edge(
@@ -87,7 +84,6 @@ class TestEdge(TestDataType):
             commodity='out_com_1',
             min_flow=1.0,
             max_flow=1.0,
-            integer=False,
             _plant=PLANT
         )
         # check incorrect flows
@@ -98,7 +94,6 @@ class TestEdge(TestDataType):
                 commodity='out',
                 min_flow=-1.0,
                 max_flow=100.0,
-                integer=False,
                 _plant=PLANT
             )
         self.assertEqual(
@@ -113,7 +108,6 @@ class TestEdge(TestDataType):
                 commodity='out_com_1',
                 min_flow=101.0,
                 max_flow=100.0,
-                integer=False,
                 _plant=PLANT
             )
         self.assertEqual(
@@ -129,7 +123,6 @@ class TestEdge(TestDataType):
                 commodity='out_com_1',
                 min_flow=0.0,
                 max_flow=100.0,
-                integer=False,
                 _plant=PLANT
             )
         self.assertEqual(
@@ -144,7 +137,6 @@ class TestEdge(TestDataType):
                 commodity='in_com',
                 min_flow=0.0,
                 max_flow=100.0,
-                integer=False,
                 _plant=PLANT
             )
         self.assertEqual(
@@ -159,7 +151,6 @@ class TestEdge(TestDataType):
                 commodity='out_com_1',
                 min_flow=0.0,
                 max_flow=100.0,
-                integer=False,
                 _plant=PLANT
             )
         self.assertEqual(
@@ -176,7 +167,6 @@ class TestEdge(TestDataType):
             commodity='out_com_1',
             min_flow=50.0,
             max_flow=60.0,
-            integer=True,
             _plant=PLANT
         )
         self.assertEqual(EDGE, e_equal, msg="Nodes with the same name should be considered equal")
@@ -187,7 +177,6 @@ class TestEdge(TestDataType):
             commodity='out_com_2',
             min_flow=0.0,
             max_flow=100.0,
-            integer=False,
             _plant=PLANT
         )
         self.assertNotEqual(EDGE, e_diff, msg="Nodes with different names should be considered different")
@@ -204,12 +193,13 @@ class TestEdge(TestDataType):
         e_dict = EDGE.dict
         e_flows = e_dict.pop('flows')
         self.assertEqual(e_dict, {
+            'name': 'm --> s1',
             'source': 'm',
             'destination': 's1',
             'commodity': 'out_com_1',
             'min_flow': 0.0,
             'max_flow': 100.0,
-            'integer': True,
+            'bounds': (0.0, 100.0),
             'current_flow': None
         }, msg='Wrong dictionary returned for edge')
         self.assertDictEqual(e_flows.to_dict(), {}, msg='Wrong dictionary returned for edge')
@@ -243,15 +233,4 @@ class TestEdge(TestDataType):
             str(x.exception),
             RECEIVED_MAX_FLOW_EXCEPTION(('m', 's1'), 100.0, 101.0),
             msg='Wrong exception message returned for over bound received flow on edge'
-        )
-        # test non-integer exception
-        flows = {('m', 's1', 'out_com_1'): 7.8}
-        e = EDGE.copy()
-        e.update(rng=None, flows=flows, states={})
-        with self.assertRaises(AssertionError, msg="Non-integer received flow should raise exception") as x:
-            e.step(flows=flows, states={})
-        self.assertEqual(
-            str(x.exception),
-            RECEIVED_REAL_FLOW_EXCEPTION(('m', 's1'), 7.8),
-            msg='Wrong exception message returned for non-integer received flow on edge'
         )

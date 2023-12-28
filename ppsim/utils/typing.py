@@ -4,8 +4,8 @@ from typing import Any, Dict, Tuple, List, Iterable, Optional, Union
 NodeID = str
 """Datatype for node identifier, i.e, its name."""
 
-State = Optional[float]
-"""Datatype for a single machine state specification (None for machine off)."""
+State = float
+"""Datatype for a single machine state specification (np.nan for machine off)."""
 
 States = Dict[NodeID, State]
 """Datatype for machine states specification in a single time step, i.e., a dictionary <machine: state>."""

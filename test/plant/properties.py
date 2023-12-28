@@ -52,7 +52,6 @@ EDGE_1 = Edge(
     commodity='in',
     min_flow=0.0,
     max_flow=float('inf'),
-    integer=False,
     _plant=PLANT_1
 )
 EDGE_2 = Edge(
@@ -61,7 +60,6 @@ EDGE_2 = Edge(
     commodity='out',
     min_flow=0.0,
     max_flow=float('inf'),
-    integer=False,
     _plant=PLANT_1
 )
 EDGE_3 = Edge(
@@ -70,7 +68,6 @@ EDGE_3 = Edge(
     commodity='out',
     min_flow=0.0,
     max_flow=float('inf'),
-    integer=False,
     _plant=PLANT_1
 )
 EDGE_4 = Edge(
@@ -79,7 +76,6 @@ EDGE_4 = Edge(
     commodity='out',
     min_flow=0.0,
     max_flow=float('inf'),
-    integer=False,
     _plant=PLANT_1
 )
 

@@ -1,8 +1,10 @@
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+import pyomo.environ as pyo
+# noinspection PyPackageRequirements
 from descriptors import classproperty
 
 from ppsim.datatypes.datatype import DataType
@@ -29,9 +31,6 @@ class Edge(DataType):
     max_flow: float = field(kw_only=True)
     """The maximal flow of commodity."""
 
-    integer: bool = field(kw_only=True)
-    """Whether the flow must be integer or not."""
-
     _flows: List[float] = field(init=False, default_factory=list)
     """The series of actual flows, which is filled during the simulation."""
 
@@ -51,7 +50,15 @@ class Edge(DataType):
 
     @classproperty
     def _properties(self) -> List[str]:
-        return ['source', 'destination', 'commodity', 'min_flow', 'max_flow', 'integer', 'flows', 'current_flow']
+        return ['name', 'source', 'destination', 'commodity', 'min_flow', 'max_flow', 'bounds', 'flows', 'current_flow']
+
+    @property
+    def key(self) -> EdgeID:
+        return self._source.name, self._destination.name
+
+    @property
+    def name(self) -> str:
+        return f"{self.source} --> {self.destination}"
 
     @property
     def source(self) -> str:
@@ -64,6 +71,11 @@ class Edge(DataType):
         return self._destination.name
 
     @property
+    def bounds(self) -> Tuple[float, float]:
+        """The lower and upper flow bounds for the commodity."""
+        return self.min_flow, self.max_flow
+
+    @property
     def flows(self) -> pd.Series:
         """The series of actual flows, which is filled during the simulation."""
         return pd.Series(self._flows, dtype=float, index=self._horizon[:len(self._flows)])
@@ -73,9 +85,14 @@ class Edge(DataType):
         """The current flow on the edge for this time step as provided by the user."""
         return self._info['current_flow']
 
-    @property
-    def key(self) -> EdgeID:
-        return self._source.name, self._destination.name
+    # noinspection PyUnresolvedReferences
+    def to_pyomo(self, mutable: bool = False) -> pyo.Block:
+        # build an edge block with a variable representing the flow
+        edge = pyo.Block(concrete=True, name=self.name)
+        # the variable is bounded by the min/max bounds and is initialized to the current flow if needed
+        kwargs = dict() if mutable else dict(initialize=self.current_flow)
+        edge.flow = pyo.Var(domain=pyo.NonNegativeReals, bounds=self.bounds, **kwargs)
+        return edge
 
     def update(self, rng: np.random.Generator, flows: Flows, states: States):
         self._info['current_flow'] = flows[(self.source, self.destination, self.commodity)]
@@ -84,6 +101,5 @@ class Edge(DataType):
         flow = flows[(self.source, self.destination, self.commodity)]
         assert flow >= self.min_flow, f"Flow for edge {self.key} should be >= {self.min_flow}, got {flow}"
         assert flow <= self.max_flow, f"Flow for edge {self.key} should be <= {self.max_flow}, got {flow}"
-        assert not self.integer or flow.is_integer(), f"Flow for edge {self.key} should be integer, got {flow}"
         self._flows.append(flow)
         self._info['current_flow'] = None

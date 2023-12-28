@@ -123,7 +123,7 @@ def build_output(nodes: Iterable[Node], edges: Iterable[Edge], horizon: pd.Index
     """
     output = SimulationOutput(horizon=horizon)
     for edge in edges:
-        output.flows[edge.key[0], edge.key[1], edge.commodity] = edge.flows
+        output.flows[edge.key] = edge.flows
     for node in nodes:
         if isinstance(node, Machine):
             output.states[node.name] = node.states

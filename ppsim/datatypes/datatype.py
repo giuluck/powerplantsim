@@ -5,6 +5,8 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
+import pyomo.environ as pyo
+# noinspection PyPackageRequirements
 from descriptors import classproperty
 
 from ppsim import utils
@@ -30,7 +32,13 @@ class DataType(ABC):
     @property
     @abstractmethod
     def key(self) -> Any:
-        """An identifier of the object."""
+        """An identifier of the datatype."""
+        pass
+
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """The name of the datatype."""
         pass
 
     @property
@@ -52,6 +60,10 @@ class DataType(ABC):
     def dict(self) -> Dict[str, Any]:
         """A dictionary containing all the information of the datatype object indexed via property name."""
         return {param: getattr(self, param) for param in self._properties}
+
+    def _instance(self, other) -> bool:
+        """Checks whether a different object is matching the self instance for comparison."""
+        return isinstance(other, self.__class__)
 
     def copy(self):
         """Copies the datatype.
@@ -79,9 +91,18 @@ class DataType(ABC):
             json[param] = value
         return json
 
-    def _instance(self, other) -> bool:
-        """Checks whether a different object is matching the self instance for comparison."""
-        return isinstance(other, self.__class__)
+    @abstractmethod
+    def to_pyomo(self, mutable: bool = False) -> pyo.Block:
+        """Encodes the node as a Pyomo block.
+
+        :param mutable:
+            Whether to set simulation-specific parameters (e.g., current_price/current_demand/etc.) as mutable and
+            without an initialization value, or to initialize them based on their specific value of the current step.
+
+        :return:
+            A pyomo.environment.Block object modeling the node.
+        """
+        pass
 
     @abstractmethod
     def update(self, rng: np.random.Generator, flows: Flows, states: States):

@@ -95,7 +95,6 @@ class TestPlantBuilding(unittest.TestCase):
         self.assertEqual(e.commodity, 'out', msg="Wrong commodity stored in edge built from client")
         self.assertEqual(e.min_flow, 0.0, msg="Wrong min flow stored in edge built from client")
         self.assertEqual(e.max_flow, float('inf'), msg="Wrong max flow stored in edge built from client")
-        self.assertFalse(e.integer, msg="Wrong integer flag stored in edge built from client")
 
     def test_add_machine(self):
         p: Plant = PLANT.copy()
@@ -214,8 +213,7 @@ class TestPlantBuilding(unittest.TestCase):
             parents='sup',
             setpoint={'setpoint': [1.], 'input': {'in': [1.]}, 'output': {'out': [1.]}},
             min_flow=30.0,
-            max_flow=50.0,
-            integer=True
+            max_flow=50.0
         )
         e = list(p.edges(destinations='m3').values())[0]
         self.assertEqual(e.source, 'sup', msg="Wrong source name stored in edge built from machine")
@@ -223,7 +221,6 @@ class TestPlantBuilding(unittest.TestCase):
         self.assertEqual(e.commodity, 'in', msg="Wrong commodity stored in edge built from machine")
         self.assertEqual(e.min_flow, 30.0, msg="Wrong min flow stored in edge built from machine")
         self.assertEqual(e.max_flow, 50.0, msg="Wrong max flow stored in edge built from machine")
-        self.assertTrue(e.integer, msg="Wrong integer flag stored in edge built from machine")
 
     def test_add_storage(self):
         p: Plant = PLANT.copy()
@@ -265,8 +262,7 @@ class TestPlantBuilding(unittest.TestCase):
             capacity=25.0,
             dissipation=0.3,
             min_flow=20.0,
-            max_flow=40.0,
-            integer=True
+            max_flow=40.0
         )
         e = list(p.edges(destinations='s').values())[0]
         self.assertEqual(s.capacity, 25.0, msg="Wrong capacity stored for storage")
@@ -276,4 +272,3 @@ class TestPlantBuilding(unittest.TestCase):
         self.assertEqual(e.commodity, 'out', msg="Wrong commodity stored in edge built from storage")
         self.assertEqual(e.min_flow, 20.0, msg="Wrong min flow stored in edge built from storage")
         self.assertEqual(e.max_flow, 40.0, msg="Wrong max flow stored in edge built from storage")
-        self.assertTrue(e.integer, msg="Wrong integer flag stored in edge built from storage")

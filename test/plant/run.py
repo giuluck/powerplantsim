@@ -1,8 +1,11 @@
 import unittest
 
+import numpy as np
 import pandas as pd
 
 from ppsim import Plant
+from ppsim.plant.actions.action import RecourseAction
+from ppsim.utils.typing import Plan
 
 SETPOINT = {'setpoint': [1., 3.], 'input': {'in': [1., 3.]}, 'output': {'out': [1., 3.]}}
 
@@ -28,7 +31,7 @@ PLAN = {
 
 IMPLEMENTATION = {
     'mac_1': [1., 2., 3.],
-    'mac_2': [None, None, None],
+    'mac_2': [np.nan, np.nan, np.nan],
     ('sup', 'mac_1'): [1., 2., 3.],
     ('sup', 'mac_2'): [0., 0., 0.],
     ('mac_1', 'cus'): [1., 2., 3.],
@@ -44,15 +47,16 @@ UNKNOWN_DATATYPE_EXCEPTION = lambda k: f"Key {k} is not present in the plant"
 MISSING_DATATYPE_EXCEPTION = lambda t, g, l: f"No {t} vector has been passed for {g} {l}"
 
 
-def recourse_action(step, _):
-    return {key: vector[step] for key, vector in IMPLEMENTATION.items()}
+class DummyAction(RecourseAction):
+    def execute(self) -> Plan:
+        return {key: vector[self._plant.step] for key, vector in IMPLEMENTATION.items()}
 
 
 class TestPlantRun(unittest.TestCase):
     def test_output(self):
         """Test the output of a simulation."""
         p = PLANT.copy()
-        output = p.run(plan=PLAN, action=recourse_action)
+        output = p.run(plan=PLAN, action=DummyAction())
         self.assertDictEqual(output.flows.to_dict(), {
             ('sup', 'mac_1', 'in'): {0: 1., 1: 2., 2: 3.},
             ('sup', 'mac_2', 'in'): {0: 0., 1: 0., 2: 0.},
@@ -97,9 +101,9 @@ class TestPlantRun(unittest.TestCase):
 
     def test_already_run(self):
         p = PLANT.copy()
-        p.run(plan=PLAN, action=recourse_action)
+        p.run(plan=PLAN, action=DummyAction())
         with self.assertRaises(AssertionError, msg="Running a second simulation should raise an error") as e:
-            p.run(plan=PLAN, action=recourse_action)
+            p.run(plan=PLAN, action=DummyAction())
         self.assertEqual(
             str(e.exception),
             SECOND_RUN_EXCEPTION(),
@@ -111,18 +115,18 @@ class TestPlantRun(unittest.TestCase):
         # test correct dataframe input
         p = PLANT.copy()
         df = pd.DataFrame(PLAN, index=p.horizon)
-        p.run(plan=df, action=recourse_action)
+        p.run(plan=df, action=DummyAction())
         # test wrong input vector
         p = PLANT.copy()
         with self.assertRaises(AssertionError, msg="Wrong input vectors should raise an error") as e:
-            p.run(plan={'mac_1': [1., 2.]}, action=recourse_action)
+            p.run(plan={'mac_1': [1., 2.]}, action=DummyAction())
         self.assertEqual(
             str(e.exception),
             INPUT_VECTOR_EXCEPTION('mac_1', 2),
             msg='Wrong exception message returned for wrong input vectors on plant'
         )
         with self.assertRaises(AssertionError, msg="Wrong input vectors should raise an error") as e:
-            p.run(plan={'mac_1': [1., 2., 3.], ('sup', 'mac_1'): [1.]}, action=recourse_action)
+            p.run(plan={'mac_1': [1., 2., 3.], ('sup', 'mac_1'): [1.]}, action=DummyAction())
         self.assertEqual(
             str(e.exception),
             INPUT_VECTOR_EXCEPTION(('sup', 'mac_1'), 1),
@@ -130,14 +134,14 @@ class TestPlantRun(unittest.TestCase):
         )
         # test unknown datatype
         with self.assertRaises(AssertionError, msg="Unknown datatype should raise an error") as e:
-            p.run(plan={'mac': [1., 2., 3.]}, action=recourse_action)
+            p.run(plan={'mac': [1., 2., 3.]}, action=DummyAction())
         self.assertEqual(
             str(e.exception),
             UNKNOWN_DATATYPE_EXCEPTION("'mac'"),
             msg='Wrong exception message returned for unknown datatype vectors on plant'
         )
         with self.assertRaises(AssertionError, msg="Unknown datatype should raise an error") as e:
-            p.run(plan={('sup', 'mac'): [1., 2., 3.]}, action=recourse_action)
+            p.run(plan={('sup', 'mac'): [1., 2., 3.]}, action=DummyAction())
         self.assertEqual(
             str(e.exception),
             UNKNOWN_DATATYPE_EXCEPTION(('sup', 'mac')),
@@ -147,7 +151,7 @@ class TestPlantRun(unittest.TestCase):
         plan = PLAN.copy()
         plan.pop('mac_2')
         with self.assertRaises(AssertionError, msg="Missing datatype should raise an error") as e:
-            p.run(plan=plan, action=recourse_action)
+            p.run(plan=plan, action=DummyAction())
         self.assertEqual(
             str(e.exception),
             MISSING_DATATYPE_EXCEPTION('states', 'machines', ['mac_2']),
@@ -156,7 +160,7 @@ class TestPlantRun(unittest.TestCase):
         plan = PLAN.copy()
         plan.pop(('sup', 'mac_2'))
         with self.assertRaises(AssertionError, msg="Missing datatype should raise an error") as e:
-            p.run(plan=plan, action=recourse_action)
+            p.run(plan=plan, action=DummyAction())
         self.assertEqual(
             str(e.exception),
             MISSING_DATATYPE_EXCEPTION('flows', 'edges', [('sup', 'mac_2')]),
@@ -168,7 +172,7 @@ class TestPlantRun(unittest.TestCase):
         p = PLANT.copy()
         # test unknown datatype
         with self.assertRaises(AssertionError, msg="Unknown datatype in recourse action should raise an error") as e:
-            p.run(plan=PLAN, action=lambda s, _: {'mac': 1.})
+            p.run(plan=PLAN, action=lambda _: {'mac': 1.})
         self.assertEqual(
             str(e.exception),
             UNKNOWN_DATATYPE_EXCEPTION("'mac'"),
@@ -176,7 +180,7 @@ class TestPlantRun(unittest.TestCase):
         )
         p = PLANT.copy()
         with self.assertRaises(AssertionError, msg="Unknown datatype in recourse action should raise an error") as e:
-            p.run(plan=PLAN, action=lambda s, _: {('sup', 'mac'): 1.})
+            p.run(plan=PLAN, action=lambda _: {('sup', 'mac'): 1.})
         self.assertEqual(
             str(e.exception),
             UNKNOWN_DATATYPE_EXCEPTION(('sup', 'mac')),
@@ -184,18 +188,20 @@ class TestPlantRun(unittest.TestCase):
         )
         # test missing datatype
         p = PLANT.copy()
+        a = DummyAction().build(p)
         with self.assertRaises(AssertionError, msg="Missing datatype in recourse action should raise an error") as e:
-            p.run(plan=PLAN, action=lambda s, g: {k: v for k, v in recourse_action(s, g).items() if k != 'mac_2'})
+            p.run(plan=PLAN, action=lambda _: {k: v for k, v in a.execute().items() if k != 'mac_2'})
         self.assertEqual(
             str(e.exception),
             MISSING_DATATYPE_EXCEPTION('states', 'machines', ['mac_2']),
             msg='Wrong exception message returned for missing datatype in recourse action vectors on plant'
         )
         p = PLANT.copy()
+        a = DummyAction().build(p)
         with self.assertRaises(AssertionError, msg="Missing datatype in recourse action should raise an error") as e:
             p.run(
                 plan=PLAN,
-                action=lambda s, g: {k: v for k, v in recourse_action(s, g).items() if k != ('sup', 'mac_2')}
+                action=lambda _: {k: v for k, v in a.execute().items() if k != ('sup', 'mac_2')}
             )
         self.assertEqual(
             str(e.exception),
