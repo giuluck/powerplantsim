@@ -4,18 +4,18 @@ import numpy as np
 import pandas as pd
 
 from ppsim import Plant
-from ppsim.plant.actions.action import RecourseAction
+from ppsim.plant import RecourseAction
 from ppsim.utils.typing import Plan
 
 SETPOINT = {'setpoint': [1., 3.], 'input': {'in': [1., 3.]}, 'output': {'out': [1., 3.]}}
 
 PLANT = Plant(horizon=3)
-PLANT.add_supplier(name='sup', commodity='in', predictions=[1., 2., 3.])
+PLANT.add_extremity(kind='supplier', name='sup', commodity='in', predictions=[1., 2., 3.])
 PLANT.add_machine(name='mac_1', parents='sup', setpoint=SETPOINT)
 PLANT.add_machine(name='mac_2', parents='sup', setpoint=SETPOINT)
 PLANT.add_storage(name='sto', parents='mac_1', commodity='out')
-PLANT.add_client(name='cus', parents=['sto', 'mac_1'], commodity='out', predictions=[1., 2., 3.])
-PLANT.add_client(name='pur', parents=['sto', 'mac_2'], commodity='out', predictions=[1., 2., 3.], purchaser=True)
+PLANT.add_extremity(kind='customer', name='cus', parents=['sto', 'mac_1'], commodity='out', predictions=[1., 2., 3.])
+PLANT.add_extremity(kind='purchaser', name='pur', parents=['sto', 'mac_2'], commodity='out', predictions=[1., 2., 3.])
 
 PLAN = {
     'mac_1': [1., 2., 3.],
@@ -58,13 +58,13 @@ class TestPlantRun(unittest.TestCase):
         p = PLANT.copy()
         output = p.run(plan=PLAN, action=DummyAction())
         self.assertDictEqual(output.flows.to_dict(), {
-            ('sup', 'mac_1', 'in'): {0: 1., 1: 2., 2: 3.},
-            ('sup', 'mac_2', 'in'): {0: 0., 1: 0., 2: 0.},
-            ('mac_1', 'cus', 'out'): {0: 1., 1: 2., 2: 3.},
-            ('mac_1', 'sto', 'out'): {0: 0., 1: 0., 2: 0.},
-            ('mac_2', 'pur', 'out'): {0: 0., 1: 0., 2: 0.},
-            ('sto', 'cus', 'out'): {0: 0., 1: 0., 2: 0.},
-            ('sto', 'pur', 'out'): {0: 0., 1: 0., 2: 0.}
+            ('sup', 'mac_1'): {0: 1., 1: 2., 2: 3.},
+            ('sup', 'mac_2'): {0: 0., 1: 0., 2: 0.},
+            ('mac_1', 'cus'): {0: 1., 1: 2., 2: 3.},
+            ('mac_1', 'sto'): {0: 0., 1: 0., 2: 0.},
+            ('mac_2', 'pur'): {0: 0., 1: 0., 2: 0.},
+            ('sto', 'cus'): {0: 0., 1: 0., 2: 0.},
+            ('sto', 'pur'): {0: 0., 1: 0., 2: 0.}
         }, msg=f"Wrong output flows returned")
         self.assertDictEqual(
             output.storage.to_dict(),

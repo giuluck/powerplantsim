@@ -1,6 +1,6 @@
 import numpy as np
 
-from ppsim.datatypes import Customer, Purchaser
+from ppsim.datatypes import Customer, Purchaser, Supplier
 from test.datatypes.datatype import TestDataType, SERIES_1, SERIES_2, VARIANCE_1, VARIANCE_2, PLANT
 
 CUSTOMER = Customer(
@@ -19,9 +19,18 @@ PURCHASER = Purchaser(
     _plant=PLANT
 )
 
+SUPPLIER = Supplier(
+    name='s',
+    commodity='s_com',
+    _predictions=SERIES_1,
+    _variance_fn=VARIANCE_1,
+    _plant=PLANT
+)
+
 EXCEEDING_DEMAND_EXCEPTION = lambda n, d, f: f"Customer node '{n}' can accept at most {d} units, got {f}"
 
-class TestClient(TestDataType):
+
+class TestExtremityNodes(TestDataType):
 
     def test_inputs(self):
         pass
@@ -37,20 +46,28 @@ class TestClient(TestDataType):
         self.assertEqual(PURCHASER, p_equal, msg="Nodes with the same name should be considered equal")
         p_diff = Purchaser(name='pd', commodity='p_com', _predictions=SERIES_1, _variance_fn=VARIANCE_1, _plant=PLANT)
         self.assertNotEqual(CUSTOMER, p_diff, msg="Nodes with different names should be considered different")
+        # test supplier
+        s_equal = Supplier(name='s', commodity='s_com_2', _predictions=SERIES_2, _variance_fn=VARIANCE_2, _plant=PLANT)
+        self.assertEqual(SUPPLIER, s_equal, msg="Nodes with the same name should be considered equal")
+        s_diff = Supplier(name='sd', commodity='s_com', _predictions=SERIES_1, _variance_fn=VARIANCE_1, _plant=PLANT)
+        self.assertNotEqual(SUPPLIER, s_diff, msg="Nodes with different names should be considered different")
 
     def test_properties(self):
         # test customer
         self.assertEqual(CUSTOMER.key, 'c', msg="Wrong customer key name stored")
-        self.assertEqual(CUSTOMER.kind, 'client', msg="Customer node is not labelled as client")
-        self.assertFalse(CUSTOMER.purchaser, msg="Customer node is not labelled as non-purchaser")
+        self.assertEqual(CUSTOMER.kind, 'customer', msg="Customer node is not labelled as client")
         self.assertSetEqual(CUSTOMER.commodities_in, {'c_com'}, msg="Wrong customer inputs stored")
         self.assertSetEqual(CUSTOMER.commodities_out, set(), msg="Wrong customer outputs stored")
         # test purchaser
         self.assertEqual(PURCHASER.key, 'p', msg="Wrong purchaser key name stored")
-        self.assertEqual(PURCHASER.kind, 'client', msg="Purchaser node is not labelled as client")
-        self.assertTrue(PURCHASER.purchaser, msg="Purchaser node is not labelled as purchaser")
+        self.assertEqual(PURCHASER.kind, 'purchaser', msg="Purchaser node is not labelled as client")
         self.assertSetEqual(PURCHASER.commodities_in, {'p_com'}, msg="Wrong purchaser inputs stored")
         self.assertSetEqual(PURCHASER.commodities_out, set(), msg="Wrong purchaser outputs stored")
+        # test supplier
+        self.assertEqual(SUPPLIER.key, 's', msg="Wrong supplier key name stored")
+        self.assertEqual(SUPPLIER.kind, 'supplier', msg="Supplier node is not labelled as supplier")
+        self.assertSetEqual(SUPPLIER.commodities_in, set(), msg="Wrong supplier inputs stored")
+        self.assertSetEqual(SUPPLIER.commodities_out, {'s_com'}, msg="Wrong supplier outputs stored")
 
     def test_immutability(self):
         # test customer
@@ -59,32 +76,37 @@ class TestClient(TestDataType):
         # test purchaser
         PURCHASER.prices[0] = 5.0
         self.assertEqual(len(PURCHASER.prices), 0, msg="Purchaser prices should be immutable")
+        # test supplier
+        SUPPLIER.prices[0] = 5.0
+        self.assertEqual(len(SUPPLIER.prices), 0, msg="Supplier prices should be immutable")
 
     def test_dict(self):
-        # pandas series need to be tested separately due to errors in the equality check
         # test customer
         c_dict = CUSTOMER.dict
-        c_val = c_dict.pop('demands')
         self.assertEqual(c_dict, {
             'name': 'c',
-            'kind': 'client',
-            'purchaser': False,
+            'kind': 'customer',
             'commodity': 'c_com',
             'current_demand': None
         }, msg='Wrong dictionary returned for customer')
-        self.assertDictEqual(c_val.to_dict(), {}, msg='Wrong dictionary returned for customer')
         # test purchaser
         p_dict = PURCHASER.dict
-        p_val = p_dict.pop('prices')
         self.assertEqual(p_dict, {
             'name': 'p',
-            'kind': 'client',
-            'purchaser': True,
+            'kind': 'purchaser',
             'commodity': 'p_com',
             'current_price': None
         }, msg='Wrong dictionary returned for purchaser')
-        self.assertDictEqual(p_val.to_dict(), {}, msg='Wrong dictionary returned for customer')
+        # test_supplier
+        s_dict = SUPPLIER.dict
+        self.assertEqual(s_dict, {
+            'name': 's',
+            'kind': 'supplier',
+            'commodity': 's_com',
+            'current_price': None,
+        }, msg='Wrong dictionary returned for supplier')
 
+    # noinspection DuplicatedCode
     def test_operation(self):
         # test customer
         c = CUSTOMER.copy()
@@ -121,4 +143,15 @@ class TestClient(TestDataType):
         p.step(flows={}, states={})
         self.assertDictEqual(p.prices.to_dict(), {0: val}, msg=f"Purchaser prices should be filled after step")
         self.assertIsNone(p.current_price, msg=f"Purchaser current price should be None outside of the simulation")
-
+        # test supplier
+        s = SUPPLIER.copy()
+        rng = np.random.default_rng(0)
+        val = 3.0 + np.random.default_rng(0).normal()
+        self.assertDictEqual(s.prices.to_dict(), {}, msg=f"Supplier prices should be empty before the simulation")
+        self.assertIsNone(s.current_price, msg=f"Supplier current price should be None outside of the simulation")
+        s.update(rng=rng, flows={}, states={})
+        self.assertDictEqual(s.prices.to_dict(), {}, msg=f"Supplier prices should be empty before step")
+        self.assertEqual(s.current_price, val, msg=f"Supplier current price should be stored after update")
+        s.step(flows={}, states={})
+        self.assertDictEqual(s.prices.to_dict(), {0: val}, msg=f"Supplier prices should be filled after step")
+        self.assertIsNone(s.current_price, msg=f"Supplier current price should be None outside of the simulation")

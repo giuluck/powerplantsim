@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Dict, Tuple, List, Iterable, Optional, Union
+from typing import Any, Dict, Tuple, List, Iterable, Union
 
 NodeID = str
 """Datatype for node identifier, i.e, its name."""

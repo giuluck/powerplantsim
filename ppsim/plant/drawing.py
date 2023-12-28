@@ -18,8 +18,8 @@ class StyleInfo(NamedTuple):
 
 NODE_STYLES: Dict[str, StyleInfo] = {
     'supplier': StyleInfo(color='#FFEAB8', shape='>'),
-    'client': StyleInfo(color='#A6DEAE', shape='<'),
-    'buyer': StyleInfo(color='#A6DEAE', shape='<'),
+    'customer': StyleInfo(color='#A6DEAE', shape='<'),
+    'purchaser': StyleInfo(color='#A6DEAE', shape='<'),
     'machine': StyleInfo(color='#FF700A', shape='o'),
     'storage': StyleInfo(color='#ABA5E8', shape='s')
 }

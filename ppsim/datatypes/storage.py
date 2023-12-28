@@ -11,7 +11,7 @@ from ppsim.datatypes.node import Node
 from ppsim.utils.typing import Flows, States
 
 
-@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
+@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True)
 class Storage(Node):
     """A node in the plant that stores certain commodities."""
 

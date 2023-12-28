@@ -7,18 +7,20 @@ from ppsim import Plant
 from ppsim.datatypes import Purchaser, Customer
 
 PLANT = Plant(horizon=3)
-PLANT.add_supplier(name='sup', commodity='in', predictions=1.)
+PLANT.add_extremity(kind='supplier', name='sup', commodity='in', predictions=1.)
 PLANT.add_machine(name='mac', parents='sup', setpoint={
     'setpoint': [1.],
     'input': {'in': [1.]},
     'output': {'out': [1.]}
 })
 PLANT.add_storage(name='sto', parents='mac', commodity='out')
-PLANT.add_client(name='cli', parents=['mac', 'sto'], commodity='out', predictions=1.)
+PLANT.add_extremity(kind='customer', name='cli', parents=['mac', 'sto'], commodity='out', predictions=1.)
 
 NAME_CONFLICT_EXCEPTION = lambda k, n: f"There is already a {k} node '{n}', please use another identifier"
 PARENT_UNKNOWN_EXCEPTION = lambda n: f"Parent node '{n}' has not been added yet"
 EMPTY_PARENTS_EXCEPTION = lambda k: f"{k} node must have at least one parent"
+HAS_PARENTS_SUPPLIER = lambda n: f"Supplier node {n} cannot accept parents"
+NONE_PARENTS_CLIENT = lambda k, n: f"{k} node {n} must have parents"
 WRONG_SETPOINT_KEYS = lambda k: f"Setpoint dictionary expects three keys ('setpoint', 'input', 'output'), got {k}"
 MULTIPLE_INPUT_COMMODITIES = lambda c: f"Machines taking multiple input commodities are not supported, got inputs {c}"
 
@@ -29,72 +31,163 @@ class TestPlantBuilding(unittest.TestCase):
         # test node name conflicts
         for kind, name in {(k, n) for k, node in p.nodes(indexed=True).items() for n in node.keys()}:
             with self.assertRaises(AssertionError, msg="Name conflict for new supplier should raise exception") as e:
-                p.add_supplier(name=name, commodity='in', predictions=1.)
-            self.assertEqual(
-                str(e.exception),
-                NAME_CONFLICT_EXCEPTION(kind, name),
-                msg='Wrong exception message returned for node name conflict'
-            )
-        # test supplier properties (and input)
-        prices = [2., 2., 2.]
-        tests = [2., prices, np.array(prices), pd.Series(prices)]
-        for i, prc in enumerate(tests):
-            s = p.add_supplier(name=f'sup_{i}', commodity='in', predictions=prc)
-            self.assertEqual(s.name, f'sup_{i}', msg="Wrong name for supplier")
-            self.assertSetEqual(s.commodities_in, set(), msg="Wrong input commodity for supplier")
-            self.assertSetEqual(s.commodities_out, {'in'}, msg="Wrong output commodity for supplier")
-
-    def test_add_client(self):
-        p: Plant = PLANT.copy()
-        # test node name conflicts
-        for kind, name in {(k, n) for k, node in p.nodes(indexed=True).items() for n in node.keys()}:
-            with self.assertRaises(AssertionError, msg="Name conflict for new client should raise exception") as e:
-                p.add_client(name=name, commodity='out', parents='mac', predictions=1.)
+                p.add_extremity(kind='supplier', name=name, commodity='in', predictions=1.)
             self.assertEqual(
                 str(e.exception),
                 NAME_CONFLICT_EXCEPTION(kind, name),
                 msg='Wrong exception message returned for node name conflict'
             )
         # test parents
-        with self.assertRaises(AssertionError, msg="Unknown parent for client should raise exception") as e:
-            p.add_client(name='parent_unk', commodity='out', parents='unk', predictions=1.)
+        with self.assertRaises(AssertionError, msg="Passing a parent for supplier should raise exception") as e:
+            p.add_extremity(kind='supplier', name='parent_single', commodity='out', parents='parent', predictions=1.)
+        self.assertEqual(
+            str(e.exception),
+            HAS_PARENTS_SUPPLIER('parent_single'),
+            msg='Wrong exception message returned when passing a parent to a supplier'
+        )
+        with self.assertRaises(AssertionError, msg="Passing many parents for supplier should raise exception") as e:
+            p.add_extremity(kind='supplier', name='parent_many', commodity='out', parents=['parent'], predictions=1.)
+        self.assertEqual(
+            str(e.exception),
+            HAS_PARENTS_SUPPLIER('parent_many'),
+            msg='Wrong exception message returned when passing many parents to a supplier'
+        )
+        # test supplier properties (and input)
+        prices = [2., 2., 2.]
+        tests = [2., prices, np.array(prices), pd.Series(prices)]
+        for i, prc in enumerate(tests):
+            s = p.add_extremity(kind='supplier', name=f'sup_{i}', commodity='in', predictions=prc)
+            self.assertEqual(s.name, f'sup_{i}', msg="Wrong name for supplier")
+            self.assertSetEqual(s.commodities_in, set(), msg="Wrong input commodity for supplier")
+            self.assertSetEqual(s.commodities_out, {'in'}, msg="Wrong output commodity for supplier")
+
+    def test_add_customer(self):
+        p: Plant = PLANT.copy()
+        # test node name conflicts
+        for kind, name in {(k, n) for k, node in p.nodes(indexed=True).items() for n in node.keys()}:
+            with self.assertRaises(AssertionError, msg="Name conflict for new customer should raise exception") as e:
+                p.add_extremity(kind='customer', name=name, commodity='out', parents='mac', predictions=1.)
+            self.assertEqual(
+                str(e.exception),
+                NAME_CONFLICT_EXCEPTION(kind, name),
+                msg='Wrong exception message returned for node name conflict'
+            )
+        # test parents
+        with self.assertRaises(AssertionError, msg="Passing parents=None for customer should raise exception") as e:
+            p.add_extremity(kind='customer', name='parent_none', commodity='out', parents=None, predictions=1.)
+        self.assertEqual(
+            str(e.exception),
+            NONE_PARENTS_CLIENT('Customer', 'parent_none'),
+            msg='Wrong exception message returned when passing parents=None to a customer'
+        )
+        with self.assertRaises(AssertionError, msg="Unknown parent for customer should raise exception") as e:
+            p.add_extremity(kind='customer', name='parent_unk', commodity='out', parents='unk', predictions=1.)
         self.assertEqual(
             str(e.exception),
             PARENT_UNKNOWN_EXCEPTION('unk'),
             msg='Wrong exception message returned for unknown parent'
         )
-        with self.assertRaises(AssertionError, msg="Empty parent list for client should raise exception") as e:
-            p.add_client(name='parent_emp', commodity='out', parents=[], predictions=1.)
+        with self.assertRaises(AssertionError, msg="Empty parent list for customer should raise exception") as e:
+            p.add_extremity(kind='customer', name='parent_emp', commodity='out', parents=[], predictions=1.)
         self.assertEqual(
             str(e.exception),
-            EMPTY_PARENTS_EXCEPTION('Client'),
+            EMPTY_PARENTS_EXCEPTION('Customer'),
             msg='Wrong exception message returned for empty parent list'
         )
-        p.add_client(name='single', commodity='out', parents='mac', predictions=1.)
+        p.add_extremity(kind='customer', name='single', commodity='out', parents='mac', predictions=1.)
         edges = {e.source: e.commodity for e in p.edges(destinations='single').values()}
-        self.assertDictEqual(edges, {'mac': 'out'}, msg='Wrong edges stored for client with single parent')
-        p.add_client(name='multiple', commodity='out', parents=['mac', 'sto'], predictions=1.)
+        self.assertDictEqual(edges, {'mac': 'out'}, msg='Wrong edges stored for customer with single parent')
+        p.add_extremity(kind='customer', name='multiple', commodity='out', parents=['mac', 'sto'], predictions=1.)
         edges = {e.source: e.commodity for e in p.edges(destinations='multiple').values()}
-        self.assertDictEqual(edges, {'mac': 'out', 'sto': 'out'}, msg='Wrong edges stored for client with many parents')
-        # test client properties (and input)
+        self.assertDictEqual(
+            edges,
+            {'mac': 'out', 'sto': 'out'},
+            msg='Wrong edges stored for customer with many parents'
+        )
+        # test customer properties (and input)
         demands = [2., 2., 2.]
         tests = [2., demands, np.array(demands), pd.Series(demands)]
         for i, dmn in enumerate(tests):
-            for pur in [True, False]:
-                klass, kind = (Purchaser, 'purchaser') if pur else (Customer, 'customer')
-                c = p.add_client(name=f'{kind}_{i}', commodity='out', parents='mac', predictions=dmn, purchaser=pur)
-                self.assertIsInstance(c, klass, msg=f"Wrong type for {kind}")
-                self.assertEqual(c.name, f'{kind}_{i}', msg=f"Wrong name for {kind}")
-                self.assertSetEqual(c.commodities_in, {'out'}, msg=f"Wrong input commodity for {kind}")
-                self.assertSetEqual(c.commodities_out, set(), msg=f"Wrong output commodity for {kind}")
+            c = p.add_extremity(kind='customer', name=f'customer_{i}', commodity='out', parents='mac', predictions=dmn)
+            self.assertIsInstance(c, Customer, msg=f"Wrong type for customer")
+            self.assertEqual(c.name, f'customer_{i}', msg=f"Wrong name for customer")
+            self.assertSetEqual(c.commodities_in, {'out'}, msg=f"Wrong input commodity for customer")
+            self.assertSetEqual(c.commodities_out, set(), msg=f"Wrong output commodity for customer")
         # test edge properties
-        p.add_client(name='c', commodity='out', parents='mac', predictions=1.)
+        p.add_extremity(kind='customer', name='c', commodity='out', parents='mac', predictions=1.)
         e = list(p.edges(destinations='c').values())[0]
-        self.assertEqual(e.source, 'mac', msg="Wrong source name stored in edge built from client")
-        self.assertEqual(e._destination.name, 'c', msg="Wrong destination name stored in edge built from client")
-        self.assertEqual(e.commodity, 'out', msg="Wrong commodity stored in edge built from client")
-        self.assertEqual(e.min_flow, 0.0, msg="Wrong min flow stored in edge built from client")
-        self.assertEqual(e.max_flow, float('inf'), msg="Wrong max flow stored in edge built from client")
+        self.assertEqual(e.source, 'mac', msg="Wrong source name stored in edge built from customer")
+        self.assertEqual(e._destination.name, 'c', msg="Wrong destination name stored in edge built from customer")
+        self.assertEqual(e.commodity, 'out', msg="Wrong commodity stored in edge built from customer")
+        self.assertEqual(e.min_flow, 0.0, msg="Wrong min flow stored in edge built from customer")
+        self.assertEqual(e.max_flow, float('inf'), msg="Wrong max flow stored in edge built from customer")
+
+    def test_add_purchaser(self):
+        p: Plant = PLANT.copy()
+        # test node name conflicts
+        for kind, name in {(k, n) for k, node in p.nodes(indexed=True).items() for n in node.keys()}:
+            with self.assertRaises(AssertionError, msg="Name conflict for new purchaser should raise exception") as e:
+                p.add_extremity(kind='purchaser', name=name, commodity='out', parents='mac', predictions=1.)
+            self.assertEqual(
+                str(e.exception),
+                NAME_CONFLICT_EXCEPTION(kind, name),
+                msg='Wrong exception message returned for node name conflict'
+            )
+        # test parents
+        with self.assertRaises(AssertionError, msg="Passing parents=None for purchaser should raise exception") as e:
+            p.add_extremity(kind='purchaser', name='parent_none', commodity='out', parents=None, predictions=1.)
+        self.assertEqual(
+            str(e.exception),
+            NONE_PARENTS_CLIENT('Purchaser', 'parent_none'),
+            msg='Wrong exception message returned when passing parents=None to a purchaser'
+        )
+        with self.assertRaises(AssertionError, msg="Unknown parent for purchaser should raise exception") as e:
+            p.add_extremity(kind='purchaser', name='parent_unk', commodity='out', parents='unk', predictions=1.)
+        self.assertEqual(
+            str(e.exception),
+            PARENT_UNKNOWN_EXCEPTION('unk'),
+            msg='Wrong exception message returned for unknown parent'
+        )
+        with self.assertRaises(AssertionError, msg="Empty parent list for purchaser should raise exception") as e:
+            p.add_extremity(kind='purchaser', name='parent_emp', commodity='out', parents=[], predictions=1.)
+        self.assertEqual(
+            str(e.exception),
+            EMPTY_PARENTS_EXCEPTION('Purchaser'),
+            msg='Wrong exception message returned for empty parent list'
+        )
+        p.add_extremity(kind='purchaser', name='single', commodity='out', parents='mac', predictions=1.)
+        edges = {e.source: e.commodity for e in p.edges(destinations='single').values()}
+        self.assertDictEqual(edges, {'mac': 'out'}, msg='Wrong edges stored for purchaser with single parent')
+        p.add_extremity(kind='purchaser', name='multiple', commodity='out', parents=['mac', 'sto'], predictions=1.)
+        edges = {e.source: e.commodity for e in p.edges(destinations='multiple').values()}
+        self.assertDictEqual(
+            edges,
+            {'mac': 'out', 'sto': 'out'},
+            msg='Wrong edges stored for purchaser with many parents'
+        )
+        # test purchaser properties (and input)
+        demands = [2., 2., 2.]
+        tests = [2., demands, np.array(demands), pd.Series(demands)]
+        for i, dmn in enumerate(tests):
+            c = p.add_extremity(
+                kind='purchaser',
+                name=f'purchaser_{i}',
+                commodity='out',
+                parents='mac',
+                predictions=dmn
+            )
+            self.assertIsInstance(c, Purchaser, msg=f"Wrong type for purchaser")
+            self.assertEqual(c.name, f'purchaser_{i}', msg=f"Wrong name for purchaser")
+            self.assertSetEqual(c.commodities_in, {'out'}, msg=f"Wrong input commodity for purchaser")
+            self.assertSetEqual(c.commodities_out, set(), msg=f"Wrong output commodity for purchaser")
+        # test edge properties
+        p.add_extremity(kind='purchaser', name='c', commodity='out', parents='mac', predictions=1.)
+        e = list(p.edges(destinations='c').values())[0]
+        self.assertEqual(e.source, 'mac', msg="Wrong source name stored in edge built from purchaser")
+        self.assertEqual(e._destination.name, 'c', msg="Wrong destination name stored in edge built from purchaser")
+        self.assertEqual(e.commodity, 'out', msg="Wrong commodity stored in edge built from purchaser")
+        self.assertEqual(e.min_flow, 0.0, msg="Wrong min flow stored in edge built from purchaser")
+        self.assertEqual(e.max_flow, float('inf'), msg="Wrong max flow stored in edge built from purchaser")
 
     def test_add_machine(self):
         p: Plant = PLANT.copy()

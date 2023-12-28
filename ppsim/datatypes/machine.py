@@ -13,7 +13,7 @@ from ppsim.datatypes.node import Node
 from ppsim.utils.typing import State, Flows, States
 
 
-@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
+@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True)
 class Machine(Node):
     """A node in the plant that converts certain commodities in other."""
 

@@ -191,7 +191,6 @@ class TestEdge(TestDataType):
 
     def test_dict(self):
         e_dict = EDGE.dict
-        e_flows = e_dict.pop('flows')
         self.assertEqual(e_dict, {
             'name': 'm --> s1',
             'source': 'm',
@@ -202,7 +201,6 @@ class TestEdge(TestDataType):
             'bounds': (0.0, 100.0),
             'current_flow': None
         }, msg='Wrong dictionary returned for edge')
-        self.assertDictEqual(e_flows.to_dict(), {}, msg='Wrong dictionary returned for edge')
 
     def test_operation(self):
         e = EDGE.copy()

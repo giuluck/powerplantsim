@@ -1,5 +1,5 @@
 import copy
-from typing import Optional, Dict, Tuple, Callable, Iterable, Set, List, Any, Union
+from typing import Optional, Dict, Tuple, Callable, Iterable, Set, List, Any, Union, Literal
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -8,7 +8,7 @@ import pandas as pd
 import pyomo.environ as pyo
 
 from ppsim import utils
-from ppsim.datatypes import Node, Client, Machine, Supplier, Edge, Storage, Purchaser, Customer
+from ppsim.datatypes import Node, Machine, Supplier, Edge, Storage, Purchaser, Customer, ExtremityNode
 from ppsim.plant import drawing, execution
 from ppsim.plant.action import DefaultRecourseAction, CallableRecourseAction, RecourseAction
 from ppsim.plant.execution import check_plan
@@ -66,9 +66,14 @@ class Plant:
         return {s.name: s for s in self._nodes.get(Supplier.kind, set())}
 
     @property
-    def clients(self) -> Dict[str, Client]:
-        """The client nodes in the plant."""
-        return {c.name: c for c in self._nodes.get(Client.kind, set())}
+    def customers(self) -> Dict[str, Customer]:
+        """The customer nodes in the plant."""
+        return {c.name: c for c in self._nodes.get(Customer.kind, set())}
+
+    @property
+    def purchaser(self) -> Dict[str, Purchaser]:
+        """The purchaser nodes in the plant."""
+        return {c.name: c for c in self._nodes.get(Purchaser.kind, set())}
 
     @property
     def machines(self) -> Dict[str, Machine]:
@@ -185,15 +190,20 @@ class Plant:
             )
             self._edges.add(edge)
 
-    def add_supplier(self,
-                     name: str,
-                     commodity: str,
-                     predictions: Union[float, Iterable[float]],
-                     variance: Callable[[np.random.Generator, pd.Series], float] = lambda rng, series: 0.0) -> Supplier:
-        """Adds a supplier node to the plant topology.
+    def add_extremity(self,
+                      kind: Literal['customer', 'purchaser', 'supplier'],
+                      name: str,
+                      commodity: str,
+                      predictions: Union[float, Iterable[float]],
+                      variance: Callable[[np.random.Generator, pd.Series], float] = lambda rng, series: 0.0,
+                      parents: Union[None, str, Iterable[str]] = None) -> ExtremityNode:
+        """Adds an extremity node (supplier, client, purchaser) to the plant topology.
+
+        :param kind:
+            The kind of extremity node, either 'customer', 'purchaser', or 'supplier'.
 
         :param name:
-            The name of the supplier node.
+            The name of the extremity node.
 
         :param commodity:
             The identifier of the commodity that it supplies, which must have been registered before.
@@ -214,72 +224,39 @@ class Plant:
             the true price; for an input series with length L, the true price will be eventually computed as:
                 true = self.prices[L] + <eps>
 
+        :param parents:
+            The identifier of the parent nodes that are connected with the input of this extremity node, or None in
+            case kind == 'supplier'.
+
         :return:
-            The added supplier node.
+            The added extremity node.
         """
         if isinstance(predictions, float):
             predictions = np.ones_like(self._horizon) * predictions
         else:
             predictions = np.array(predictions)
         # create an internal supplier node and add it to the internal data structure and the graph
-        supplier = Supplier(
-            _plant=self,
-            name=name,
-            commodity=commodity,
-            _predictions=predictions,
-            _variance_fn=variance
-        )
-        self._check_and_update(node=supplier, parents=None, commodity=None, min_flow=None, max_flow=None)
-        return supplier
-
-    def add_client(self,
-                   name: str,
-                   commodity: str,
-                   parents: Union[str, Iterable[str]],
-                   predictions: Union[float, Iterable[float]],
-                   purchaser: bool = False,
-                   variance: Callable[[np.random.Generator, pd.Series], float] = lambda rng, series: 0.0) -> Client:
-        """Adds a client node to the plant topology.
-
-        :param name:
-            The name of the client node.
-
-        :param commodity:
-            The identifier of the commodity that it requests, which must have been registered before.
-
-        :param parents:
-            The identifier of the parent nodes that are connected with the input of this client node.
-
-        :param predictions:
-            Either the vector of predicted buying prices (in case the client node is a purchaser) or the vector of
-            predicted demands (in case the client is a customer). If a float is passed, the predictions are constant
-            throughout the simulation. If an iterable is passed, it must have the same length of the time horizon.
-
-        :param purchaser:
-            Whether the client node buys the commodity at a given price (series = prices) or requires that an exact
-            amount of commodities is sent to it according to its demands (series = demands).
-
-        :param variance:
-            A function f(<rng>, <series>) -> <variance> which defines the variance model of the true pries/demands
-            respectively to the predictions.
-            The random number generator is used to get reproducible results, while the input series represents the
-            vector of previous values indexed by the datetime information passed to the plant; the last value of the
-            series is always a nan value, and it will be computed at the successive iteration based on the respective
-            predicted demand and the output of this function.
-            Indeed, the function must return a real number <eps> which represents the delta between the predicted and
-            the true demand; for an input series with length L, the true demand will be eventually computed as:
-                true = self.demands[L] + <eps>
-
-        :return:
-            The added client node.
-        """
-        if isinstance(predictions, float):
-            predictions = np.ones_like(self._horizon) * predictions
-        else:
-            predictions = np.array(predictions)
-        # create an internal client node (with specified type) and add it to the internal data structure and the graph
-        if purchaser:
-            client = Purchaser(
+        if kind == 'supplier':
+            assert parents is None, f"Supplier node {name} cannot accept parents"
+            node = Supplier(
+                _plant=self,
+                name=name,
+                commodity=commodity,
+                _predictions=predictions,
+                _variance_fn=variance
+            )
+        elif kind == 'purchaser':
+            assert parents is not None, f"Purchaser node {name} must have parents"
+            node = Purchaser(
+                _plant=self,
+                name=name,
+                commodity=commodity,
+                _predictions=predictions,
+                _variance_fn=variance
+            )
+        elif kind == 'customer':
+            assert parents is not None, f"Customer node {name} must have parents"
+            node = Customer(
                 _plant=self,
                 name=name,
                 commodity=commodity,
@@ -287,21 +264,15 @@ class Plant:
                 _variance_fn=variance
             )
         else:
-            client = Customer(
-                _plant=self,
-                name=name,
-                commodity=commodity,
-                _predictions=predictions,
-                _variance_fn=variance
-            )
+            raise AssertionError(f"Unknown extremity node kind {kind}")
         self._check_and_update(
-            node=client,
+            node=node,
             parents=parents,
             commodity=commodity,
             min_flow=0.0,
             max_flow=float('inf')
         )
-        return client
+        return node
 
     def add_machine(self,
                     name: str,

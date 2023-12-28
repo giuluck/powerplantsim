@@ -109,7 +109,7 @@ class DefaultRecourseAction(RecourseAction):
         if self._cost_weight is not None:
             cost_components = list(self._plant.suppliers)
             cost_components += list(self._plant.machines)
-            cost_components += [n for n, c in self._plant.clients.items() if c.purchaser]
+            cost_components += [n for n, c in self._plant.customers.items() if c.purchaser]
             for cmp in cost_components:
                 objective += self._cost_weight * model.component(cmp).cost
         # for each storage, add the cost for storage difference to the objective function

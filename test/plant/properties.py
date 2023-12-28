@@ -4,21 +4,22 @@ import numpy as np
 import pandas as pd
 
 from ppsim import Plant
-from ppsim.datatypes import Supplier, Machine, Storage, Edge, Customer
+from ppsim.datatypes import Supplier, Machine, Storage, Edge, Customer, Purchaser
 from test.datatypes.datatype import VARIANCE_1
 
 PLANT_1 = Plant(horizon=24)
-PLANT_1.add_supplier(name='sup', commodity='in', predictions=1.)
+PLANT_1.add_extremity(kind='supplier', name='sup', commodity='in', predictions=1.)
 
 PLANT_2 = Plant(horizon=24)
-PLANT_2.add_supplier(name='sup', commodity='in', predictions=1.)
+PLANT_2.add_extremity(kind='supplier', name='sup', commodity='in', predictions=1.)
 PLANT_2.add_machine(name='mac', parents='sup', setpoint={
     'setpoint': [1.],
     'input': {'in': [1.]},
     'output': {'out': [1.]}
 })
-PLANT_2.add_storage(name='sto', parents='mac', commodity='out')
-PLANT_2.add_client(name='cli', parents=['mac', 'sto'], commodity='out', predictions=1.)
+PLANT_2.add_storage(name='sto', parents=['mac'], commodity='out')
+PLANT_2.add_extremity(kind='customer', name='cus', parents=['mac', 'sto'], commodity='out', predictions=1.)
+PLANT_2.add_extremity(kind='purchaser', name='pur', parents='mac', commodity='out', predictions=1.)
 
 SERIES = np.ones(24)
 SETPOINT = pd.DataFrame(
@@ -26,7 +27,14 @@ SETPOINT = pd.DataFrame(
     columns=pd.MultiIndex.from_tuples([('input', 'in'), ('output', 'out')]),
     index=[1.]
 )
-SUPPLIER = Supplier(name='sup', commodity='in', _predictions=SERIES, _variance_fn=VARIANCE_1, _plant=PLANT_1)
+
+SUPPLIER = Supplier(
+    name='sup',
+    commodity='in',
+    _predictions=SERIES,
+    _variance_fn=VARIANCE_1,
+    _plant=PLANT_1
+)
 MACHINE = Machine(
     name='mac',
     _setpoint=SETPOINT,
@@ -44,7 +52,20 @@ STORAGE = Storage(
     discharge_rate=float('inf'),
     _plant=PLANT_1
 )
-CLIENT = Customer(name='cli', commodity='out', _predictions=SERIES, _variance_fn=VARIANCE_1, _plant=PLANT_1)
+CUSTOMER = Customer(
+    name='cus',
+    commodity='out',
+    _predictions=SERIES,
+    _variance_fn=VARIANCE_1,
+    _plant=PLANT_1
+)
+PURCHASER = Purchaser(
+    name='pur',
+    commodity='out',
+    _predictions=SERIES,
+    _variance_fn=VARIANCE_1,
+    _plant=PLANT_1
+)
 
 EDGE_1 = Edge(
     _source=SUPPLIER,
@@ -64,7 +85,7 @@ EDGE_2 = Edge(
 )
 EDGE_3 = Edge(
     _source=MACHINE,
-    _destination=CLIENT,
+    _destination=CUSTOMER,
     commodity='out',
     min_flow=0.0,
     max_flow=float('inf'),
@@ -72,7 +93,15 @@ EDGE_3 = Edge(
 )
 EDGE_4 = Edge(
     _source=STORAGE,
-    _destination=CLIENT,
+    _destination=CUSTOMER,
+    commodity='out',
+    min_flow=0.0,
+    max_flow=float('inf'),
+    _plant=PLANT_1
+)
+EDGE_5 = Edge(
+    _source=MACHINE,
+    _destination=PURCHASER,
     commodity='out',
     min_flow=0.0,
     max_flow=float('inf'),
@@ -120,7 +149,7 @@ class TestPlantProperties(unittest.TestCase):
         self.assertDictEqual(PLANT_1.suppliers, {'sup': SUPPLIER}, msg='Wrong supplier nodes returned on plant 1')
         self.assertDictEqual(PLANT_1.machines, {}, msg='Wrong machine nodes returned on plant 1')
         self.assertDictEqual(PLANT_1.storages, {}, msg='Wrong storage nodes returned on plant 1')
-        self.assertDictEqual(PLANT_1.clients, {}, msg='Wrong client nodes returned on plant 1')
+        self.assertDictEqual(PLANT_1.customers, {}, msg='Wrong client nodes returned on plant 1')
         self.assertDictEqual(
             PLANT_1.nodes(indexed=False),
             {'sup': SUPPLIER},
@@ -135,18 +164,21 @@ class TestPlantProperties(unittest.TestCase):
         self.assertDictEqual(PLANT_2.suppliers, {'sup': SUPPLIER}, msg='Wrong supplier nodes returned on plant 2')
         self.assertDictEqual(PLANT_2.machines, {'mac': MACHINE}, msg='Wrong machine nodes returned on plant 2')
         self.assertDictEqual(PLANT_2.storages, {'sto': STORAGE}, msg='Wrong storage nodes returned on plant 2')
-        self.assertDictEqual(PLANT_2.clients, {'cli': CLIENT}, msg='Wrong client nodes returned on plant 2')
+        self.assertDictEqual(PLANT_2.customers, {'cus': CUSTOMER}, msg='Wrong customer nodes returned on plant 2')
+        self.assertDictEqual(PLANT_2.purchaser, {'pur': PURCHASER}, msg='Wrong purchaser nodes returned on plant 2')
         self.assertDictEqual(PLANT_2.nodes(indexed=False), {
             'sup': SUPPLIER,
             'mac': MACHINE,
             'sto': STORAGE,
-            'cli': CLIENT
+            'cus': CUSTOMER,
+            'pur': PURCHASER
         }, msg='Wrong non-indexed nodes returned on plant 2')
         self.assertDictEqual(PLANT_2.nodes(indexed=True), {
             'supplier': {'sup': SUPPLIER},
             'machine': {'mac': MACHINE},
             'storage': {'sto': STORAGE},
-            'client': {'cli': CLIENT}
+            'customer': {'cus': CUSTOMER},
+            'purchaser': {'pur': PURCHASER}
         }, msg='Wrong indexed nodes returned on plant 2')
 
     def test_edges(self):
@@ -157,26 +189,29 @@ class TestPlantProperties(unittest.TestCase):
         self.assertDictEqual(PLANT_2.edges(), {
             ('sup', 'mac'): EDGE_1,
             ('mac', 'sto'): EDGE_2,
-            ('mac', 'cli'): EDGE_3,
-            ('sto', 'cli'): EDGE_4
+            ('mac', 'cus'): EDGE_3,
+            ('sto', 'cus'): EDGE_4,
+            ('mac', 'pur'): EDGE_5,
         }, msg='Wrong edges returned on plant 2')
         # test edges filtering operations
         self.assertDictEqual(PLANT_2.edges(sources='mac'), {
             ('mac', 'sto'): EDGE_2,
-            ('mac', 'cli'): EDGE_3,
+            ('mac', 'cus'): EDGE_3,
+            ('mac', 'pur'): EDGE_5
         }, msg='Wrong edges returned on filtering by source')
-        self.assertDictEqual(PLANT_2.edges(destinations='cli'), {
-            ('mac', 'cli'): EDGE_3,
-            ('sto', 'cli'): EDGE_4
+        self.assertDictEqual(PLANT_2.edges(destinations='cus'), {
+            ('mac', 'cus'): EDGE_3,
+            ('sto', 'cus'): EDGE_4
         }, msg='Wrong edges returned on filtering by destination')
         self.assertDictEqual(PLANT_2.edges(commodities='out'), {
             ('mac', 'sto'): EDGE_2,
-            ('mac', 'cli'): EDGE_3,
-            ('sto', 'cli'): EDGE_4
+            ('mac', 'cus'): EDGE_3,
+            ('sto', 'cus'): EDGE_4,
+            ('mac', 'pur'): EDGE_5
         }, msg='Wrong edges returned on filtering by commodity')
         edges = PLANT_2.edges(
             sources=['sup', 'mac'],
-            destinations=['mac', 'cli'],
+            destinations=['mac', 'cus'],
             commodities=['in']
         )
         self.assertDictEqual(edges, {('sup', 'mac'): EDGE_1}, msg='Wrong edges returned on multiple filtering')
@@ -187,12 +222,12 @@ class TestPlantProperties(unittest.TestCase):
         graph = PLANT_2.graph(attributes=False)
         self.assertDictEqual(
             {name: attr for name, attr in graph.nodes(data=True)},
-            {'sup': {}, 'mac': {}, 'sto': {}, 'cli': {}},
+            {'sup': {}, 'mac': {}, 'sto': {}, 'cus': {}, 'pur': {}},
             msg='Wrong nodes returned in graph without attributes'
         )
         self.assertDictEqual(
             {(sour, dest): attr for sour, dest, attr in graph.edges(data=True)},
-            {('sup', 'mac'): {}, ('mac', 'sto'): {}, ('mac', 'cli'): {}, ('sto', 'cli'): {}},
+            {('sup', 'mac'): {}, ('mac', 'sto'): {}, ('mac', 'cus'): {}, ('sto', 'cus'): {}, ('mac', 'pur'): {}},
             msg='Wrong edges returned in graph without attributes'
         )
         # test graph with attributes
@@ -203,7 +238,8 @@ class TestPlantProperties(unittest.TestCase):
                 'sup': SUPPLIER.dict.keys(),
                 'mac': MACHINE.dict.keys(),
                 'sto': STORAGE.dict.keys(),
-                'cli': CLIENT.dict.keys()
+                'cus': CUSTOMER.dict.keys(),
+                'pur': PURCHASER.dict.keys(),
             },
             msg='Wrong nodes returned in graph with attributes'
         )
@@ -212,8 +248,9 @@ class TestPlantProperties(unittest.TestCase):
             {
                 ('sup', 'mac'): EDGE_1.dict.keys(),
                 ('mac', 'sto'): EDGE_2.dict.keys(),
-                ('mac', 'cli'): EDGE_3.dict.keys(),
-                ('sto', 'cli'): EDGE_4.dict.keys()
+                ('mac', 'cus'): EDGE_3.dict.keys(),
+                ('sto', 'cus'): EDGE_4.dict.keys(),
+                ('mac', 'pur'): EDGE_5.dict.keys()
             },
             msg='Wrong edges returned in graph with attributes'
         )
@@ -227,13 +264,15 @@ class TestPlantProperties(unittest.TestCase):
             'sup': SUPPLIER,
             'mac': MACHINE,
             'sto': STORAGE,
-            'cli': CLIENT
+            'cus': CUSTOMER,
+            'pur': PURCHASER
         }, msg='Wrong nodes copy returned')
         self.assertDictEqual(p.edges(), {
             ('sup', 'mac'): EDGE_1,
             ('mac', 'sto'): EDGE_2,
-            ('mac', 'cli'): EDGE_3,
-            ('sto', 'cli'): EDGE_4
+            ('mac', 'cus'): EDGE_3,
+            ('sto', 'cus'): EDGE_4,
+            ('mac', 'pur'): EDGE_5
         }, msg='Wrong edges copy returned')
         # test immutability
         p.add_storage(name='sto_2', commodity='out', parents='mac')

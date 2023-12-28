@@ -12,7 +12,7 @@ from ppsim.datatypes.node import Node
 from ppsim.utils.typing import EdgeID, Flow, Flows, States
 
 
-@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
+@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True)
 class Edge(DataType):
     """An edge in the plant."""
 
@@ -50,7 +50,8 @@ class Edge(DataType):
 
     @classproperty
     def _properties(self) -> List[str]:
-        return ['name', 'source', 'destination', 'commodity', 'min_flow', 'max_flow', 'bounds', 'flows', 'current_flow']
+        properties = super(Edge, self)._properties
+        return properties + ['source', 'destination', 'commodity', 'min_flow', 'max_flow', 'bounds', 'current_flow']
 
     @property
     def key(self) -> EdgeID:

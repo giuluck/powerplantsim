@@ -13,7 +13,7 @@ from ppsim import utils
 from ppsim.utils.typing import Flows, States
 
 
-@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)
+@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True)
 class DataType(ABC):
     """Abstract class that defines a datatype and has a unique key for comparison."""
 
@@ -22,12 +22,6 @@ class DataType(ABC):
 
     _info: Dict[str, Any] = field(init=False, default_factory=dict)
     """Internal object for additional mutable information."""
-
-    @classproperty
-    @abstractmethod
-    def _properties(self) -> List[str]:
-        """The list of public properties of the datatype."""
-        pass
 
     @property
     @abstractmethod
@@ -40,6 +34,11 @@ class DataType(ABC):
     def name(self) -> str:
         """The name of the datatype."""
         pass
+
+    @classproperty
+    def _properties(self) -> List[str]:
+        """The list of public properties of the datatype."""
+        return ['name']
 
     @property
     def _step(self) -> Optional[int]:
