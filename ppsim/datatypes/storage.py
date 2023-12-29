@@ -85,7 +85,8 @@ class Storage(Node):
         node.current_storage = pyo.Param(domain=pyo.NonNegativeReals, **kwargs)
         # model the storage as the sum of between the current storage and the input and output flows
         node.storage = node.current_storage + in_flow - out_flow
-        node.capacity_cst = pyo.Constraint(rule=node.storage <= self.capacity)
+        node.capacity_lb = pyo.Constraint(rule=node.storage >= 0)
+        node.capacity_ub = pyo.Constraint(rule=node.storage <= self.capacity)
         # impose constraints on either input or output flows
         #  - create a binary variable where 0 means that there is an output flow, 1 means that there is an input flow
         #  - impose big-M constraints on input and output flows using the change/discharge rates as M

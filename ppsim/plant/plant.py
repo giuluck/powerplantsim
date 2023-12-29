@@ -71,7 +71,7 @@ class Plant:
         return {c.name: c for c in self._nodes.get(Customer.kind, set())}
 
     @property
-    def purchaser(self) -> Dict[str, Purchaser]:
+    def purchasers(self) -> Dict[str, Purchaser]:
         """The purchaser nodes in the plant."""
         return {c.name: c for c in self._nodes.get(Purchaser.kind, set())}
 
@@ -147,6 +147,50 @@ class Plant:
             g.add_nodes_from(self.nodes().keys())
             g.add_edges_from(self.edges().keys())
         return g
+
+    def to_pyomo(self, mutable: bool = False) -> pyo.ConcreteModel:
+        """Encodes the plant as a Pyomo model.
+
+        :param mutable:
+            Whether to set simulation-specific parameters (e.g., current_price/current_demand/etc.) as mutable and
+            without an initialization value, or to initialize them based on their specific value of the current step.
+
+        :return:
+            A pyomo.environment.ConcreteModel object modeling the plant.
+        """
+        # build model and define data sets for nodes and commodities
+        model = pyo.ConcreteModel(name='plant')
+        model.nodes = pyo.Set(initialize=[node.name for nodes in self._nodes.values() for node in nodes])
+        model.commodities = pyo.Set(initialize=list(self._commodities))
+
+        # create components for datatypes and add them to the model
+        edges = {(e.source, e.destination, e.commodity): e.to_pyomo(mutable=mutable) for e in self._edges}
+        nodes = {n.name: n.to_pyomo(mutable=mutable) for nodes in self._nodes.values() for n in nodes}
+        for component in [*nodes.values(), *edges.values()]:
+            model.add_component(component.name, component)
+
+        # add constraints between edges variables and nodes variables
+        #  - compute the input and output flows for pairs (node, commodity) as a sum of edges flows
+        #  - then, use the cross product "nodes x commodities" to both the computed flow sums and the nodes' flows
+        #  - finally, use these two variables (flow sums and nodes' flows) to impose an equality constraint
+        in_flows = {(destination, commodity): 0.0 for _, destination, commodity in edges.keys()}
+        out_flows = {(source, commodity): 0.0 for source, _, commodity in edges.keys()}
+        for (source, destination, commodity), edge in edges.items():
+            in_flows[(destination, commodity)] += edge.flow
+            out_flows[(source, commodity)] += edge.flow
+
+        @model.Constraint(model.nodes * model.commodities)
+        def in_constraints(_, destination, commodity):
+            flows = in_flows.get((destination, commodity))
+            return pyo.Constraint.Skip if flows is None else flows == nodes[destination].in_flows[commodity]
+
+        @model.Constraint(model.nodes * model.commodities)
+        def out_constraints(_, source, commodity):
+            flows = out_flows.get((source, commodity))
+            return pyo.Constraint.Skip if flows is None else flows == nodes[source].out_flows[commodity]
+
+        # eventually return the model
+        return model
 
     def copy(self):
         """Copies the plant object.
@@ -493,7 +537,7 @@ class Plant:
 
     def run(self,
             plan: Union[Plan, pd.DataFrame],
-            action: Union[None, RecourseAction, Callable[[Any], Plan]] = None) -> execution.SimulationOutput:
+            action: Union[None, str, RecourseAction, Callable[[Any], Plan]] = None) -> execution.SimulationOutput:
         """Runs a simulation up to the time horizon using the given plan.
 
         :param plan:
@@ -506,9 +550,10 @@ class Plant:
             of the dataframe that matches the time horizon of the simulation.
 
         :param action:
-            Either a RecourseAction object or a function f(plant) -> plan which models the recourse action for a given
-            step and returns a dictionary of updated machine states and edge flows. If None is passed, it uses a greedy
-            recourse action.
+            If a RecourseAction object is passed, it is used to build the real plan at each step.
+            If a function f(plant) -> plan, this is wrapped into a CallableRecourseAction object.
+            If None is passed, the default greedy recourse action is used with the default solver and parameters.
+            If a string is passed, this is interpreted as the solver to use in the default greedy recourse action.
 
         :return:
             A SimulationOutput object containing all the information about true prices, demands, setpoints, and storage.
@@ -517,6 +562,8 @@ class Plant:
         # handle recourse action (if None use default action, if Callable build a custom recourse action)
         if action is None:
             action = DefaultRecourseAction()
+        elif isinstance(action, str):
+            action = DefaultRecourseAction(solver=action)
         elif isinstance(action, Callable):
             action = CallableRecourseAction(action=action)
         action.build(plant=self)
@@ -542,47 +589,3 @@ class Plant:
             for datatype in datatypes.values():
                 datatype.step(flows=updated_flows, states=updated_states)
         return execution.build_output(nodes=nodes.values(), edges=edges.values(), horizon=self._horizon)
-
-    def to_pyomo(self, mutable: bool = False) -> pyo.ConcreteModel:
-        """Encodes the plant as a Pyomo model.
-
-        :param mutable:
-            Whether to set simulation-specific parameters (e.g., current_price/current_demand/etc.) as mutable and
-            without an initialization value, or to initialize them based on their specific value of the current step.
-
-        :return:
-            A pyomo.environment.ConcreteModel object modeling the plant.
-        """
-        # build model and define data sets for nodes and commodities
-        model = pyo.ConcreteModel(name='plant')
-        model.nodes = pyo.Set(initialize=[node.name for nodes in self._nodes.values() for node in nodes])
-        model.commodities = pyo.Set(initialize=list(self._commodities))
-
-        # create components for datatypes and add them to the model
-        edges = {(e.source, e.destination, e.commodity): e.to_pyomo(mutable=mutable) for e in self._edges}
-        nodes = {n.name: n.to_pyomo(mutable=mutable) for nodes in self._nodes.values() for n in nodes}
-        for component in [*nodes.values(), *edges.values()]:
-            model.add_component(component.name, component)
-
-        # add constraints between edges variables and nodes variables
-        #  - compute the input and output flows for pairs (node, commodity) as a sum of edges flows
-        #  - then, use the cross product "nodes x commodities" to both the computed flow sums and the nodes' flows
-        #  - finally, use these two variables (flow sums and nodes' flows) to impose an equality constraint
-        in_flows = {(destination, commodity): 0.0 for _, destination, commodity in edges.keys()}
-        out_flows = {(source, commodity): 0.0 for source, _, commodity in edges.keys()}
-        for (source, destination, commodity), edge in edges.items():
-            in_flows[(destination, commodity)] += edge.flow
-            out_flows[(source, commodity)] += edge.flow
-
-        @model.Constraint(model.nodes * model.commodities)
-        def in_constraints(_, destination, commodity):
-            flows = in_flows.get((destination, commodity))
-            return pyo.Constraint.Skip if flows is None else flows == nodes[destination].in_flows[commodity]
-
-        @model.Constraint(model.nodes * model.commodities)
-        def out_constraints(_, source, commodity):
-            flows = out_flows.get((source, commodity))
-            return pyo.Constraint.Skip if flows is None else flows == nodes[source].out_flows[commodity]
-
-        # eventually return the model
-        return model

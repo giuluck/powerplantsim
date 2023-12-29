@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 from dataclasses import dataclass
 from dataclasses import field
 from typing import Callable
@@ -54,6 +54,10 @@ class ExtremityNode(Node, ABC):
         # compute the new value as the sum of the prediction and the variance obtained from the variance model
         self._info['current_value'] = self._predictions[self._step] + self._variance_fn(rng, self.values)
 
+    def step(self, flows: Flows, states: States):
+        self._values.append(self._info['current_value'])
+        self._info['current_value'] = None
+
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True)
 class Client(ExtremityNode, ABC):
@@ -78,12 +82,6 @@ class Priced(ExtremityNode, ABC):
         return properties + ['current_price']
 
     @property
-    @abstractmethod
-    def _direction(self) -> int:
-        """Whether the node sells the commodity (+1) or buys it (-1)."""
-        pass
-
-    @property
     def prices(self) -> pd.Series:
         """The series of actual buying prices, which is filled during the simulation."""
         return self.values
@@ -100,13 +98,7 @@ class Priced(ExtremityNode, ABC):
         # add a parameter representing the current price (and initialize it if needed)
         kwargs = dict(mutable=True) if mutable else dict(initialize=self.current_price)
         node.current_price = pyo.Param(domain=pyo.NonNegativeReals, **kwargs)
-        # compute the cost from the input flow for the (unique) commodity and the price
-        node.cost = self._direction * node.current_price * node.in_flows[self.commodity]
         return node
-
-    def step(self, flows: Flows, states: States):
-        self._values.append(self._info['current_value'])
-        self._info['current_value'] = None
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True)
@@ -146,11 +138,9 @@ class Customer(Client):
     def step(self, flows: Flows, states: States):
         # check that the flow does not exceed the demand
         demand = self._info['current_value']
-        self._info['current_value'] = None
         flow = np.sum([flow for (_, destination, _), flow in flows.items() if destination == self.name])
         assert flow <= demand, f"Customer node '{self.name}' can accept at most {demand} units, got {flow}"
-        # assert np.isclose(flow, demand), f"Customer node '{self.name}' needs {demand} units, got {flow}"
-        self._values.append(demand)
+        super(Customer, self).step(flows=flows, states=states)
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True)
@@ -164,9 +154,11 @@ class Purchaser(Client, Priced):
     def kind(self) -> str:
         return 'purchaser'
 
-    @property
-    def _direction(self) -> int:
-        return -1
+    def to_pyomo(self, mutable: bool = False) -> pyo.Block:
+        node = super(Purchaser, self).to_pyomo(mutable=mutable)
+        # compute the cost from the input flow for the (unique) commodity and the price
+        node.cost = -node.current_price * node.in_flows[self.commodity]
+        return node
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True)
@@ -178,13 +170,15 @@ class Supplier(Priced):
         return 'supplier'
 
     @property
-    def _direction(self) -> int:
-        return 1
-
-    @property
     def commodities_in(self) -> Set[str]:
         return set()
 
     @property
     def commodities_out(self) -> Set[str]:
         return {self.commodity}
+
+    def to_pyomo(self, mutable: bool = False) -> pyo.Block:
+        node = super(Supplier, self).to_pyomo(mutable=mutable)
+        # compute the cost from the output flow for the (unique) commodity and the price
+        node.cost = node.current_price * node.out_flows[self.commodity]
+        return node

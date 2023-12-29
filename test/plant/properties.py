@@ -165,7 +165,7 @@ class TestPlantProperties(unittest.TestCase):
         self.assertDictEqual(PLANT_2.machines, {'mac': MACHINE}, msg='Wrong machine nodes returned on plant 2')
         self.assertDictEqual(PLANT_2.storages, {'sto': STORAGE}, msg='Wrong storage nodes returned on plant 2')
         self.assertDictEqual(PLANT_2.customers, {'cus': CUSTOMER}, msg='Wrong customer nodes returned on plant 2')
-        self.assertDictEqual(PLANT_2.purchaser, {'pur': PURCHASER}, msg='Wrong purchaser nodes returned on plant 2')
+        self.assertDictEqual(PLANT_2.purchasers, {'pur': PURCHASER}, msg='Wrong purchaser nodes returned on plant 2')
         self.assertDictEqual(PLANT_2.nodes(indexed=False), {
             'sup': SUPPLIER,
             'mac': MACHINE,
