@@ -27,6 +27,7 @@ Plan = Dict[Union[NodeID, EdgeID], Union[State, Flow, Iterable[State], Iterable[
 """Datatype for plan specification, i.e., a dictionary <machine | edge: state/states | flow/flows>."""
 
 
+# noinspection PyUnresolvedReferences
 @dataclass(frozen=True, unsafe_hash=True, slots=True)
 class NamedTuple:
     """Template dataclass that models a named tuple."""

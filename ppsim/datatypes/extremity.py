@@ -91,7 +91,6 @@ class Priced(ExtremityNode, ABC):
         """The current buying price of the node for this time step as computed using the variance model."""
         return self.current_value
 
-    # noinspection PyUnresolvedReferences, PyTypeChecker
     def to_pyomo(self, mutable: bool = False) -> pyo.Block:
         # start from the default node block
         node = super(Priced, self).to_pyomo(mutable=mutable)
@@ -124,7 +123,6 @@ class Customer(Client):
         """The current demand of the node for this time step as computed using the variance model."""
         return self.current_value
 
-    # noinspection PyUnresolvedReferences
     def to_pyomo(self, mutable: bool = False) -> pyo.Block:
         # start from the default node block
         node = super(Customer, self).to_pyomo(mutable=mutable)

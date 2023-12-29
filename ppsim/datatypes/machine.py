@@ -15,7 +15,7 @@ from ppsim.utils.typing import State, Flows, States
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True)
 class Machine(Node):
-    """A node in the plant that converts certain commodities in other."""
+    """A node in the plant that converts certain commodities in others."""
 
     _setpoint: pd.DataFrame = field(kw_only=True)
     """A pandas dataframe where the index is a series of floating point values that indicate the input commodity flow,
@@ -124,7 +124,7 @@ class Machine(Node):
     def commodities_out(self) -> Set[str]:
         return set(self._setpoint['output'].columns)
 
-    # noinspection PyUnresolvedReferences, PyTypeChecker
+    # noinspection PyTypeChecker
     def to_pyomo(self, mutable: bool = False) -> pyo.Block:
         # start from the default node block and store aliases for setpoint lower and upper bounds
         node = super(Machine, self).to_pyomo(mutable=mutable)
@@ -147,7 +147,8 @@ class Machine(Node):
             node.selector_cst = pyo.Constraint(rule=sum(node.selector.values()) == node.switch)
             # build a variable for the actual setpoint so that it is equal to the value indexed by the selector
             #  - use a variable instead of a plain equation in order to access it via the ".value" property
-            node.state = pyo.Var(domain=pyo.NonNegativeReals)
+            kwargs = dict() if mutable else dict(initialize=lb if np.isnan(current_state) else current_state)
+            node.state = pyo.Var(domain=pyo.NonNegativeReals, bounds=(0, ub), **kwargs)
             node.state_cst = pyo.Constraint(rule=node.state == sum(node.selector * self._setpoint.index))
             # impose constraints on input/output flows so that they match the correct setpoint indexed by the selector
             node.input_flows_cst = pyo.Constraint(
@@ -161,7 +162,8 @@ class Machine(Node):
         else:
             # build a state variable that is bounded within the min and max setpoint
             breakpoints = self._setpoint.index.values
-            node.state = pyo.Var(domain=pyo.NonNegativeReals, bounds=(lb, ub), initialize=node.current_state)
+            kwargs = dict() if mutable else dict(initialize=lb if np.isnan(current_state) else current_state)
+            node.state = pyo.Var(domain=pyo.NonNegativeReals, bounds=(lb, ub), **kwargs)
             # for each tuple of (input/output, commodity) flows:
             #  - build a flow variable which is bounded within the min and max flow
             #  - enforce a piecewise_linear constraint between the node state and the flow

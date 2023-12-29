@@ -61,7 +61,7 @@ class DefaultRecourseAction(RecourseAction):
     """Type to define the cost of operating a machine, i.e., a tuple (switch_on, switch_off, state)."""
 
     def __init__(self,
-                 solver: str = 'gurobi',
+                 solver: str,
                  cost_weight: Optional[float] = 1.0,
                  storage_weight: Union[None, float, Dict[str, float]] = 1.0,
                  machine_weight: Union[None, MachineWeight, Dict[str, MachineWeight]] = (1.0, 1.0, 0.0)):
@@ -100,7 +100,7 @@ class DefaultRecourseAction(RecourseAction):
             self._machine_weight = {m: self._machine_weight for m in self._plant.machines}
         return self
 
-    # noinspection PyUnresolvedReferences, PyTypeChecker
+    # noinspection PyTypeChecker
     def execute(self) -> Plan:
         # retrieve the pyomo model representing the plant and define a variable for the objective function
         model = self._plant.to_pyomo(mutable=False)
@@ -135,7 +135,7 @@ class DefaultRecourseAction(RecourseAction):
                 cmp.off_diff = pyo.Var(domain=pyo.Binary, initialize=0)
                 cmp.off_diff_cst = pyo.Constraint(rule=cmp.off_diff == was_on * (1 - cmp.switch))
                 # define a variable for state change, i.e. state_diff == | node.current_state - node.state |
-                #  - this value has a meaning only if the machine was set as on and it is still on
+                #  - this value has a meaning only if the machine was set as on, and it is still on
                 #  - otherwise, the on_diff and off_diff variables are considered in the objective
                 # in order to model the state difference when the machine is off we rely on the big-M formulation
                 #  - M is computed as the maximal setpoint difference, i.e., the largest state

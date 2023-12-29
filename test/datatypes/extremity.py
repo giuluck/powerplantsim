@@ -1,7 +1,8 @@
 import numpy as np
+import pyomo.environ as pyo
 
 from ppsim.datatypes import Customer, Purchaser, Supplier
-from test.datatypes.datatype import TestDataType, SERIES_1, SERIES_2, VARIANCE_1, VARIANCE_2, PLANT
+from test.datatypes.datatype import TestDataType, SERIES_1, SERIES_2, VARIANCE_1, VARIANCE_2, PLANT, SOLVER
 
 CUSTOMER = Customer(
     name='c',
@@ -83,7 +84,7 @@ class TestExtremityNodes(TestDataType):
     def test_dict(self):
         # test customer
         c_dict = CUSTOMER.dict
-        self.assertEqual(c_dict, {
+        self.assertDictEqual(c_dict, {
             'name': 'c',
             'kind': 'customer',
             'commodity': 'c_com',
@@ -91,7 +92,7 @@ class TestExtremityNodes(TestDataType):
         }, msg='Wrong dictionary returned for customer')
         # test purchaser
         p_dict = PURCHASER.dict
-        self.assertEqual(p_dict, {
+        self.assertDictEqual(p_dict, {
             'name': 'p',
             'kind': 'purchaser',
             'commodity': 'p_com',
@@ -99,7 +100,7 @@ class TestExtremityNodes(TestDataType):
         }, msg='Wrong dictionary returned for purchaser')
         # test_supplier
         s_dict = SUPPLIER.dict
-        self.assertEqual(s_dict, {
+        self.assertDictEqual(s_dict, {
             'name': 's',
             'kind': 'supplier',
             'commodity': 's_com',
@@ -155,3 +156,82 @@ class TestExtremityNodes(TestDataType):
         s.step(flows={}, states={})
         self.assertDictEqual(s.prices.to_dict(), {0: val}, msg=f"Supplier prices should be filled after step")
         self.assertIsNone(s.current_price, msg=f"Supplier current price should be None outside of the simulation")
+
+    def test_pyomo(self):
+        # test customer
+        c = CUSTOMER.copy()
+        rng = np.random.default_rng(0)
+        c.update(rng=rng, flows={}, states={})
+        model = c.to_pyomo(mutable=False)
+        self.assertSetEqual(set(model.in_flows.keys()), {'c_com'}, msg="Wrong in_flows for customer block")
+        self.assertSetEqual(set(model.out_flows.keys()), set(), msg="Wrong out_flows for customer block")
+        self.assertEqual(
+            model.current_demand.value,
+            c.current_demand,
+            msg="Wrong demand initialized in customer block"
+        )
+        results = pyo.SolverFactory(SOLVER).solve(model)
+        self.assertEqual(
+            results.solver.termination_condition,
+            'optimal',
+            msg="Customer block should always be feasible"
+        )
+        self.assertEqual(
+            model.in_flows[c.commodity].value,
+            c.current_demand,
+            msg="Customer block should satisfy demand constraint"
+        )
+        with self.assertRaises(ValueError, msg="Accessing mutable customer parameters should raise exception"):
+            pyo.value(c.to_pyomo(mutable=True).current_demand)
+        # test purchaser
+        p = PURCHASER.copy()
+        rng = np.random.default_rng(0)
+        p.update(rng=rng, flows={}, states={})
+        model = p.to_pyomo(mutable=False)
+        self.assertSetEqual(set(model.in_flows.keys()), {'p_com'}, msg="Wrong in_flows for purchaser block")
+        self.assertSetEqual(set(model.out_flows.keys()), set(), msg="Wrong out_flows for purchaser block")
+        self.assertEqual(
+            model.current_price.value,
+            p.current_price,
+            msg="Wrong price initialized in purchaser block"
+        )
+        model.flows_value = pyo.Constraint(rule=model.in_flows[p.commodity] == 3.0)
+        results = pyo.SolverFactory(SOLVER).solve(model)
+        self.assertEqual(
+            results.solver.termination_condition,
+            'optimal',
+            msg="Purchaser block should always be feasible"
+        )
+        self.assertEqual(
+            pyo.value(model.cost),
+            -p.current_price * 3.0,
+            msg="Wrong cost computed for purchaser block"
+        )
+        with self.assertRaises(ValueError, msg="Accessing mutable purchaser parameters should raise exception"):
+            pyo.value(p.to_pyomo(mutable=True).current_price)
+        # test supplier
+        s = SUPPLIER.copy()
+        rng = np.random.default_rng(0)
+        s.update(rng=rng, flows={}, states={})
+        model = s.to_pyomo(mutable=False)
+        self.assertSetEqual(set(model.in_flows.keys()), set(), msg="Wrong in_flows for supplier block")
+        self.assertSetEqual(set(model.out_flows.keys()), {'s_com'}, msg="Wrong out_flows for supplier block")
+        self.assertEqual(
+            model.current_price.value,
+            s.current_price,
+            msg="Wrong price initialized in supplier block"
+        )
+        model.flows_value = pyo.Constraint(rule=model.out_flows[s.commodity] == 3.0)
+        results = pyo.SolverFactory(SOLVER).solve(model)
+        self.assertEqual(
+            results.solver.termination_condition,
+            'optimal',
+            msg="Supplier block should always be feasible"
+        )
+        self.assertEqual(
+            pyo.value(model.cost),
+            s.current_price * 3.0,
+            msg="Wrong cost computed for supplier block"
+        )
+        with self.assertRaises(ValueError, msg="Accessing mutable supplier parameters model should raise exception"):
+            pyo.value(s.to_pyomo(mutable=True).current_price)

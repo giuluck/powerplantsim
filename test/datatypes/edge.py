@@ -1,3 +1,5 @@
+import pyomo.environ as pyo
+
 from ppsim.datatypes import Supplier, Storage, Machine, Edge
 from test.datatypes.datatype import TestDataType, SETPOINT, SERIES_1, VARIANCE_1, PLANT
 
@@ -191,7 +193,7 @@ class TestEdge(TestDataType):
 
     def test_dict(self):
         e_dict = EDGE.dict
-        self.assertEqual(e_dict, {
+        self.assertDictEqual(e_dict, {
             'name': 'm --> s1',
             'source': 'm',
             'destination': 's1',
@@ -208,7 +210,7 @@ class TestEdge(TestDataType):
         self.assertIsNone(e.current_flow, msg=f"Edge current flow should be None outside of the simulation")
         e.update(rng=None, flows={('m', 's1', 'out_com_1'): 1.0}, states={})
         self.assertDictEqual(e.flows.to_dict(), {}, msg=f"Edge flows should be empty before step")
-        self.assertEqual(e.current_flow, 1.0, msg=f"Edge current flow should be stored after update")
+        self.assertAlmostEqual(e.current_flow, 1.0, msg=f"Edge current flow should be stored after update")
         e.step(flows={('m', 's1', 'out_com_1'): 0.0}, states={})
         self.assertDictEqual(e.flows.to_dict(), {0: 0.0}, msg=f"Edge flows should be filled after step")
         self.assertIsNone(e.current_flow, msg=f"Edge flow should be None outside of the simulation")
@@ -232,3 +234,13 @@ class TestEdge(TestDataType):
             RECEIVED_MAX_FLOW_EXCEPTION(('m', 's1'), 100.0, 101.0),
             msg='Wrong exception message returned for over bound received flow on edge'
         )
+
+    def test_pyomo(self):
+        e = EDGE.copy()
+        e.update(rng=None, flows={('m', 's1', 'out_com_1'): 30.0}, states={})
+        model = e.to_pyomo(mutable=False)
+        self.assertIsInstance(model.flow, pyo.Var, msg="Wrong type variable for edge flow")
+        self.assertEqual(model.flow.domain, pyo.NonNegativeReals, msg="Wrong variable domain stored for edge flow.")
+        self.assertEqual(model.flow.bounds, (0.0, 100.0), msg="Wrong variable bounds stored for edge flow.")
+        self.assertAlmostEqual(model.flow.value, 30.0, msg="Edge flow should be initialized to current flow")
+        self.assertIsNone(e.to_pyomo(mutable=True).flow.value, msg="Edge flow should not be initialized")

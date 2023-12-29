@@ -75,8 +75,8 @@ def get_node_positions(graph: nx.DiGraph,
     elif node_pos == 'lp':
         # use floyd warshall algorithm to search for longest paths
         #  - get the indices of the sources
-        #  - get the (negative) shortest path matrix and select only the paths from the sources
-        #  - get the (negative) minimum value for each node in the plant and negate it to get the layer
+        #  - get the negative shortest path matrix and select only the paths from the sources
+        #  - get the negative minimum value for each node in the plant and negate it to get the layer
         nx.set_edge_attributes(graph, values=-1, name='weight')
         sources = set(sources)
         sources = [i for i, node in enumerate(graph.nodes) if node in sources]

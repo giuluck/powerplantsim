@@ -6,8 +6,8 @@ def get_filtering_function(user_input: Optional) -> Callable[[Any], bool]:
 
     :param user_input:
         If None is passed, the function always evaluates to true.
-        If an iterable object is passed, checks whether or not the value is in the iterable.
-        Otherwise, checks whether or not the value is exactly the user input passed.
+        If an iterable object is passed, checks whether the value is in the iterable.
+        Otherwise, checks whether the value is exactly the user input passed.
 
     :return:
         The filtering function f(value) -> bool.

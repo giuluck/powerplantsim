@@ -75,7 +75,7 @@ class Storage(Node):
     def commodities_out(self) -> Set[str]:
         return {self.commodity}
 
-    # noinspection PyUnresolvedReferences, PyTypeChecker
+    # noinspection PyTypeChecker
     def to_pyomo(self, mutable: bool = False) -> pyo.Block:
         # start from the default node block and create aliases for the flows of the (unique) commodity
         node = super(Storage, self).to_pyomo(mutable=mutable)

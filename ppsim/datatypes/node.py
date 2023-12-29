@@ -58,11 +58,10 @@ class Node(DataType, ABC):
     def _instance(self, other) -> bool:
         return isinstance(other, Node)
 
-    # noinspection PyUnresolvedReferences
     def to_pyomo(self, mutable: bool = False) -> pyo.Block:
         # build a node block with two variable arrays representing the input/output flows indexed by commodity
         node = pyo.Block(concrete=True, name=self.name)
-        # these flows are not bounded but they must be constrained to be equal to the sum of edge variables
+        # these flows are not bounded, but they must be constrained to be equal to the sum of edge variables
         node.in_flows = pyo.Var(self.commodities_in, domain=pyo.NonNegativeReals)
         node.out_flows = pyo.Var(self.commodities_out, domain=pyo.NonNegativeReals)
         return node

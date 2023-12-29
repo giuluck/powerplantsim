@@ -36,6 +36,8 @@ SETPOINT = pd.DataFrame(
     index=[1.0, 0.5, 0.75]
 )
 
+SOLVER = 'gurobi'
+
 
 class TestDataType(unittest.TestCase):
     @abstractmethod
@@ -66,4 +68,9 @@ class TestDataType(unittest.TestCase):
     @abstractmethod
     def test_operation(self):
         """Tests that the datatype works correctly during the simulation."""
+        pass
+
+    @abstractmethod
+    def test_pyomo(self):
+        """Tests that the pyomo encoding of the node is correct."""
         pass

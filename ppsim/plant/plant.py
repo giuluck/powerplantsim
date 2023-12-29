@@ -63,33 +63,38 @@ class Plant:
     @property
     def suppliers(self) -> Dict[str, Supplier]:
         """The supplier nodes in the plant."""
+        # noinspection PyTypeChecker
         return {s.name: s for s in self._nodes.get(Supplier.kind, set())}
 
     @property
     def customers(self) -> Dict[str, Customer]:
         """The customer nodes in the plant."""
+        # noinspection PyTypeChecker
         return {c.name: c for c in self._nodes.get(Customer.kind, set())}
 
     @property
     def purchasers(self) -> Dict[str, Purchaser]:
         """The purchaser nodes in the plant."""
+        # noinspection PyTypeChecker
         return {c.name: c for c in self._nodes.get(Purchaser.kind, set())}
 
     @property
     def machines(self) -> Dict[str, Machine]:
         """The machine nodes in the plant."""
+        # noinspection PyTypeChecker
         return {m.name: m for m in self._nodes.get(Machine.kind, set())}
 
     @property
     def storages(self) -> Dict[str, Storage]:
         """The storage nodes in the plant."""
+        # noinspection PyTypeChecker
         return {s.name: s for s in self._nodes.get(Storage.kind, set())}
 
     def nodes(self, indexed: bool = False) -> Dict[str, Union[Node, Dict[str, Node]]]:
         """Returns the nodes in the plant.
 
         :param indexed:
-            Whether or not to index the dictionary by type.
+            Whether to index the dictionary by type.
 
         :return:
             Either a dictionary {type: {name: node}} or a simple dictionary {name: node}.
@@ -132,7 +137,7 @@ class Plant:
         """Builds the graph representing the power plant.
 
         :param attributes:
-            Whether or not to include node/edge attributes.
+            Whether to include node/edge attributes.
 
         :return:
             A networkx DiGraph object representing the power plant.
@@ -537,7 +542,7 @@ class Plant:
 
     def run(self,
             plan: Union[Plan, pd.DataFrame],
-            action: Union[None, str, RecourseAction, Callable[[Any], Plan]] = None) -> execution.SimulationOutput:
+            action: Union[str, RecourseAction, Callable[[Any], Plan]]) -> execution.SimulationOutput:
         """Runs a simulation up to the time horizon using the given plan.
 
         :param plan:
@@ -552,7 +557,6 @@ class Plant:
         :param action:
             If a RecourseAction object is passed, it is used to build the real plan at each step.
             If a function f(plant) -> plan, this is wrapped into a CallableRecourseAction object.
-            If None is passed, the default greedy recourse action is used with the default solver and parameters.
             If a string is passed, this is interpreted as the solver to use in the default greedy recourse action.
 
         :return:
@@ -560,9 +564,7 @@ class Plant:
         """
         assert self._step == -1, "Simulation for this plant was already run, create a new instance to run another one"
         # handle recourse action (if None use default action, if Callable build a custom recourse action)
-        if action is None:
-            action = DefaultRecourseAction()
-        elif isinstance(action, str):
+        if isinstance(action, str):
             action = DefaultRecourseAction(solver=action)
         elif isinstance(action, Callable):
             action = CallableRecourseAction(action=action)

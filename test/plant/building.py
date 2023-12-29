@@ -119,8 +119,8 @@ class TestPlantBuilding(unittest.TestCase):
         self.assertEqual(e.source, 'mac', msg="Wrong source name stored in edge built from customer")
         self.assertEqual(e._destination.name, 'c', msg="Wrong destination name stored in edge built from customer")
         self.assertEqual(e.commodity, 'out', msg="Wrong commodity stored in edge built from customer")
-        self.assertEqual(e.min_flow, 0.0, msg="Wrong min flow stored in edge built from customer")
-        self.assertEqual(e.max_flow, float('inf'), msg="Wrong max flow stored in edge built from customer")
+        self.assertAlmostEqual(e.min_flow, 0.0, msg="Wrong min flow stored in edge built from customer")
+        self.assertAlmostEqual(e.max_flow, float('inf'), msg="Wrong max flow stored in edge built from customer")
 
     def test_add_purchaser(self):
         p: Plant = PLANT.copy()

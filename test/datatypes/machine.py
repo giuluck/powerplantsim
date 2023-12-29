@@ -1,7 +1,8 @@
 import numpy as np
+import pyomo.environ as pyo
 
 from ppsim.datatypes import Machine
-from test.datatypes.datatype import TestDataType, SETPOINT, PLANT
+from test.datatypes.datatype import TestDataType, SETPOINT, PLANT, SOLVER
 
 DISCRETE_MACHINE = Machine(
     name='m',
@@ -192,14 +193,18 @@ class TestMachine(TestDataType):
         DISCRETE_MACHINE.states[0] = 5.0
         DISCRETE_MACHINE.setpoint.iloc[0, 0] = 5.0
         self.assertEqual(len(DISCRETE_MACHINE.states), 0, msg="Machine states should be immutable")
-        self.assertEqual(DISCRETE_MACHINE.setpoint.iloc[0, 0], 50.0, msg="Machine setpoint should be immutable")
+        self.assertAlmostEqual(
+            DISCRETE_MACHINE.setpoint.iloc[0, 0],
+            50.0,
+            msg="Machine setpoint should be immutable"
+        )
 
     def test_dict(self):
         # pandas series and dataframes need to be tested separately due to errors in the equality check
         m_dict = DISCRETE_MACHINE.dict
         m_states = m_dict.pop('states')
         m_setpoint = m_dict.pop('setpoint')
-        self.assertEqual(m_dict, {
+        self.assertDictEqual(m_dict, {
             'name': 'm',
             'kind': 'machine',
             'commodities_in': {'in_com'},
@@ -219,7 +224,11 @@ class TestMachine(TestDataType):
         self.assertIsNone(m.current_state, msg=f"Machine current state should be None outside of the simulation")
         m.update(rng=None, flows={}, states={'m': 0.5})
         self.assertDictEqual(m.states.to_dict(), {}, msg=f"Machine states should be empty before step")
-        self.assertEqual(m.current_state, 0.5, msg=f"Machine current state should be stored after update")
+        self.assertAlmostEqual(
+            m.current_state,
+            0.5,
+            msg=f"Machine current state should be stored after update"
+        )
         m.step(states={'m': 1.0}, flows={
             ('input', 'm', 'in_com'): 100.0,
             ('m', 'output', 'out_com_1'): 1.0,
@@ -372,4 +381,128 @@ class TestMachine(TestDataType):
             str(e.exception),
             TOO_MANY_STARTING_EXCEPTION('m', 1, 3),
             msg='Wrong exception message returned for continuous setpoint operation on machine'
+        )
+
+    def test_pyomo(self):
+        # test continuous/discrete machine & feasible/infeasible state values
+        tests = {
+            ('discrete', True): (DISCRETE_MACHINE, [None, 0.5, 0.75, 1.0]),
+            ('discrete', False): (DISCRETE_MACHINE, [0.2, 0.6, 0.8, 1.2]),
+            ('continuous', True): (CONTINUOUS_MACHINE, [None, 0.5, 0.6, 0.75, 0.8, 1.0]),
+            ('continuous', False): (CONTINUOUS_MACHINE, [0.2, 1.2])
+        }
+        for (kind, feasible), (machine, values) in tests.items():
+            # test model
+            m = machine.copy()
+            m.update(rng=None, flows={}, states={'m': 0.75})
+            model = m.to_pyomo(mutable=False)
+            # in/out flows
+            self.assertSetEqual(set(model.in_flows.keys()), {'in_com'}, msg=f"Wrong in_flows for {kind} machine block")
+            self.assertSetEqual(
+                set(model.out_flows.keys()),
+                {'out_com_1', 'out_com_2'},
+                msg=f"Wrong out_flows for {kind} machine block"
+            )
+            # state
+            self.assertIsInstance(model.state, pyo.Var, msg=f"Wrong type variable for {kind} machine state")
+            self.assertEqual(
+                model.state.domain,
+                pyo.NonNegativeReals,
+                msg=f"Wrong variable domain stored for {kind} machine state."
+            )
+            self.assertEqual(
+                model.state.value,
+                0.75,
+                msg=f"{kind.title()} machine state should be initialized to current state"
+            )
+            self.assertIsNone(
+                m.to_pyomo(mutable=True).state.value,
+                msg=f"{kind.title()} machine switch should not be initialized"
+            )
+            # switch
+            self.assertIsInstance(model.switch, pyo.Var, msg=f"Wrong type variable for {kind} machine switch")
+            self.assertEqual(
+                model.switch.domain,
+                pyo.Binary,
+                msg=f"Wrong variable domain stored for {kind} machine switch."
+            )
+            self.assertEqual(
+                model.switch.value,
+                0,
+                msg=f"{kind.title()} machine switch should be initialized to off"
+            )
+            self.assertEqual(
+                m.to_pyomo(mutable=True).switch.value,
+                0,
+                msg=f"{kind.title()} machine switch should be initialized to off when mutable=True as well"
+            )
+            # test state constraint
+            for value in values:
+                m = machine.copy()
+                m.update(rng=None, flows={}, states={'m': 0.75})
+                model = m.to_pyomo(mutable=False)
+                if value is None:
+                    switch, state = 0, None
+                    model.switch_value = pyo.Constraint(rule=model.switch == 0)
+                else:
+                    switch, state = 1, value
+                    model.switch_value = pyo.Constraint(rule=model.switch == 1)
+                    model.state_value = pyo.Constraint(rule=model.state == value)
+                results = pyo.SolverFactory(SOLVER).solve(model)
+                if feasible:
+                    self.assertEqual(
+                        results.solver.termination_condition,
+                        'optimal',
+                        msg=f"{kind.title()} machine should be feasible when value is {value}"
+                    )
+                    self.assertEqual(
+                        model.switch.value,
+                        switch,
+                        msg=f"Wrong switch computed for {kind} machine when value is {value}"
+                    )
+                    if state is not None:
+                        self.assertEqual(
+                            model.state.value,
+                            state,
+                            msg=f"Wrong state computed for {kind} machine when value is {value}"
+                        )
+                        state = np.nan if np.isclose(model.switch.value, 0.0) else model.state.value
+                        for key, commodity in [('input', 'in_com'), ('output', 'out_com_1'), ('output', 'out_com_2')]:
+                            expected = np.interp(state, xp=m.setpoint.index, fp=m.setpoint[(key, commodity)])
+                            variables = model.in_flows if key == 'input' else model.out_flows
+                            self.assertAlmostEqual(
+                                variables[commodity].value,
+                                expected,
+                                msg=f"Wrong {key} flows computed for commodity {commodity} in {kind} machine block"
+                            )
+                    else:
+                        for key, commodity in [('input', 'in_com'), ('output', 'out_com_1'), ('output', 'out_com_2')]:
+                            variables = model.in_flows if key == 'input' else model.out_flows
+                            self.assertAlmostEqual(
+                                variables[commodity].value,
+                                0.0,
+                                msg=f"Wrong {key} flows computed for commodity {commodity} in {kind} machine block"
+                            )
+                else:
+                    self.assertEqual(
+                        results.solver.termination_condition,
+                        'infeasible',
+                        msg=f"{kind.title()} machine should be infeasible when value is {value}"
+                    )
+        # test max starting
+        m = CONTINUOUS_MACHINE.copy()
+        m.step(states={'m': 1.0}, flows={
+            ('input', 'm', 'in_com'): 100.0,
+            ('m', 'output', 'out_com_1'): 1.0,
+            ('m', 'output', 'out_com_2'): 60.0
+        })
+        m.step(states={'m': np.nan}, flows={})
+        m.update(rng=None, flows={}, states={'m': 0.75})
+        model = m.to_pyomo(mutable=False)
+        model.state_value = pyo.Constraint(rule=model.switch == 1)
+        results = pyo.SolverFactory(SOLVER).solve(model)
+        self.assertEqual(
+            results.solver.termination_condition,
+            'infeasible',
+            msg=f"Machine should be infeasible when max starting is exceeded and switch is set to on"
         )

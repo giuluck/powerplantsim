@@ -86,7 +86,6 @@ class Edge(DataType):
         """The current flow on the edge for this time step as provided by the user."""
         return self._info['current_flow']
 
-    # noinspection PyUnresolvedReferences
     def to_pyomo(self, mutable: bool = False) -> pyo.Block:
         # build an edge block with a variable representing the flow
         edge = pyo.Block(concrete=True, name=self.name)
