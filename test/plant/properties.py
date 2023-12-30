@@ -276,7 +276,7 @@ class TestPlantProperties(unittest.TestCase):
             ('mac', 'pur'): EDGE_5
         }, msg='Wrong edges copy returned')
         # test immutability
-        p.add_storage(name='sto_2', commodity='out', parents='mac')
+        p.add_storage(name='sto_2', commodity='out', parents='mac', capacity=10)
         self.assertIn('sto_2', p.nodes(), msg='New node not added to the copy')
         self.assertIn(('mac', 'sto_2'), p.edges(), msg='New edge not added to the copy')
         self.assertNotIn('sto_2', PLANT_2.nodes(), msg='New node must not be added to the original plant')

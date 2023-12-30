@@ -12,7 +12,7 @@ from ppsim.datatypes import Node, Machine, Supplier, Edge, Storage, Purchaser, C
 from ppsim.plant import drawing, execution
 from ppsim.plant.action import DefaultRecourseAction, CallableRecourseAction, RecourseAction
 from ppsim.plant.execution import check_plan
-from ppsim.utils.typing import Setpoint, Plan
+from ppsim.utils.typing import Setpoint, Plan, SimpleEdgeID
 
 
 class Plant:
@@ -107,7 +107,7 @@ class Plant:
     def edges(self,
               sources: Union[None, str, Iterable[str]] = None,
               destinations: Union[None, str, Iterable[str]] = None,
-              commodities: Union[None, str, Iterable[str]] = None) -> Dict[Tuple[str, str], Edge]:
+              commodities: Union[None, str, Iterable[str]] = None) -> Dict[SimpleEdgeID, Edge]:
         """Returns the edges in the plant indexed either via nodes, or via nodes and commodity.
 
         :param sources:
@@ -128,7 +128,7 @@ class Plant:
         check_edge = utils.get_filtering_function(user_input=commodities)
         # build data structure containing all the necessary information
         return {
-            (e.source, e.destination): e
+            e.simple_key: e
             for e in self._edges
             if check_sour(e.source) and check_dest(e.destination) and check_edge(e.commodity)
         }
@@ -534,7 +534,7 @@ class Plant:
             drawing.draw_edges(
                 graph=graph,
                 pos=pos,
-                edges={(e.source, e.destination) for e in edge_list['edge']},
+                edges={e.simple_key for e in edge_list['edge']},
                 style=styles[commodity],
                 size=node_size,
                 width=edge_width,
@@ -584,11 +584,11 @@ class Plant:
         datatypes = {**edges, **nodes}
         plan = execution.process_plan(plan=plan, machines=machines, edges=edges, horizon=self._horizon)
         # start the simulation
-        for _, row in plan.iterrows():
+        for row in plan:
             self._step += 1
             # update the simulation objects before the recourse action
             for datatype in datatypes.values():
-                datatype.update(rng=self._rng, flows=row['flows'], states=row['states'])
+                datatype.update(rng=self._rng, flows=row.flows, states=row.states)
             # compute the updated flows and states using the recourse action
             updated_states, updated_flows = check_plan(
                 plan=action.execute(),
@@ -599,3 +599,4 @@ class Plant:
             for datatype in datatypes.values():
                 datatype.step(flows=updated_flows, states=updated_states)
         return execution.build_output(nodes=nodes.values(), edges=edges.values(), horizon=self._horizon)
+

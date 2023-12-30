@@ -14,17 +14,23 @@ Setpoint = Dict[str, Iterable[float] | Dict[str, Iterable[float]]]
 """Datatype for machine setpoint specification, i.e., a dictionary of type:
  {'setpoint': setpoint, 'input': {commodity: input_flows}, 'output': {commodity: output_flows}"""
 
-EdgeID = Tuple[str, str]
-"""Datatype for edge identifier, i.e., a tuple (source, destination)."""
+EdgeID = Tuple[str, str, str]
+"""Datatype for edge identifier, i.e., a tuple (source, destination, commodity)."""
+
+SimpleEdgeID = Tuple[str, str]
+"""Simpler datatype for edge identifier, i.e., a tuple (source, destination)."""
 
 Flow = float
 """Datatype for a single edge flow specification."""
 
-Flows = Dict[Tuple[str, str, str], Flow]
+Flows = Dict[EdgeID, Flow]
 """Datatype for edge flows specification in a single time step, i.e., <(source, destination, commodity): flow>."""
 
-Plan = Dict[Union[NodeID, EdgeID], Union[State, Flow, Iterable[State], Iterable[Flow]]]
-"""Datatype for plan specification, i.e., a dictionary <machine | edge: state/states | flow/flows>."""
+StepPlan = Dict[Union[NodeID, SimpleEdgeID], Union[State, Flow]]
+"""Datatype for the specification of the plan of a single step, i.e., a dictionary <machine | edge: state | flow>."""
+
+Plan = Dict[Union[NodeID, SimpleEdgeID], Union[State, Flow, Iterable[State], Iterable[Flow]]]
+"""Datatype for specification of the total plan, i.e., a dictionary <machine | edge: state/states | flow/flows>."""
 
 
 # noinspection PyUnresolvedReferences

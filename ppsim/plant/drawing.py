@@ -7,7 +7,7 @@ from matplotlib.lines import Line2D
 
 from ppsim import utils
 from ppsim.utils import NamedTuple
-from ppsim.utils.typing import EdgeID
+from ppsim.utils.typing import SimpleEdgeID
 
 
 @dataclass(frozen=True, unsafe_hash=True, slots=True, kw_only=True)
@@ -231,7 +231,7 @@ def draw_nodes(graph: nx.DiGraph,
 
 def draw_edges(graph: nx.DiGraph,
                pos: dict,
-               edges: Iterable[EdgeID],
+               edges: Iterable[SimpleEdgeID],
                style: StyleInfo,
                size: float,
                width: float,

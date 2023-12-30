@@ -1,10 +1,11 @@
-from typing import Iterable, Union, Sized, Dict, Tuple
+from dataclasses import field, dataclass
+from typing import Iterable, Union, Sized, Dict, List
 
 import pandas as pd
 
 from ppsim import utils
 from ppsim.datatypes import Edge, Node, Machine, Storage, Customer, Purchaser, Supplier
-from ppsim.utils.typing import EdgeID, NodeID, Plan
+from ppsim.utils.typing import EdgeID, NodeID, Plan, StepPlan, SimpleEdgeID, NamedTuple, State, Flow
 
 
 class SimulationOutput:
@@ -34,6 +35,11 @@ class SimulationOutput:
         """The true selling prices indexed by supplier name."""
 
 
+@dataclass(frozen=True, unsafe_hash=True, slots=True, kw_only=True)
+class StepPlanInfo(NamedTuple):
+    states: Dict[NodeID, State] = field(kw_only=True, default_factory=dict)
+    flows: Dict[EdgeID, Flow] = field(kw_only=True, default_factory=dict)
+
 def check_plant(plant):
     """Checks that the plant is valid, i.e., that each commodity flows correctly and has a start and end point.
     If the plant is not valid, raises an exception.
@@ -52,8 +58,8 @@ def check_plant(plant):
 
 def process_plan(plan: Union[Plan, pd.DataFrame],
                  machines: Dict[NodeID, Machine],
-                 edges: Dict[EdgeID, Edge],
-                 horizon: pd.Index) -> pd.DataFrame:
+                 edges: Dict[SimpleEdgeID, Edge],
+                 horizon: pd.Index) -> List[StepPlanInfo]:
     """Checks that the given plan is correctly specified and converts it to a standard format.
 
     :param plan:
@@ -69,7 +75,7 @@ def process_plan(plan: Union[Plan, pd.DataFrame],
         The time horizon of the simulation.
 
     :return:
-        The energetic plan in standard format.
+        The energetic plan as a list of step plans.
     """
     # convert dictionary to dataframe if needed, and check consistency of flow vectors
     if isinstance(plan, dict):
@@ -82,14 +88,21 @@ def process_plan(plan: Union[Plan, pd.DataFrame],
     # distinguish between states and flows while checking that all the datatypes (columns) are in the given sets
     # and return a concatenated version of the states and flows dataframes with a higher level column index
     states, flows = check_plan(plan=plan, machines=machines, edges=edges)
-    s, f = pd.DataFrame(states, index=horizon), pd.DataFrame(flows, index=horizon)
-    # this is needed to avoid multi-column index
-    f.columns = [k for k in flows.keys()]
-    return pd.concat((s, f), keys=['states', 'flows'], axis=1)
+    output = [StepPlanInfo() for _ in range(len(plan))]
+    for machine, values in states.items():
+        for i, value in enumerate(values):
+            output[i].states[machine] = value
+    for edge, values in flows.items():
+        for i, value in enumerate(values):
+            output[i].flows[edge] = value
+    return output
 
 
-def check_plan(plan: Union[Plan, pd.DataFrame], machines: Dict[NodeID, Machine], edges: Dict[EdgeID, Edge]) -> \
-        Tuple[Dict[NodeID, Union[float, Iterable[float]]], Dict[Tuple[str, str, str], Union[float, Iterable[float]]]]:
+def check_plan(
+        plan: Union[StepPlan, pd.Series, Plan, pd.DataFrame],
+        machines: Dict[NodeID, Machine],
+        edges: Dict[SimpleEdgeID, Edge]
+) -> StepPlanInfo:
     """Checks that the given plan is correctly specified and returns the dictionaries of states and flows.
 
     :param plan:
@@ -102,24 +115,23 @@ def check_plan(plan: Union[Plan, pd.DataFrame], machines: Dict[NodeID, Machine],
         The dictionary of all the edges in the plant for which a vector of flows must be provided.
 
     :return:
-        A tuple (states, flows), where state is a dictionary <node: state/states> and flows is a dictionary
-        <(source, destination, commodity): flow/flows>.
+        A StepPlanInfo object containing the states and the flows of this time step.
     """
     machines, edges = machines.copy(), edges.copy()
-    states, flows = {}, {}
+    output = StepPlanInfo()
     for key, value in plan.items():
         if key in machines:
             machines.pop(key)
-            states[key] = value
+            output.states[key] = value
         elif key in edges:
             edge = edges.pop(key)
-            flows[key[0], key[1], edge.commodity] = value
+            output.flows[edge.key] = value
         else:
             raise AssertionError(f"Key {utils.stringify(key)} is not present in the plant")
     # check that the remaining sets are empty, i.e., there is no missing states/flows in the dataframe
     assert len(machines) == 0, f"No states vector has been passed for machines {list(machines.keys())}"
     assert len(edges) == 0, f"No flows vector has been passed for edges {list(edges.keys())}"
-    return states, flows
+    return output
 
 
 def build_output(nodes: Iterable[Node], edges: Iterable[Edge], horizon: pd.Index) -> SimulationOutput:
@@ -139,7 +151,7 @@ def build_output(nodes: Iterable[Node], edges: Iterable[Edge], horizon: pd.Index
     """
     output = SimulationOutput(horizon=horizon)
     for edge in edges:
-        output.flows[edge.key] = edge.flows
+        output.flows[edge.simple_key] = edge.flows
     for node in nodes:
         if isinstance(node, Machine):
             output.states[node.name] = node.states

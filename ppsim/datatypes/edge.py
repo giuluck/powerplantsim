@@ -9,7 +9,7 @@ from descriptors import classproperty
 
 from ppsim.datatypes.datatype import DataType
 from ppsim.datatypes.node import Node
-from ppsim.utils.typing import EdgeID, Flow, Flows, States
+from ppsim.utils.typing import EdgeID, Flow, Flows, States, SimpleEdgeID
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True)
@@ -55,7 +55,11 @@ class Edge(DataType):
 
     @property
     def key(self) -> EdgeID:
-        return self._source.name, self._destination.name
+        return self.source, self.destination, self.commodity
+
+    @property
+    def simple_key(self) -> SimpleEdgeID:
+        return self.source, self.destination
 
     @property
     def name(self) -> str:
@@ -95,10 +99,10 @@ class Edge(DataType):
         return edge
 
     def update(self, rng: np.random.Generator, flows: Flows, states: States):
-        self._info['current_flow'] = flows[(self.source, self.destination, self.commodity)]
+        self._info['current_flow'] = flows[self.key]
 
     def step(self, flows: Flows, states: States):
-        flow = flows[(self.source, self.destination, self.commodity)]
+        flow = flows[self.key]
         assert flow >= self.min_flow, f"Flow for edge {self.key} should be >= {self.min_flow}, got {flow}"
         assert flow <= self.max_flow, f"Flow for edge {self.key} should be <= {self.max_flow}, got {flow}"
         self._flows.append(flow)

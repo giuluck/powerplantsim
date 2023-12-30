@@ -162,7 +162,7 @@ class DefaultRecourseAction(RecourseAction):
         plan = {}
         for edge in self._plant.edges().values():
             cmp = model.component(edge.name)
-            plan[edge.key] = self._get_value(cmp.flow)
+            plan[edge.simple_key] = self._get_value(cmp.flow)
         for machine in self._plant.machines.values():
             cmp = model.component(machine.name)
             plan[machine.key] = self._get_value(cmp.state) if self._get_value(cmp.switch) == 1 else np.nan

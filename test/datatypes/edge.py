@@ -185,7 +185,9 @@ class TestEdge(TestDataType):
 
     def test_properties(self):
         self.assertIsInstance(EDGE.key, tuple, msg="Wrong edge key type stored")
-        self.assertTupleEqual(EDGE.key, ('m', 's1'), msg="Wrong edge key stored")
+        self.assertTupleEqual(EDGE.key, ('m', 's1', 'out_com_1'), msg="Wrong edge key stored")
+        self.assertIsInstance(EDGE.simple_key, tuple, msg="Wrong edge simple key type stored")
+        self.assertTupleEqual(EDGE.simple_key, ('m', 's1'), msg="Wrong edge simple key stored")
 
     def test_immutability(self):
         EDGE.flows[0] = 5.0
@@ -220,7 +222,7 @@ class TestEdge(TestDataType):
             e.step(flows=flows, states={})
         self.assertEqual(
             str(x.exception),
-            RECEIVED_MIN_FLOW_EXCEPTION(('m', 's1'), 0.0, -1.0),
+            RECEIVED_MIN_FLOW_EXCEPTION(('m', 's1', 'out_com_1'), 0.0, -1.0),
             msg='Wrong exception message returned for under bound received flow on edge'
         )
         # test max flow exception
@@ -231,7 +233,7 @@ class TestEdge(TestDataType):
             e.step(flows=flows, states={})
         self.assertEqual(
             str(x.exception),
-            RECEIVED_MAX_FLOW_EXCEPTION(('m', 's1'), 100.0, 101.0),
+            RECEIVED_MAX_FLOW_EXCEPTION(('m', 's1', 'out_com_1'), 100.0, 101.0),
             msg='Wrong exception message returned for over bound received flow on edge'
         )
 
