@@ -13,7 +13,7 @@ PLANT.add_machine(name='mac', parents='sup', setpoint={
     'input': {'in': [1.]},
     'output': {'out': [1.]}
 })
-PLANT.add_storage(name='sto', parents='mac', commodity='out')
+PLANT.add_storage(name='sto', parents='mac', commodity='out', capacity=100)
 PLANT.add_extremity(kind='customer', name='cli', parents=['mac', 'sto'], commodity='out', predictions=1.)
 
 NAME_CONFLICT_EXCEPTION = lambda k, n: f"There is already a {k} node '{n}', please use another identifier"
@@ -320,7 +320,7 @@ class TestPlantBuilding(unittest.TestCase):
         # test node name conflicts
         for kind, name in {(k, n) for k, node in p.nodes(indexed=True).items() for n in node.keys()}:
             with self.assertRaises(AssertionError, msg="Name conflict for new storage should raise exception") as e:
-                p.add_storage(name=name, commodity='in', parents='mac')
+                p.add_storage(name=name, commodity='in', parents='mac', capacity=100)
             self.assertEqual(
                 str(e.exception),
                 NAME_CONFLICT_EXCEPTION(kind, name),
@@ -328,23 +328,23 @@ class TestPlantBuilding(unittest.TestCase):
             )
         # test parents
         with self.assertRaises(AssertionError, msg="Unknown parent for storage should raise exception") as e:
-            p.add_storage(name='parent_unk', commodity='out', parents='unk')
+            p.add_storage(name='parent_unk', commodity='out', parents='unk', capacity=100)
         self.assertEqual(
             str(e.exception),
             PARENT_UNKNOWN_EXCEPTION('unk'),
             msg='Wrong exception message returned for unknown parent'
         )
         with self.assertRaises(AssertionError, msg="Empty parent list for storage should raise exception") as e:
-            p.add_storage(name='parent_emp', commodity='out', parents=[])
+            p.add_storage(name='parent_emp', commodity='out', parents=[], capacity=100)
         self.assertEqual(
             str(e.exception),
             EMPTY_PARENTS_EXCEPTION('Storage'),
             msg='Wrong exception message returned for empty parent list'
         )
-        p.add_storage(name='single', commodity='out', parents='mac')
+        p.add_storage(name='single', commodity='out', parents='mac', capacity=100)
         edges = {e.source: e.commodity for e in p.edges(destinations='single').values()}
         self.assertDictEqual(edges, {'mac': 'out'}, msg='Wrong edges stored for storage with single parent')
-        p.add_storage(name='multiple', commodity='out', parents=['mac', 'sto'])
+        p.add_storage(name='multiple', commodity='out', parents=['mac', 'sto'], capacity=100)
         edges = {e.source: e.commodity for e in p.edges(destinations='multiple').values()}
         self.assertDictEqual(edges, {'mac': 'out', 'sto': 'out'}, msg='Wrong edges stored for client with many parents')
         # test storage properties and edge

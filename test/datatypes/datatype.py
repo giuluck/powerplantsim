@@ -1,19 +1,10 @@
 import unittest
 from abc import abstractmethod
-from typing import Optional
 
 import numpy as np
 import pandas as pd
 
-from ppsim import Plant
-
-
-# test plant with step = 0 to simulate first time step
-class TestPlant(Plant):
-    @property
-    def step(self) -> Optional[int]:
-        return 0
-
+from test.utils import TestPlant
 
 PLANT = TestPlant(horizon=3)
 
@@ -35,8 +26,6 @@ SETPOINT = pd.DataFrame(
     },
     index=[1.0, 0.5, 0.75]
 )
-
-SOLVER = 'gurobi'
 
 
 class TestDataType(unittest.TestCase):

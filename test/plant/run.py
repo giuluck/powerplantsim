@@ -13,7 +13,7 @@ PLANT = Plant(horizon=3)
 PLANT.add_extremity(kind='supplier', name='sup', commodity='in', predictions=[1., 2., 3.])
 PLANT.add_machine(name='mac_1', parents='sup', setpoint=SETPOINT)
 PLANT.add_machine(name='mac_2', parents='sup', setpoint=SETPOINT)
-PLANT.add_storage(name='sto', parents='mac_1', commodity='out')
+PLANT.add_storage(name='sto', parents='mac_1', commodity='out', capacity=100)
 PLANT.add_extremity(kind='customer', name='cus', parents=['sto', 'mac_1'], commodity='out', predictions=[1., 2., 3.])
 PLANT.add_extremity(kind='purchaser', name='pur', parents=['sto', 'mac_2'], commodity='out', predictions=[1., 2., 3.])
 
@@ -41,6 +41,7 @@ IMPLEMENTATION = {
     ('sto', 'pur'): [0., 0., 0.]
 }
 
+INVALID_PLANT_EXCEPTION = lambda k, e, c, n: f"{k} commodity {c} has no valid {e} edge in node {n}"
 SECOND_RUN_EXCEPTION = lambda: "Simulation for this plant was already run, create a new instance to run another one"
 INPUT_VECTOR_EXCEPTION = lambda k, l: f"Vector for key '{k}' has length {l}, expected 3"
 UNKNOWN_DATATYPE_EXCEPTION = lambda k: f"Key {k} is not present in the plant"
@@ -98,6 +99,28 @@ class TestPlantRun(unittest.TestCase):
             {0: True, 1: True, 2: True},
             msg=f"Wrong output states returned"
         )
+
+    def test_invalid_plant(self):
+        p = Plant(horizon=1)
+        p.add_extremity(kind='supplier', name='sup', commodity='in', predictions=1.)
+        with self.assertRaises(AssertionError, msg="Running an invalid plant should raise an exception") as e:
+            p.run(plan={}, action=DummyAction())
+        self.assertEqual(
+            str(e.exception),
+            INVALID_PLANT_EXCEPTION('Output', 'outgoing', 'in', 'sup'),
+            msg='Wrong exception message returned for running an invalid plant'
+        )
+        p.add_machine(name='mac', setpoint=SETPOINT, parents='sup')
+        with self.assertRaises(AssertionError, msg="Running an invalid plant should raise an exception") as e:
+            p.run(plan={'mac': np.nan, ('sup', 'mac'): 0.0}, action=DummyAction())
+        self.assertEqual(
+            str(e.exception),
+            INVALID_PLANT_EXCEPTION('Output', 'outgoing', 'out', 'mac'),
+            msg='Wrong exception message returned for running an invalid plant'
+        )
+        p.add_extremity(kind='customer', name='cus', commodity='out', parents='mac', predictions=1.)
+        plan = {'mac': np.nan, ('sup', 'mac'): 0.0, ('mac', 'cus'): 0.0}
+        p.run(plan=plan, action=lambda _: plan)
 
     def test_already_run(self):
         p = PLANT.copy()

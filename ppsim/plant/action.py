@@ -62,12 +62,16 @@ class DefaultRecourseAction(RecourseAction):
 
     def __init__(self,
                  solver: str,
+                 decimals: int = 9,
                  cost_weight: Optional[float] = 1.0,
                  storage_weight: Union[None, float, Dict[str, float]] = 1.0,
                  machine_weight: Union[None, MachineWeight, Dict[str, MachineWeight]] = (1.0, 1.0, 0.0)):
         """
         :param solver:
             The underlying MIP solver to use in Pyomo.
+
+        :param decimals:
+            The decimals used for final rounding operations to account for numerical errors in the solving process.
 
         :param cost_weight:
             The objective coefficient for the total cost of the produced plan.
@@ -86,6 +90,7 @@ class DefaultRecourseAction(RecourseAction):
         super(DefaultRecourseAction, self).__init__()
 
         self._solver: str = solver
+        self._decimals: int = decimals
         self._cost_weight: Optional[float] = cost_weight
         self._storage_weight: Union[None, float, Dict[str, float]] = storage_weight
         self._machine_weight: Union[None, float, Dict[str, DefaultRecourseAction.MachineWeight]] = machine_weight
@@ -157,8 +162,11 @@ class DefaultRecourseAction(RecourseAction):
         plan = {}
         for edge in self._plant.edges().values():
             cmp = model.component(edge.name)
-            plan[edge.key] = pyo.value(cmp.flow)
+            plan[edge.key] = self._get_value(cmp.flow)
         for machine in self._plant.machines.values():
             cmp = model.component(machine.name)
-            plan[machine.key] = pyo.value(cmp.state) if np.isclose(pyo.value(cmp.switch), 1) else np.nan
+            plan[machine.key] = self._get_value(cmp.state) if self._get_value(cmp.switch) == 1 else np.nan
         return plan
+
+    def _get_value(self, variable) -> float:
+        return np.round(pyo.value(variable), decimals=self._decimals)

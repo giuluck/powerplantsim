@@ -139,15 +139,27 @@ class Machine(Node):
         node.switch = pyo.Var(domain=pyo.Binary, bounds=(0, 1 if self.starts(t=t - 1) < n else 0), initialize=0)
         # compute the cost of operating the machine (in case it is on)
         node.cost = self.cost * node.switch
-        # handle setpoint for discrete and continuous machines
-        if self.discrete_setpoint:
+        # handle setpoint for discrete and continuous machines + trivial case with a unique setpoint
+        kwargs = dict() if mutable else dict(initialize=lb if np.isnan(current_state) else current_state)
+        if len(self._setpoint) <= 1:
+            # the state is 0 if the machine is off, otherwise it is the unique state, same for the flows
+            node.state = pyo.Var(domain=pyo.NonNegativeReals, bounds=(0, ub), **kwargs)
+            node.state_cst = pyo.Constraint(rule=node.state == node.switch * self._setpoint.index[0])
+            node.input_flows_cst = pyo.Constraint(
+                node.in_flows.index_set(),
+                rule=lambda _, com: node.in_flows[com] == node.switch * self._setpoint.input[com].iloc[0]
+            )
+            node.output_flows_cst = pyo.Constraint(
+                node.out_flows.index_set(),
+                rule=lambda _, com: node.out_flows[com] == node.switch * self._setpoint.output[com].iloc[0]
+            )
+        elif self.discrete_setpoint:
             # build a one-hot encoded selector that has a single entry if the machine is on (i.e., node.switch == 1)
             # or no entry if the machine is off (i.e., node.switch == 0)
             node.selector = pyo.Var(range(len(self._setpoint)), domain=pyo.Binary, initialize=0)
             node.selector_cst = pyo.Constraint(rule=sum(node.selector.values()) == node.switch)
             # build a variable for the actual setpoint so that it is equal to the value indexed by the selector
             #  - use a variable instead of a plain equation in order to access it via the ".value" property
-            kwargs = dict() if mutable else dict(initialize=lb if np.isnan(current_state) else current_state)
             node.state = pyo.Var(domain=pyo.NonNegativeReals, bounds=(0, ub), **kwargs)
             node.state_cst = pyo.Constraint(rule=node.state == sum(node.selector * self._setpoint.index))
             # impose constraints on input/output flows so that they match the correct setpoint indexed by the selector
@@ -162,7 +174,6 @@ class Machine(Node):
         else:
             # build a state variable that is bounded within the min and max setpoint
             breakpoints = self._setpoint.index.values
-            kwargs = dict() if mutable else dict(initialize=lb if np.isnan(current_state) else current_state)
             node.state = pyo.Var(domain=pyo.NonNegativeReals, bounds=(lb, ub), **kwargs)
             # for each tuple of (input/output, commodity) flows:
             #  - build a flow variable which is bounded within the min and max flow

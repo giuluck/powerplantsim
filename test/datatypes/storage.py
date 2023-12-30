@@ -1,7 +1,8 @@
 import pyomo.environ as pyo
 
 from ppsim.datatypes import Storage
-from test.datatypes.datatype import TestDataType, PLANT, SOLVER
+from test.datatypes.datatype import TestDataType, PLANT
+from test.utils import SOLVER
 
 STORAGE = Storage(
     name='s',
@@ -14,6 +15,7 @@ STORAGE = Storage(
 )
 
 CAPACITY_EXCEPTION = lambda v: f"Capacity should be strictly positive, got {v}"
+INFINITE_CAPACITY_EXCEPTION = lambda: f"Capacity should be a finite number, got inf"
 DISSIPATION_EXCEPTION = lambda v: f"Dissipation should be in range [0, 1], got {v}"
 INPUT_OUTPUT_EXCEPTION = lambda n: f"Storage node '{n}' can have either input or output flows " \
                                    f"in a single time step, got both"
@@ -114,6 +116,21 @@ class TestStorage(TestDataType):
         self.assertEqual(
             str(e.exception),
             CAPACITY_EXCEPTION(-10.0),
+            msg='Wrong exception message returned for negative capacity on storage'
+        )
+        with self.assertRaises(AssertionError, msg="Infinite capacity should raise exception") as e:
+            Storage(
+                name='s',
+                commodity='s_com',
+                capacity=float('inf'),
+                dissipation=0.0,
+                charge_rate=10.0,
+                discharge_rate=12.0,
+                _plant=PLANT
+            )
+        self.assertEqual(
+            str(e.exception),
+            INFINITE_CAPACITY_EXCEPTION(),
             msg='Wrong exception message returned for negative capacity on storage'
         )
 

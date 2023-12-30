@@ -396,10 +396,10 @@ class Plant:
     def add_storage(self,
                     name: str,
                     commodity: str,
+                    capacity: float,
                     parents: Union[str, List[str]],
-                    capacity: float = float('inf'),
                     dissipation: float = 0.0,
-                    rates: Union[float, Tuple[float, float]] = float('inf'),
+                    rates: Union[None, float, Tuple[float, float]] = None,
                     min_flow: float = 0.0,
                     max_flow: float = float('inf')) -> Storage:
         """Adds a storage node to the topology.
@@ -410,18 +410,19 @@ class Plant:
         :param commodity:
             The commodity stored by the storage node.
 
+        :param capacity:
+            The storage capacity, which must be a strictly positive and finite number.
+
         :param parents:
             The identifier of the parent nodes that are connected with the input of this storage node.
-
-        :param capacity:
-            The storage capacity, which must be a strictly positive number.
 
         :param dissipation:
             The dissipation rate of the storage at every time unit, which must be a float in [0, 1].
 
         :param rates:
             Either a tuple (charge_rate, discharge_rate) containing the maximal charge rate (input flow) and discharge
-            rate (output flow) in a time unit, or a single float value in case charge_rate == discharge_rate.
+            rate (output flow) in a time unit, or a single float value in case charge_rate == discharge_rate. If None
+            is passed, the charge and discharge rates are set to capacity.
 
         :param min_flow:
             The minimal flow of commodity that can pass in the edge.
@@ -432,7 +433,13 @@ class Plant:
         :return:
             The added storage node.
         """
-        charge_rate, discharge_rate = rates if isinstance(rates, tuple) else (rates, rates)
+        # handle rates
+        if rates is None:
+            charge_rate, discharge_rate = capacity, capacity
+        elif isinstance(rates, tuple):
+            charge_rate, discharge_rate = rates, rates
+        else:
+            charge_rate, discharge_rate = rates
         # create an internal machine node and add it to the internal data structure and the graph
         storage = Storage(
             _plant=self,
@@ -563,6 +570,7 @@ class Plant:
             A SimulationOutput object containing all the information about true prices, demands, setpoints, and storage.
         """
         assert self._step == -1, "Simulation for this plant was already run, create a new instance to run another one"
+        execution.check_plant(plant=self)
         # handle recourse action (if None use default action, if Callable build a custom recourse action)
         if isinstance(action, str):
             action = DefaultRecourseAction(solver=action)

@@ -2,22 +2,23 @@ import unittest
 
 import numpy as np
 import pandas as pd
+import pyomo.environ as pyo
 
-from ppsim import Plant
 from ppsim.datatypes import Supplier, Machine, Storage, Edge, Customer, Purchaser
 from test.datatypes.datatype import VARIANCE_1
+from test.utils import TestPlant, SOLVER
 
-PLANT_1 = Plant(horizon=24)
+PLANT_1 = TestPlant(horizon=24)
 PLANT_1.add_extremity(kind='supplier', name='sup', commodity='in', predictions=1.)
 
-PLANT_2 = Plant(horizon=24)
+PLANT_2 = TestPlant(horizon=24)
 PLANT_2.add_extremity(kind='supplier', name='sup', commodity='in', predictions=1.)
 PLANT_2.add_machine(name='mac', parents='sup', setpoint={
     'setpoint': [1.],
     'input': {'in': [1.]},
     'output': {'out': [1.]}
 })
-PLANT_2.add_storage(name='sto', parents=['mac'], commodity='out')
+PLANT_2.add_storage(name='sto', parents=['mac'], commodity='out', capacity=100)
 PLANT_2.add_extremity(kind='customer', name='cus', parents=['mac', 'sto'], commodity='out', predictions=1.)
 PLANT_2.add_extremity(kind='purchaser', name='pur', parents='mac', commodity='out', predictions=1.)
 
@@ -46,7 +47,7 @@ MACHINE = Machine(
 STORAGE = Storage(
     name='sto',
     commodity='out',
-    capacity=float('inf'),
+    capacity=100,
     dissipation=0.0,
     charge_rate=float('inf'),
     discharge_rate=float('inf'),
@@ -119,19 +120,19 @@ class TestPlantProperties(unittest.TestCase):
         # build five different plants with different input types and check that the horizon is like the reference
         tests = [24, horizon, np.array(horizon), pd.Series(horizon), pd.Index(horizon)]
         for hrz in tests:
-            p = Plant(horizon=hrz)
+            p = TestPlant(horizon=hrz)
             self.assertIsInstance(p.horizon, pd.Index, msg=f"Horizon should be of type pd.index, got {type(p.horizon)}")
             self.assertListEqual(list(p.horizon), horizon, msg=f"Horizon should be [0, ..., 23], got {list(p.horizon)}")
         # test sanity check for negative integer
         with self.assertRaises(AssertionError, msg="Null time horizon should raise exception") as e:
-            Plant(horizon=0)
+            TestPlant(horizon=0)
         self.assertEqual(
             str(e.exception),
             NEGATIVE_HORIZON_EXCEPTION(0),
             msg='Wrong exception message returned for null time horizon'
         )
         with self.assertRaises(AssertionError, msg="Null time horizon should raise exception") as e:
-            Plant(horizon=-1)
+            TestPlant(horizon=-1)
         self.assertEqual(
             str(e.exception),
             NEGATIVE_HORIZON_EXCEPTION(-1),
@@ -280,3 +281,43 @@ class TestPlantProperties(unittest.TestCase):
         self.assertIn(('mac', 'sto_2'), p.edges(), msg='New edge not added to the copy')
         self.assertNotIn('sto_2', PLANT_2.nodes(), msg='New node must not be added to the original plant')
         self.assertNotIn(('mac', 'sto_2'), PLANT_2.edges(), msg='New edge must not be added to the original plant')
+
+    def test_pyomo(self):
+        p = PLANT_2.copy()
+        p._step += 1
+        rng = np.random.default_rng(0)
+        flows = {(source, destination, edge.commodity): 0.0 for (source, destination), edge in p.edges().items()}
+        states = {mac: np.nan for mac in p.machines.keys()}
+        for node in p.nodes().values():
+            node.update(rng=rng, flows=flows, states=states)
+        for edge in p.edges().values():
+            edge.update(rng=rng, flows=flows, states=states)
+        model = p.to_pyomo(mutable=False)
+        results = pyo.SolverFactory(SOLVER).solve(model)
+        self.assertEqual(
+            results.solver.termination_condition,
+            'optimal',
+            msg=f"Plant should be always feasible when demands can be satisfied"
+        )
+        edges = PLANT_2.edges()
+        for name, node in PLANT_2.nodes().items():
+            component = model.component(name)
+            in_flows = {commodity: 0.0 for commodity in node.commodities_in}
+            out_flows = {commodity: 0.0 for commodity in node.commodities_out}
+            for (source, destination), edge in edges.items():
+                if source == name:
+                    out_flows[edge.commodity] += model.component(edge.name).flow.value
+                if destination == name:
+                    in_flows[edge.commodity] += model.component(edge.name).flow.value
+            for commodity, flow in in_flows.items():
+                self.assertAlmostEqual(
+                    component.in_flows[commodity].value,
+                    flow,
+                    msg=f"Mismatch between input flow of commodity {commodity} and flows sums for node {name}"
+                )
+            for commodity, flow in out_flows.items():
+                self.assertAlmostEqual(
+                    component.out_flows[commodity].value,
+                    flow,
+                    msg=f"Mismatch between out flow of commodity {commodity} and flows sums for node {name}"
+                )

@@ -19,7 +19,7 @@ class Storage(Node):
     """The commodity stored by the machine."""
 
     capacity: float = field(kw_only=True)
-    """The storage capacity, which must be a strictly positive number."""
+    """The storage capacity, which must be a strictly positive and finite number."""
 
     dissipation: float = field(kw_only=True)
     """The dissipation rate of the storage at every time unit, which must be a float in [0, 1]."""
@@ -35,9 +35,10 @@ class Storage(Node):
 
     def __post_init__(self):
         self._info['current_storage'] = None
+        assert self.capacity != float('inf'), "Capacity should be a finite number, got inf"
+        assert self.capacity > 0.0, f"Capacity should be strictly positive, got {self.capacity}"
         assert self.charge_rate > 0.0, f"Charge rate should be strictly positive, got {self.charge_rate}"
         assert self.discharge_rate > 0.0, f"Discharge rate should be strictly positive, got {self.discharge_rate}"
-        assert self.capacity > 0.0, f"Capacity should be strictly positive, got {self.capacity}"
         assert 0.0 <= self.dissipation <= 1.0, f"Dissipation should be in range [0, 1], got {self.dissipation}"
 
     @classproperty
@@ -90,10 +91,14 @@ class Storage(Node):
         # impose constraints on either input or output flows
         #  - create a binary variable where 0 means that there is an output flow, 1 means that there is an input flow
         #  - impose big-M constraints on input and output flows using the change/discharge rates as M
+        #  - charge/discharge rates are lower bounded by remaining storage (capacity - current storage) and current
+        #    storage (or total capacity if not available) to account for the fact that they can have infinite values
         #  - this definition automatically allow to impose the charge/discharge rate upper bounds
+        charge_rate = min(self.capacity - (0 if mutable else self.current_storage), self.charge_rate)
+        discharge_rate = min(self.capacity if mutable else self.current_storage, self.discharge_rate)
         node.flow_selector = pyo.Var(domain=pyo.Binary, initialize=0)
-        node.input_flow_cst = pyo.Constraint(rule=in_flow <= node.flow_selector * self.charge_rate)
-        node.output_flow_cst = pyo.Constraint(rule=out_flow <= (1 - node.flow_selector) * self.discharge_rate)
+        node.input_flow_cst = pyo.Constraint(rule=in_flow <= node.flow_selector * charge_rate)
+        node.output_flow_cst = pyo.Constraint(rule=out_flow <= (1 - node.flow_selector) * discharge_rate)
         return node
 
     def update(self, rng: np.random.Generator, flows: Flows, states: States):

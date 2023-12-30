@@ -34,6 +34,22 @@ class SimulationOutput:
         """The true selling prices indexed by supplier name."""
 
 
+def check_plant(plant):
+    """Checks that the plant is valid, i.e., that each commodity flows correctly and has a start and end point.
+    If the plant is not valid, raises an exception.
+
+    :param plant:
+        The plant to check.
+    """
+    for name, node in plant.nodes().items():
+        for commodity in node.commodities_in:
+            edges = plant.edges(destinations=name, commodities=commodity)
+            assert len(edges) > 0, f"Input commodity {commodity} has no valid ingoing edge in node {name}"
+        for commodity in node.commodities_out:
+            edges = plant.edges(sources=name, commodities=commodity)
+            assert len(edges) > 0, f"Output commodity {commodity} has no valid outgoing edge in node {name}"
+
+
 def process_plan(plan: Union[Plan, pd.DataFrame],
                  machines: Dict[NodeID, Machine],
                  edges: Dict[EdgeID, Edge],

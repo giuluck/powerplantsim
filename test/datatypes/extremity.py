@@ -2,7 +2,8 @@ import numpy as np
 import pyomo.environ as pyo
 
 from ppsim.datatypes import Customer, Purchaser, Supplier
-from test.datatypes.datatype import TestDataType, SERIES_1, SERIES_2, VARIANCE_1, VARIANCE_2, PLANT, SOLVER
+from test.datatypes.datatype import TestDataType, SERIES_1, SERIES_2, VARIANCE_1, VARIANCE_2, PLANT
+from test.utils import SOLVER
 
 CUSTOMER = Customer(
     name='c',

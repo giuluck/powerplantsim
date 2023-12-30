@@ -2,7 +2,8 @@ import numpy as np
 import pyomo.environ as pyo
 
 from ppsim.datatypes import Machine
-from test.datatypes.datatype import TestDataType, SETPOINT, PLANT, SOLVER
+from test.datatypes.datatype import TestDataType, SETPOINT, PLANT
+from test.utils import SOLVER
 
 DISCRETE_MACHINE = Machine(
     name='m',
