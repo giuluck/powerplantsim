@@ -4,32 +4,29 @@ from typing import Any, Dict, Tuple, List, Iterable, Union
 NodeID = str
 """Datatype for node identifier, i.e, its name."""
 
+SingleEdgeID = Tuple[str, str]
+"""Datatype for single-edge identifier, i.e., a tuple (source, destination)."""
+
+MultiEdgeID = Tuple[str, str, str]
+"""Datatype for multi-edge identifier, i.e., a tuple (source, destination, commodity)."""
+
+EdgeID = SingleEdgeID
+"""Alias for plant edges identifier, since plant do not support multi-graphs yet."""
+
 State = float
 """Datatype for a single machine state specification (np.nan for machine off)."""
 
-States = Dict[NodeID, State]
-"""Datatype for machine states specification in a single time step, i.e., a dictionary <machine: state>."""
+Flow = float
+"""Datatype for a single edge flow specification."""
 
 Setpoint = Dict[str, Iterable[float] | Dict[str, Iterable[float]]]
 """Datatype for machine setpoint specification, i.e., a dictionary of type:
  {'setpoint': setpoint, 'input': {commodity: input_flows}, 'output': {commodity: output_flows}"""
 
-EdgeID = Tuple[str, str, str]
-"""Datatype for edge identifier, i.e., a tuple (source, destination, commodity)."""
-
-SimpleEdgeID = Tuple[str, str]
-"""Simpler datatype for edge identifier, i.e., a tuple (source, destination)."""
-
-Flow = float
-"""Datatype for a single edge flow specification."""
-
-Flows = Dict[EdgeID, Flow]
-"""Datatype for edge flows specification in a single time step, i.e., <(source, destination, commodity): flow>."""
-
-StepPlan = Dict[Union[NodeID, SimpleEdgeID], Union[State, Flow]]
+StepPlan = Dict[Union[NodeID, EdgeID], Union[State, Flow]]
 """Datatype for the specification of the plan of a single step, i.e., a dictionary <machine | edge: state | flow>."""
 
-Plan = Dict[Union[NodeID, SimpleEdgeID], Union[State, Flow, Iterable[State], Iterable[Flow]]]
+Plan = Dict[Union[NodeID, EdgeID], Union[State, Flow, Iterable[State], Iterable[Flow]]]
 """Datatype for specification of the total plan, i.e., a dictionary <machine | edge: state/states | flow/flows>."""
 
 

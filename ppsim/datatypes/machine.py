@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Set, Optional, Tuple, List
+from typing import Set, Optional, Tuple, List, Dict, Any
 
 import numpy as np
 import pandas as pd
@@ -10,7 +10,7 @@ from pyomo.core import Piecewise
 
 from ppsim import utils
 from ppsim.datatypes.node import Node
-from ppsim.utils.typing import State, Flows, States
+from ppsim.utils.typing import State, Flow
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True)
@@ -212,19 +212,19 @@ class Machine(Node):
                     node.add_component(f'{key}_{commodity}_flow_cst_off', flow_cst_off)
         return node
 
-    def update(self, rng: np.random.Generator, flows: Flows, states: States):
-        self._info['current_state'] = states[self.key]
+    def update(self, rng: np.random.Generator, flows: Dict[Any, Flow], states: Dict[Any, State]):
+        self._info['current_state'] = states[self]
 
-    def step(self, flows: Flows, states: States):
-        state = states[self.key]
+    def step(self, flows: Dict[Any, Flow], states: Dict[Any, State]):
+        state = states[self]
         # compute total input and output flows from respective edges
         machine_flows = {('input', commodity): 0.0 for commodity in self.commodities_in}
         machine_flows.update({('output', commodity): 0.0 for commodity in self.commodities_out})
-        for (source, destination, commodity), flow in flows.items():
-            if source == self.name:
-                machine_flows[('output', commodity)] += flow
-            if destination == self.name:
-                machine_flows[('input', commodity)] += flow
+        for edge, flow in flows.items():
+            if edge.source == self.name:
+                machine_flows[('output', edge.commodity)] += flow
+            if edge.destination == self.name:
+                machine_flows[('input', edge.commodity)] += flow
         # if the state is nan, check that the input/output flows are null
         if np.isnan(state):
             for (key, commodity), flow in machine_flows.items():

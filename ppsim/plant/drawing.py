@@ -7,13 +7,18 @@ from matplotlib.lines import Line2D
 
 from ppsim import utils
 from ppsim.utils import NamedTuple
-from ppsim.utils.typing import SimpleEdgeID
+from ppsim.utils.typing import SingleEdgeID
 
 
 @dataclass(frozen=True, unsafe_hash=True, slots=True, kw_only=True)
 class StyleInfo(NamedTuple):
+    """Datatype for nodes/edges style information."""
+
     color: str = field(kw_only=True)
+    """The color of the node/edge."""
+
     shape: str = field(kw_only=True)
+    """The shape of the node/edge."""
 
 
 NODE_STYLES: Dict[str, StyleInfo] = {
@@ -231,7 +236,7 @@ def draw_nodes(graph: nx.DiGraph,
 
 def draw_edges(graph: nx.DiGraph,
                pos: dict,
-               edges: Iterable[SimpleEdgeID],
+               edges: Iterable[SingleEdgeID],
                style: StyleInfo,
                size: float,
                width: float,

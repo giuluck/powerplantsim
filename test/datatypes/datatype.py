@@ -1,9 +1,11 @@
 import unittest
 from abc import abstractmethod
+from typing import Union
 
 import numpy as np
 import pandas as pd
 
+from ppsim.datatypes import MultiEdge, Storage, Node
 from test.utils import TestPlant
 
 PLANT = TestPlant(horizon=3)
@@ -26,6 +28,29 @@ SETPOINT = pd.DataFrame(
     },
     index=[1.0, 0.5, 0.75]
 )
+
+
+def dummy_node(commodity: str, name: str = 'dummy'):
+    return Storage(
+        name=name,
+        commodity=commodity,
+        dissipation=0.0,
+        capacity=100,
+        charge_rate=100,
+        discharge_rate=100,
+        _plant=None
+    )
+
+
+def dummy_edge(commodity: str, source: Union[str, Node] = 'dummy', destination: Union[str, Node] = 'dummy'):
+    return MultiEdge(
+        _source=dummy_node(commodity=commodity, name=source) if isinstance(source, str) else source,
+        _destination=dummy_node(commodity=commodity, name=destination) if isinstance(destination, str) else destination,
+        commodity=commodity,
+        min_flow=0,
+        max_flow=100,
+        _plant=None
+    )
 
 
 class TestDataType(unittest.TestCase):

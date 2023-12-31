@@ -1,7 +1,7 @@
 from abc import ABC
 from dataclasses import dataclass
 from dataclasses import field
-from typing import Callable
+from typing import Callable, Dict, Any
 from typing import Set, List, Optional
 
 import numpy as np
@@ -11,7 +11,7 @@ import pyomo.environ as pyo
 from descriptors import classproperty
 
 from ppsim.datatypes.node import Node
-from ppsim.utils.typing import Flows, States
+from ppsim.utils.typing import Flow, State
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True)
@@ -50,11 +50,11 @@ class ExtremityNode(Node, ABC):
         """The current value of the node for this time step as computed using the variance model."""
         return self._info['current_value']
 
-    def update(self, rng: np.random.Generator, flows: Flows, states: States):
+    def update(self, rng: np.random.Generator, flows: Dict[Any, Flow], states: Dict[Any, State]):
         # compute the new value as the sum of the prediction and the variance obtained from the variance model
         self._info['current_value'] = self._predictions[self._step] + self._variance_fn(rng, self.values)
 
-    def step(self, flows: Flows, states: States):
+    def step(self, flows: Dict[Any, Flow], states: Dict[Any, State]):
         self._values.append(self._info['current_value'])
         self._info['current_value'] = None
 
@@ -133,10 +133,10 @@ class Customer(Client):
         node.satisfy_demand = pyo.Constraint(rule=node.current_demand == node.in_flows[self.commodity])
         return node
 
-    def step(self, flows: Flows, states: States):
+    def step(self, flows: Dict[Any, Flow], states: Dict[Any, State]):
         # check that the flow does not exceed the demand
         demand = self._info['current_value']
-        flow = np.sum([flow for (_, destination, _), flow in flows.items() if destination == self.name])
+        flow = np.sum([flow for edge, flow in flows.items() if edge.destination == self.name])
         assert flow <= demand, f"Customer node '{self.name}' can accept at most {demand} units, got {flow}"
         super(Customer, self).step(flows=flows, states=states)
 

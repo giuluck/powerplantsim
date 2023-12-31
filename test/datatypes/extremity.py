@@ -2,7 +2,7 @@ import numpy as np
 import pyomo.environ as pyo
 
 from ppsim.datatypes import Customer, Purchaser, Supplier
-from test.datatypes.datatype import TestDataType, SERIES_1, SERIES_2, VARIANCE_1, VARIANCE_2, PLANT
+from test.datatypes.datatype import TestDataType, SERIES_1, SERIES_2, VARIANCE_1, VARIANCE_2, PLANT, dummy_edge
 from test.utils import SOLVER
 
 CUSTOMER = Customer(
@@ -127,7 +127,10 @@ class TestExtremityNodes(TestDataType):
         rng = np.random.default_rng(0)
         c.update(rng=rng, flows={}, states={})
         with self.assertRaises(AssertionError, msg="Exceeding demand should raise exception") as e:
-            c.step(states={}, flows={('input_1', 'c', 'c_com'): 1.0, ('input_2', 'c', 'c_com'): 3.0})
+            c.step(states={}, flows={
+                dummy_edge(source='input_1', destination=c, commodity='c_com'): 1.0,
+                dummy_edge(source='input_2', destination=c, commodity='c_com'): 3.0
+            })
         self.assertEqual(
             str(e.exception),
             EXCEEDING_DEMAND_EXCEPTION('c', val, 4.0),

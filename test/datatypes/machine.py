@@ -2,7 +2,7 @@ import numpy as np
 import pyomo.environ as pyo
 
 from ppsim.datatypes import Machine
-from test.datatypes.datatype import TestDataType, SETPOINT, PLANT
+from test.datatypes.datatype import TestDataType, SETPOINT, PLANT, dummy_edge
 from test.utils import SOLVER
 
 DISCRETE_MACHINE = Machine(
@@ -223,41 +223,41 @@ class TestMachine(TestDataType):
         m = DISCRETE_MACHINE.copy()
         self.assertDictEqual(m.states.to_dict(), {}, msg=f"Machine states should be empty before the simulation")
         self.assertIsNone(m.current_state, msg=f"Machine current state should be None outside of the simulation")
-        m.update(rng=None, flows={}, states={'m': 0.5})
+        m.update(rng=None, flows={}, states={m: 0.5})
         self.assertDictEqual(m.states.to_dict(), {}, msg=f"Machine states should be empty before step")
         self.assertAlmostEqual(
             m.current_state,
             0.5,
             msg=f"Machine current state should be stored after update"
         )
-        m.step(states={'m': 1.0}, flows={
-            ('input', 'm', 'in_com'): 100.0,
-            ('m', 'output', 'out_com_1'): 1.0,
-            ('m', 'output', 'out_com_2'): 60.0
+        m.step(states={m: 1.0}, flows={
+            dummy_edge(destination=m, commodity='in_com'): 100.0,
+            dummy_edge(source=m, commodity='out_com_1'): 1.0,
+            dummy_edge(source=m, commodity='out_com_2'): 60.0
         })
         self.assertDictEqual(m.states.to_dict(), {0: 1.0}, msg=f"Machine states should be filled after step")
         self.assertIsNone(m.current_state, msg=f"Machine current state should be None outside of the simulation")
         # test null state
         m = DISCRETE_MACHINE.copy()
-        m.step(states={'m': np.nan}, flows={
-            ('input', 'm', 'in_com'): 0.0,
-            ('m', 'output', 'out_com_1'): 0.0,
-            ('m', 'output', 'out_com_2'): 0.0
+        m.step(states={m: np.nan}, flows={
+            dummy_edge(destination=m, commodity='in_com'): 0.0,
+            dummy_edge(source=m, commodity='out_com_1'): 0.0,
+            dummy_edge(source=m, commodity='out_com_2'): 0.0
         })
         self.assertDictEqual(m.states.isna().to_dict(), {0: True}, msg=f"Wrong machine states stored after null state")
         m = CONTINUOUS_MACHINE.copy()
-        m.step(states={'m': np.nan}, flows={
-            ('input', 'm', 'in_com'): 0.0,
-            ('m', 'output', 'out_com_1'): 0.0,
-            ('m', 'output', 'out_com_2'): 0.0
+        m.step(states={m: np.nan}, flows={
+            dummy_edge(destination=m, commodity='in_com'): 0.0,
+            dummy_edge(source=m, commodity='out_com_1'): 0.0,
+            dummy_edge(source=m, commodity='out_com_2'): 0.0
         })
         self.assertDictEqual(m.states.isna().to_dict(), {0: True}, msg=f"Wrong machine states stored after null state")
         m = DISCRETE_MACHINE.copy()
         with self.assertRaises(AssertionError, msg="Non-zero flows after null state should raise exception") as e:
-            m.step(states={'m': np.nan}, flows={
-                ('input', 'm', 'in_com'): 10.0,
-                ('m', 'output', 'out_com_1'): 0.0,
-                ('m', 'output', 'out_com_2'): 0.0
+            m.step(states={m: np.nan}, flows={
+                dummy_edge(destination=m, commodity='in_com'): 10.0,
+                dummy_edge(source=m, commodity='out_com_1'): 0.0,
+                dummy_edge(source=m, commodity='out_com_2'): 0.0
             })
         self.assertEqual(
             str(e.exception),
@@ -266,10 +266,10 @@ class TestMachine(TestDataType):
         )
         m = CONTINUOUS_MACHINE.copy()
         with self.assertRaises(AssertionError, msg="Non-zero flows after null state should raise exception") as e:
-            m.step(states={'m': np.nan}, flows={
-                ('input', 'm', 'in_com'): 0.0,
-                ('m', 'output', 'out_com_1'): 10.0,
-                ('m', 'output', 'out_com_2'): 0.0
+            m.step(states={m: np.nan}, flows={
+                dummy_edge(destination=m, commodity='in_com'): 0.0,
+                dummy_edge(source=m, commodity='out_com_1'): 10.0,
+                dummy_edge(source=m, commodity='out_com_2'): 0.0
             })
         self.assertEqual(
             str(e.exception),
@@ -279,42 +279,42 @@ class TestMachine(TestDataType):
         # test discrete setpoint
         # noinspection DuplicatedCode
         m = DISCRETE_MACHINE.copy()
-        m.step(states={'m': 0.5}, flows={
-            ('input', 'm', 'in_com'): 50.0,
-            ('m', 'output', 'out_com_1'): 0.0,
-            ('m', 'output', 'out_com_2'): 10.0
+        m.step(states={m: 0.5}, flows={
+            dummy_edge(destination=m, commodity='in_com'): 50.0,
+            dummy_edge(source=m, commodity='out_com_1'): 0.0,
+            dummy_edge(source=m, commodity='out_com_2'): 10.0
         })
         self.assertDictEqual(m.states.to_dict(), {0: 0.5}, msg=f"Wrong machine states stored with discrete setpoint")
         m = DISCRETE_MACHINE.copy()
-        m.step(states={'m': 0.75}, flows={
-            ('input', 'm', 'in_com'): 75.0,
-            ('m', 'output', 'out_com_1'): 0.5,
-            ('m', 'output', 'out_com_2'): 30.0
+        m.step(states={m: 0.75}, flows={
+            dummy_edge(destination=m, commodity='in_com'): 75.0,
+            dummy_edge(source=m, commodity='out_com_1'): 0.5,
+            dummy_edge(source=m, commodity='out_com_2'): 30.0
         })
         self.assertDictEqual(m.states.to_dict(), {0: 0.75}, msg=f"Wrong machine states stored with discrete setpoint")
         m = DISCRETE_MACHINE.copy()
-        m.step(states={'m': 1.0}, flows={
-            ('input', 'm', 'in_com'): 100.0,
-            ('m', 'output', 'out_com_1'): 1.0,
-            ('m', 'output', 'out_com_2'): 60.0
+        m.step(states={m: 1.0}, flows={
+            dummy_edge(destination=m, commodity='in_com'): 100.0,
+            dummy_edge(source=m, commodity='out_com_1'): 1.0,
+            dummy_edge(source=m, commodity='out_com_2'): 60.0
         })
         self.assertDictEqual(m.states.to_dict(), {0: 1.0}, msg=f"Wrong machine states stored with discrete setpoint")
         with self.assertRaises(AssertionError, msg="Unexpected discrete setpoint should raise exception") as e:
-            m.step(states={'m': 0.7}, flows={})
+            m.step(states={m: 0.7}, flows={})
         self.assertEqual(
             str(e.exception),
             UNSUPPORTED_STATE_EXCEPTION(0.7, 'm'),
             msg='Wrong exception message returned for discrete setpoint operation on machine'
         )
         with self.assertRaises(AssertionError, msg="Unexpected discrete setpoint should raise exception") as e:
-            m.step(states={'m': 0.2}, flows={})
+            m.step(states={m: 0.2}, flows={})
         self.assertEqual(
             str(e.exception),
             UNSUPPORTED_STATE_EXCEPTION(0.2, 'm'),
             msg='Wrong exception message returned for discrete setpoint operation on machine'
         )
         with self.assertRaises(AssertionError, msg="Unexpected discrete setpoint should raise exception") as e:
-            m.step(states={'m': 1.3}, flows={})
+            m.step(states={m: 1.3}, flows={})
         self.assertEqual(
             str(e.exception),
             UNSUPPORTED_STATE_EXCEPTION(1.3, 'm'),
@@ -323,42 +323,42 @@ class TestMachine(TestDataType):
         # test continuous setpoint
         # noinspection DuplicatedCode
         m = CONTINUOUS_MACHINE.copy()
-        m.step(states={'m': 0.5}, flows={
-            ('input', 'm', 'in_com'): 50.0,
-            ('m', 'output', 'out_com_1'): 0.0,
-            ('m', 'output', 'out_com_2'): 10.0
+        m.step(states={m: 0.5}, flows={
+            dummy_edge(destination=m, commodity='in_com'): 50.0,
+            dummy_edge(source=m, commodity='out_com_1'): 0.0,
+            dummy_edge(source=m, commodity='out_com_2'): 10.0
         })
         self.assertDictEqual(m.states.to_dict(), {0: 0.5}, msg=f"Wrong machine states stored with continuous setpoint")
         m = CONTINUOUS_MACHINE.copy()
-        m.step(states={'m': 0.75}, flows={
-            ('input', 'm', 'in_com'): 75.0,
-            ('m', 'output', 'out_com_1'): 0.5,
-            ('m', 'output', 'out_com_2'): 30.0
+        m.step(states={m: 0.75}, flows={
+            dummy_edge(destination=m, commodity='in_com'): 75.0,
+            dummy_edge(source=m, commodity='out_com_1'): 0.5,
+            dummy_edge(source=m, commodity='out_com_2'): 30.0
         })
         self.assertDictEqual(m.states.to_dict(), {0: 0.75}, msg=f"Wrong machine states stored with continuous setpoint")
         m = CONTINUOUS_MACHINE.copy()
-        m.step(states={'m': 1.0}, flows={
-            ('input', 'm', 'in_com'): 100.0,
-            ('m', 'output', 'out_com_1'): 1.0,
-            ('m', 'output', 'out_com_2'): 60.0
+        m.step(states={m: 1.0}, flows={
+            dummy_edge(destination=m, commodity='in_com'): 100.0,
+            dummy_edge(source=m, commodity='out_com_1'): 1.0,
+            dummy_edge(source=m, commodity='out_com_2'): 60.0
         })
         self.assertDictEqual(m.states.to_dict(), {0: 1.0}, msg=f"Wrong machine states stored with continuous setpoint")
         m = CONTINUOUS_MACHINE.copy()
-        m.step(states={'m': 0.7}, flows={
-            ('input', 'm', 'in_com'): 70.0,
-            ('m', 'output', 'out_com_1'): 0.4,
-            ('m', 'output', 'out_com_2'): 26.0
+        m.step(states={m: 0.7}, flows={
+            dummy_edge(destination=m, commodity='in_com'): 70.0,
+            dummy_edge(source=m, commodity='out_com_1'): 0.4,
+            dummy_edge(source=m, commodity='out_com_2'): 26.0
         })
         self.assertDictEqual(m.states.to_dict(), {0: 0.7}, msg=f"Wrong machine states stored with continuous setpoint")
         with self.assertRaises(AssertionError, msg="Unexpected continuous setpoint should raise exception") as e:
-            m.step(states={'m': 0.2}, flows={})
+            m.step(states={m: 0.2}, flows={})
         self.assertEqual(
             str(e.exception),
             UNSUPPORTED_STATE_EXCEPTION(0.2, 'm'),
             msg='Wrong exception message returned for continuous setpoint operation on machine'
         )
         with self.assertRaises(AssertionError, msg="Unexpected continuous setpoint should raise exception") as e:
-            m.step(states={'m': 1.3}, flows={})
+            m.step(states={m: 1.3}, flows={})
         self.assertEqual(
             str(e.exception),
             UNSUPPORTED_STATE_EXCEPTION(1.3, 'm'),
@@ -366,17 +366,17 @@ class TestMachine(TestDataType):
         )
         # test max starting
         m = CONTINUOUS_MACHINE.copy()
-        m.step(states={'m': 1.0}, flows={
-            ('input', 'm', 'in_com'): 100.0,
-            ('m', 'output', 'out_com_1'): 1.0,
-            ('m', 'output', 'out_com_2'): 60.0
+        m.step(states={m: 1.0}, flows={
+            dummy_edge(destination=m, commodity='in_com'): 100.0,
+            dummy_edge(source=m, commodity='out_com_1'): 1.0,
+            dummy_edge(source=m, commodity='out_com_2'): 60.0
         })
-        m.step(states={'m': np.nan}, flows={})
+        m.step(states={m: np.nan}, flows={})
         with self.assertRaises(AssertionError, msg="Too many starting should raise exception") as e:
-            m.step(states={'m': 0.5}, flows={
-                ('input', 'm', 'in_com'): 50.0,
-                ('m', 'output', 'out_com_1'): 0.0,
-                ('m', 'output', 'out_com_2'): 10.0
+            m.step(states={m: 0.5}, flows={
+                dummy_edge(destination=m, commodity='in_com'): 50.0,
+                dummy_edge(source=m, commodity='out_com_1'): 0.0,
+                dummy_edge(source=m, commodity='out_com_2'): 10.0
             })
         self.assertEqual(
             str(e.exception),
@@ -395,7 +395,7 @@ class TestMachine(TestDataType):
         for (kind, feasible), (machine, values) in tests.items():
             # test model
             m = machine.copy()
-            m.update(rng=None, flows={}, states={'m': 0.75})
+            m.update(rng=None, flows={}, states={m: 0.75})
             model = m.to_pyomo(mutable=False)
             # in/out flows
             self.assertSetEqual(set(model.in_flows.keys()), {'in_com'}, msg=f"Wrong in_flows for {kind} machine block")
@@ -440,7 +440,7 @@ class TestMachine(TestDataType):
             # test state constraint
             for value in values:
                 m = machine.copy()
-                m.update(rng=None, flows={}, states={'m': 0.75})
+                m.update(rng=None, flows={}, states={m: 0.75})
                 model = m.to_pyomo(mutable=False)
                 if value is None:
                     switch, state = 0, None
@@ -492,13 +492,13 @@ class TestMachine(TestDataType):
                     )
         # test max starting
         m = CONTINUOUS_MACHINE.copy()
-        m.step(states={'m': 1.0}, flows={
-            ('input', 'm', 'in_com'): 100.0,
-            ('m', 'output', 'out_com_1'): 1.0,
-            ('m', 'output', 'out_com_2'): 60.0
+        m.step(states={m: 1.0}, flows={
+            dummy_edge(destination=m, commodity='in_com'): 100.0,
+            dummy_edge(source=m, commodity='out_com_1'): 1.0,
+            dummy_edge(source=m, commodity='out_com_2'): 60.0
         })
-        m.step(states={'m': np.nan}, flows={})
-        m.update(rng=None, flows={}, states={'m': 0.75})
+        m.step(states={m: np.nan}, flows={})
+        m.update(rng=None, flows={}, states={m: 0.75})
         model = m.to_pyomo(mutable=False)
         model.state_value = pyo.Constraint(rule=model.switch == 1)
         results = pyo.SolverFactory(SOLVER).solve(model)

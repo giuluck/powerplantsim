@@ -6,13 +6,15 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import pyomo.environ as pyo
+from tqdm import tqdm
 
 from ppsim import utils
-from ppsim.datatypes import Node, Machine, Supplier, Edge, Storage, Purchaser, Customer, ExtremityNode
+from ppsim.datatypes import Node, Machine, Supplier, SingleEdge, Storage, Purchaser, Customer, ExtremityNode, Edge
 from ppsim.plant import drawing, execution
 from ppsim.plant.action import DefaultRecourseAction, CallableRecourseAction, RecourseAction
+from ppsim.plant.callback import Callback
 from ppsim.plant.execution import check_plan
-from ppsim.utils.typing import Setpoint, Plan, SimpleEdgeID
+from ppsim.utils.typing import Setpoint, Plan, EdgeID
 
 
 class Plant:
@@ -38,7 +40,7 @@ class Plant:
         self._horizon: pd.Index = horizon
         self._commodities: Set[str] = set()
         self._nodes: Dict[str, Set[Node]] = dict()
-        self._edges: Set[Edge] = set()
+        self._edges: Set[SingleEdge] = set()
         self._step: int = -1
 
     @property
@@ -107,7 +109,7 @@ class Plant:
     def edges(self,
               sources: Union[None, str, Iterable[str]] = None,
               destinations: Union[None, str, Iterable[str]] = None,
-              commodities: Union[None, str, Iterable[str]] = None) -> Dict[SimpleEdgeID, Edge]:
+              commodities: Union[None, str, Iterable[str]] = None) -> Dict[EdgeID, Edge]:
         """Returns the edges in the plant indexed either via nodes, or via nodes and commodity.
 
         :param sources:
@@ -128,7 +130,7 @@ class Plant:
         check_edge = utils.get_filtering_function(user_input=commodities)
         # build data structure containing all the necessary information
         return {
-            e.simple_key: e
+            e.key: e
             for e in self._edges
             if check_sour(e.source) and check_dest(e.destination) and check_edge(e.commodity)
         }
@@ -229,7 +231,7 @@ class Plant:
             parent = self.nodes().get(name)
             assert parent is not None, f"Parent node '{name}' has not been added yet"
             # create an edge instance using the parent as source and the new node as destination
-            edge = Edge(
+            edge = SingleEdge(
                 _plant=self,
                 _source=parent,
                 _destination=node,
@@ -534,7 +536,7 @@ class Plant:
             drawing.draw_edges(
                 graph=graph,
                 pos=pos,
-                edges={e.simple_key for e in edge_list['edge']},
+                edges={e.key for e in edge_list['edge']},
                 style=styles[commodity],
                 size=node_size,
                 width=edge_width,
@@ -549,7 +551,9 @@ class Plant:
 
     def run(self,
             plan: Union[Plan, pd.DataFrame],
-            action: Union[str, RecourseAction, Callable[[Any], Plan]]) -> execution.SimulationOutput:
+            action: Union[str, RecourseAction, Callable[[Any], Plan]],
+            callbacks: Optional[Iterable[Callback]] = None,
+            progress: bool = True) -> execution.SimulationOutput:
         """Runs a simulation up to the time horizon using the given plan.
 
         :param plan:
@@ -566,11 +570,18 @@ class Plant:
             If a function f(plant) -> plan, this is wrapped into a CallableRecourseAction object.
             If a string is passed, this is interpreted as the solver to use in the default greedy recourse action.
 
+        :param callbacks:
+            A list of Callbacks instances that are called throughout the simulation.
+
+        :param progress:
+            Whether to show a tqdm progressbar throughout the simulation.
+
         :return:
             A SimulationOutput object containing all the information about true prices, demands, setpoints, and storage.
         """
         assert self._step == -1, "Simulation for this plant was already run, create a new instance to run another one"
         execution.check_plant(plant=self)
+        callbacks = [] if callbacks is None else callbacks
         # handle recourse action (if None use default action, if Callable build a custom recourse action)
         if isinstance(action, str):
             action = DefaultRecourseAction(solver=action)
@@ -582,21 +593,36 @@ class Plant:
         edges = self.edges()
         machines = self.machines
         datatypes = {**edges, **nodes}
-        plan = execution.process_plan(plan=plan, machines=machines, edges=edges, horizon=self._horizon)
+        plan, states, flows = execution.process_plan(plan=plan, machines=machines, edges=edges, horizon=self._horizon)
+        # run callbacks before simulation start
+        for callback in callbacks:
+            callback.on_simulation_start(plant=self, states=states, flows=flows)
         # start the simulation
-        for row in plan:
+        for row in tqdm(plan, desc='Simulation Status') if progress else plan:
             self._step += 1
             # update the simulation objects before the recourse action
             for datatype in datatypes.values():
-                datatype.update(rng=self._rng, flows=row.flows, states=row.states)
+                datatype.update(rng=self._rng, states=row.states, flows=row.flows)
+            # run callbacks on iteration start
+            for callback in callbacks:
+                callback.on_iteration_update(plant=self)
             # compute the updated flows and states using the recourse action
             updated_states, updated_flows = check_plan(
                 plan=action.execute(),
                 machines=machines,
                 edges=edges
             )
+            # run callbacks on iteration update
+            for callback in callbacks:
+                callback.on_iteration_recourse(plant=self, states=updated_states, flows=updated_flows)
             # update the simulation objects after the recourse action
             for datatype in datatypes.values():
                 datatype.step(flows=updated_flows, states=updated_states)
-        return execution.build_output(nodes=nodes.values(), edges=edges.values(), horizon=self._horizon)
-
+            # run callbacks on iteration end
+            for callback in callbacks:
+                callback.on_iteration_step(plant=self)
+        output = execution.build_output(nodes=nodes.values(), edges=edges.values(), horizon=self._horizon)
+        # run callbacks on simulation end
+        for callback in callbacks:
+            callback.on_simulation_end(plant=self)
+        return output

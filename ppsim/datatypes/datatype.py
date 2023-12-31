@@ -10,7 +10,7 @@ import pyomo.environ as pyo
 from descriptors import classproperty
 
 from ppsim import utils
-from ppsim.utils.typing import Flows, States
+from ppsim.utils.typing import Flow, State
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True)
@@ -104,29 +104,29 @@ class DataType(ABC):
         pass
 
     @abstractmethod
-    def update(self, rng: np.random.Generator, flows: Flows, states: States):
+    def update(self, rng: np.random.Generator, flows: Dict[Any, Flow], states: Dict[Any, State]):
         """Updates the current internal values of the datatype before the recourse action is called.
 
         :param rng:
             The random number generator to be used for reproducible results.
 
         :param flows:
-            The user-defined edge flows for the current step.
+            The user-defined edge flows for the current step, indexed by Edge object.
 
         :param states:
-            The user-defined machine states for the current step.
+            The user-defined machine states for the current step, indexed by Machine object.
         """
         pass
 
     @abstractmethod
-    def step(self, flows: Flows, states: States):
+    def step(self, flows: Dict[Any, Flow], states: Dict[Any, State]):
         """Performs a step forward in the simulation by computing internal values after the recourse action is called.
 
         :param flows:
-            The edge flows computed by the recourse action for the current step.
+            The edge flows computed by the recourse action for the current step, indexed by Edge object.
 
         :param states:
-            The machine states computed by the recourse action for the current step.
+            The machine states computed by the recourse action for the current step, indexed by Machine object.
         """
         pass
 

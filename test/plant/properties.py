@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pyomo.environ as pyo
 
-from ppsim.datatypes import Supplier, Machine, Storage, Edge, Customer, Purchaser
+from ppsim.datatypes import Supplier, Machine, Storage, SingleEdge, Customer, Purchaser
 from test.datatypes.datatype import VARIANCE_1
 from test.utils import TestPlant, SOLVER
 
@@ -68,7 +68,7 @@ PURCHASER = Purchaser(
     _plant=PLANT_1
 )
 
-EDGE_1 = Edge(
+EDGE_1 = SingleEdge(
     _source=SUPPLIER,
     _destination=MACHINE,
     commodity='in',
@@ -76,7 +76,7 @@ EDGE_1 = Edge(
     max_flow=float('inf'),
     _plant=PLANT_1
 )
-EDGE_2 = Edge(
+EDGE_2 = SingleEdge(
     _source=MACHINE,
     _destination=STORAGE,
     commodity='out',
@@ -84,7 +84,7 @@ EDGE_2 = Edge(
     max_flow=float('inf'),
     _plant=PLANT_1
 )
-EDGE_3 = Edge(
+EDGE_3 = SingleEdge(
     _source=MACHINE,
     _destination=CUSTOMER,
     commodity='out',
@@ -92,7 +92,7 @@ EDGE_3 = Edge(
     max_flow=float('inf'),
     _plant=PLANT_1
 )
-EDGE_4 = Edge(
+EDGE_4 = SingleEdge(
     _source=STORAGE,
     _destination=CUSTOMER,
     commodity='out',
@@ -100,7 +100,7 @@ EDGE_4 = Edge(
     max_flow=float('inf'),
     _plant=PLANT_1
 )
-EDGE_5 = Edge(
+EDGE_5 = SingleEdge(
     _source=MACHINE,
     _destination=PURCHASER,
     commodity='out',
@@ -286,8 +286,8 @@ class TestPlantProperties(unittest.TestCase):
         p = PLANT_2.copy()
         p._step += 1
         rng = np.random.default_rng(0)
-        flows = {(source, destination, edge.commodity): 0.0 for (source, destination), edge in p.edges().items()}
-        states = {mac: np.nan for mac in p.machines.keys()}
+        flows = {edge: 0.0 for edge in p.edges().values()}
+        states = {machine: np.nan for machine in p.machines.values()}
         for node in p.nodes().values():
             node.update(rng=rng, flows=flows, states=states)
         for edge in p.edges().values():

@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Set, List, Optional
+from typing import Set, List, Optional, Dict, Any
 
 import numpy as np
 import pandas as pd
@@ -8,7 +8,7 @@ import pyomo.environ as pyo
 from descriptors import classproperty
 
 from ppsim.datatypes.node import Node
-from ppsim.utils.typing import Flows, States
+from ppsim.utils.typing import Flow, State
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True)
@@ -101,15 +101,15 @@ class Storage(Node):
         node.output_flow_cst = pyo.Constraint(rule=out_flow <= (1 - node.flow_selector) * discharge_rate)
         return node
 
-    def update(self, rng: np.random.Generator, flows: Flows, states: States):
+    def update(self, rng: np.random.Generator, flows: Dict[Any, Flow], states: Dict[Any, State]):
         self._info['current_storage'] = 0.0 if len(self._storage) == 0 else (1 - self.dissipation) * self._storage[-1]
 
-    def step(self, flows: Flows, states: States):
+    def step(self, flows: Dict[Any, Flow], states: Dict[Any, State]):
         # compute total input and output flows from respective edges
         in_flow, out_flow = 0.0, 0.0
-        for (source, destination, _), flow in flows.items():
-            in_flow += flow if destination == self.name else 0.0
-            out_flow += flow if source == self.name else 0.0
+        for edge, flow in flows.items():
+            in_flow += flow if edge.destination == self.name else 0.0
+            out_flow += flow if edge.source == self.name else 0.0
         # check that at least one of the two is null as from the constraints
         assert in_flow == 0.0 or out_flow == 0.0, \
             f"Storage node '{self.name}' can have either input or output flows in a single time step, got both"

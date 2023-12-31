@@ -1,7 +1,7 @@
 import pyomo.environ as pyo
 
 from ppsim.datatypes import Storage
-from test.datatypes.datatype import TestDataType, PLANT
+from test.datatypes.datatype import TestDataType, PLANT, dummy_edge
 from test.utils import SOLVER
 
 STORAGE = Storage(
@@ -195,7 +195,10 @@ class TestStorage(TestDataType):
             0.0,
             msg=f"Storage current storage should be stored after update"
         )
-        s.step(flows={('input_1', 's', 's_com'): 1.0, ('input_2', 's', 's_com'): 2.0}, states={})
+        s.step(states={}, flows={
+            dummy_edge(source='input_1', destination='s', commodity='s_com'): 1.0,
+            dummy_edge(source='input_2', destination='s', commodity='s_com'): 2.0
+        })
         self.assertDictEqual(s.storage.to_dict(), {0: 3.0}, msg=f"Storage storage should be filled after step")
         self.assertIsNone(s.current_storage, msg=f"Storage current storage should be None outside of the simulation")
         # test next step
@@ -207,7 +210,10 @@ class TestStorage(TestDataType):
         )
         # test input/output exception
         with self.assertRaises(AssertionError, msg="Input and output flows in storage should raise exception") as e:
-            s.step(flows={('input', 's', 's_com'): 1.0, ('s', 'output', 's_com'): 2.0}, states={})
+            s.step(states={}, flows={
+                dummy_edge(destination='s', commodity='s_com'): 1.0,
+                dummy_edge(source='s', commodity='s_com'): 2.0
+            })
         self.assertEqual(
             str(e.exception),
             INPUT_OUTPUT_EXCEPTION('s'),
@@ -215,7 +221,10 @@ class TestStorage(TestDataType):
         )
         # test charge rate exception
         with self.assertRaises(AssertionError, msg="Exceeding charge rate should raise exception") as e:
-            s.step(flows={('input_1', 's', 's_com'): 5.0, ('input_2', 's', 's_com'): 6.0}, states={})
+            s.step(states={}, flows={
+                dummy_edge(source='input_1', destination='s', commodity='s_com'): 5.0,
+                dummy_edge(source='input_2', destination='s', commodity='s_com'): 6.0
+            })
         self.assertEqual(
             str(e.exception),
             CHARGE_RATE_EXCEPTION('s', 10.0, 11.0),
@@ -223,7 +232,10 @@ class TestStorage(TestDataType):
         )
         # test discharge rate exception
         with self.assertRaises(AssertionError, msg="Exceeding discharge rate should raise exception") as e:
-            s.step(flows={('s', 'output_1', 's_com'): 7.0, ('s', 'output_2', 's_com'): 6.0}, states={})
+            s.step(states={}, flows={
+                dummy_edge(source='s', destination='output_1', commodity='s_com'): 7.0,
+                dummy_edge(source='s', destination='output_2', commodity='s_com'): 6.0
+            })
         self.assertEqual(
             str(e.exception),
             DISCHARGE_RATE_EXCEPTION('s', 12.0, 13.0),
@@ -231,7 +243,7 @@ class TestStorage(TestDataType):
         )
         # test negative storage exception
         with self.assertRaises(AssertionError, msg="Negative storage should raise exception") as e:
-            s.step(flows={('s', 'output', 's_com'): 5.0}, states={})
+            s.step(states={}, flows={dummy_edge(source='s', commodity='s_com'): 5.0})
         self.assertEqual(
             str(e.exception),
             NEGATIVE_STORAGE_EXCEPTION('s', -2.3),
@@ -239,7 +251,7 @@ class TestStorage(TestDataType):
         )
         # test exceeded capacity exception
         with self.assertRaises(AssertionError, msg="Exceeded capacity should raise exception") as e:
-            s.step(flows={('input', 's', 's_com'): 3.0}, states={})
+            s.step(states={}, flows={dummy_edge(destination='s', commodity='s_com'): 3.0})
         self.assertEqual(
             str(e.exception),
             EXCEEDED_CAPACITY_EXCEPTION('s', 5.0, 5.7),
@@ -249,7 +261,7 @@ class TestStorage(TestDataType):
     def test_pyomo(self):
         s = STORAGE.copy()
         s.update(rng=None, flows={}, states={})
-        s.step(flows={('_', 's', 's_com'): 2.0}, states={})
+        s.step(flows={dummy_edge(destination=s, commodity='s_com'): 2.0}, states={})
         s.update(rng=None, flows={}, states={})
         # test model
         model = s.to_pyomo(mutable=False)

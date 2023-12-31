@@ -1,5 +1,6 @@
+from abc import ABC
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict, Any
 
 import numpy as np
 import pandas as pd
@@ -9,12 +10,12 @@ from descriptors import classproperty
 
 from ppsim.datatypes.datatype import DataType
 from ppsim.datatypes.node import Node
-from ppsim.utils.typing import EdgeID, Flow, Flows, States, SimpleEdgeID
+from ppsim.utils.typing import SingleEdgeID, Flow, MultiEdgeID, State
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True)
-class Edge(DataType):
-    """An edge in the plant."""
+class Edge(DataType, ABC):
+    """An (abstract) edge in the plant."""
 
     _source: Node = field(kw_only=True)
     """The source node."""
@@ -54,18 +55,6 @@ class Edge(DataType):
         return properties + ['source', 'destination', 'commodity', 'min_flow', 'max_flow', 'bounds', 'current_flow']
 
     @property
-    def key(self) -> EdgeID:
-        return self.source, self.destination, self.commodity
-
-    @property
-    def simple_key(self) -> SimpleEdgeID:
-        return self.source, self.destination
-
-    @property
-    def name(self) -> str:
-        return f"{self.source} --> {self.destination}"
-
-    @property
     def source(self) -> str:
         """The source node."""
         return self._source.name
@@ -98,12 +87,38 @@ class Edge(DataType):
         edge.flow = pyo.Var(domain=pyo.NonNegativeReals, bounds=self.bounds, **kwargs)
         return edge
 
-    def update(self, rng: np.random.Generator, flows: Flows, states: States):
-        self._info['current_flow'] = flows[self.key]
+    def update(self, rng: np.random.Generator, flows: Dict[Any, Flow], states: Dict[Any, State]):
+        self._info['current_flow'] = flows[self]
 
-    def step(self, flows: Flows, states: States):
-        flow = flows[self.key]
+    def step(self, flows: Dict[Any, Flow], states: Dict[Any, State]):
+        flow = flows[self]
         assert flow >= self.min_flow, f"Flow for edge {self.key} should be >= {self.min_flow}, got {flow}"
         assert flow <= self.max_flow, f"Flow for edge {self.key} should be <= {self.max_flow}, got {flow}"
         self._flows.append(flow)
         self._info['current_flow'] = None
+
+
+@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True)
+class SingleEdge(Edge):
+    """An edge in a plant where two nodes can be connected by a unique edge (i.e., a graph)."""
+
+    @property
+    def key(self) -> SingleEdgeID:
+        return self.source, self.destination
+
+    @property
+    def name(self) -> str:
+        return f"{self.source} --> {self.destination}"
+
+
+@dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True)
+class MultiEdge(Edge):
+    """An edge in a plant where two nodes can be connected by a multiple edges (i.e., a multi-graph)."""
+
+    @property
+    def key(self) -> MultiEdgeID:
+        return self.source, self.destination, self.commodity
+
+    @property
+    def name(self) -> str:
+        return f"{self.source} --({self.commodity})--> {self.destination}"

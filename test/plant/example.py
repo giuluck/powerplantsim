@@ -62,7 +62,8 @@ class TestExample(unittest.TestCase):
                 **{machine: np.nan for machine in p.machines.keys()},
                 **{edge: 0.0 for edge in p.edges().keys()},
             },
-            action=DefaultRecourseAction(solver=SOLVER, cost_weight=1.0, storage_weight=None, machine_weight=None)
+            action=DefaultRecourseAction(solver=SOLVER, cost_weight=1.0, storage_weight=None, machine_weight=None),
+            progress=False
         )
         for machine, state in output.states.items():
             if np.isnan(state.iloc[0]):
