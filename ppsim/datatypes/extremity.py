@@ -137,7 +137,7 @@ class Customer(Client):
         # check that the flow does not exceed the demand
         demand = self._info['current_value']
         flow = np.sum([flow for edge, flow in flows.items() if edge.destination == self.name])
-        assert flow <= demand, f"Customer node '{self.name}' can accept at most {demand} units, got {flow}"
+        assert flow <= demand + self.eps, f"Customer node '{self.name}' can accept at most {demand} units, got {flow}"
         super(Customer, self).step(flows=flows, states=states)
 
 

@@ -23,6 +23,11 @@ class DataType(ABC):
     _info: Dict[str, Any] = field(init=False, default_factory=dict)
     """Internal object for additional mutable information."""
 
+    @classproperty
+    def eps(self) -> float:
+        """The tolerance to account for numerical errors."""
+        return 1e-5
+
     @property
     @abstractmethod
     def key(self) -> Any:

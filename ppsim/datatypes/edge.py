@@ -40,8 +40,6 @@ class Edge(DataType, ABC):
         assert self.min_flow >= 0, f"The minimum flow cannot be negative, got {self.min_flow}"
         assert self.max_flow >= self.min_flow, \
             f"The maximum flow cannot be lower than the minimum, got {self.max_flow} < {self.min_flow}"
-        assert len(self._destination.commodities_in) != 0, \
-            f"Destination node '{self._destination.name}' does not accept any input commodity, but it should"
         assert self.commodity in self._source.commodities_out, \
             f"Source node '{self._source.name}' should return commodity '{self.commodity}', " \
             f"but it returns {self._source.commodities_out}"
@@ -92,9 +90,9 @@ class Edge(DataType, ABC):
 
     def step(self, flows: Dict[Any, Flow], states: Dict[Any, State]):
         flow = flows[self]
-        assert flow >= self.min_flow, f"Flow for edge {self.key} should be >= {self.min_flow}, got {flow}"
-        assert flow <= self.max_flow, f"Flow for edge {self.key} should be <= {self.max_flow}, got {flow}"
-        self._flows.append(flow)
+        assert flow >= self.min_flow - self.eps, f"Flow for edge {self.key} should be >= {self.min_flow}, got {flow}"
+        assert flow <= self.max_flow + self.eps, f"Flow for edge {self.key} should be <= {self.max_flow}, got {flow}"
+        self._flows.append(np.clip(flow, a_min=self.min_flow, a_max=self.max_flow))
         self._info['current_flow'] = None
 
 

@@ -228,8 +228,8 @@ class Machine(Node):
         # if the state is nan, check that the input/output flows are null
         if np.isnan(state):
             for (key, commodity), flow in machine_flows.items():
-                assert np.isclose(flow, 0.0), \
-                    f"Got non-zero {key} flow for '{commodity}' despite null setpoint for machine '{self.name}'"
+                assert np.isclose(flow, 0.0, atol=self.eps), \
+                    f"Got non-zero {key} flow {flow} for '{commodity}' despite null setpoint for machine '{self.name}'"
             self._states.append(np.nan)
             return
         # if discrete setpoint
@@ -239,16 +239,17 @@ class Machine(Node):
             assert state in self._setpoint.index, f"Unsupported state {state} for machine '{self.name}'"
             for (key, commodity), flow in machine_flows.items():
                 expected = self._setpoint[(key, commodity)].loc[state]
-                assert np.isclose(expected, flow), \
+                assert np.isclose(expected, flow, rtol=self.eps), \
                     f"Flow {expected} expected for machine '{self.name}' with state {state}, got {flow}"
         # if continuous setpoint:
         #  - check that the given state is within the expected bounds
         else:
             lb, ub = self._setpoint.index[[0, -1]]
-            assert lb <= state <= ub, f"Unsupported state {state} for machine '{self.name}'"
+            assert lb - self.eps <= state <= ub + self.eps, f"Unsupported state {state} for machine '{self.name}'"
+            state = np.clip(state, a_min=lb, a_max=ub)
             for (key, commodity), flow in machine_flows.items():
                 expected = np.interp(state, xp=self._setpoint.index, fp=self._setpoint[(key, commodity)])
-                assert np.isclose(expected, flow), \
+                assert np.isclose(expected, flow, rtol=self.eps), \
                     f"Expected flow {expected} for {key} commodity '{commodity}' in machine '{self.name}', got {flow}"
         # check maximal number of starting by checking that at least one of the following conditions is met:
         #  - the machine is off in this time step

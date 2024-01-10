@@ -60,7 +60,6 @@ MULTI_EDGE = MultiEdge(
 
 MIN_FLOW_EXCEPTION = lambda v: f"The minimum flow cannot be negative, got {v}"
 MAX_FLOW_EXCEPTION = lambda v_min, v_max: f"The maximum flow cannot be lower than the minimum, got {v_max} < {v_min}"
-EMPTY_DESTINATION_EXCEPTION = lambda v: f"Destination node '{v}' does not accept any input commodity, but it should"
 INCONSISTENT_SOURCE_EXCEPTION = lambda n, c, s: f"Source node '{n}' should return commodity '{c}', but it returns {s}"
 INCONSISTENT_DESTINATION_EXCEPTION = \
     lambda n, c, s: f"Destination node '{n}' should accept commodity '{c}', but it accepts {s}"
@@ -126,20 +125,6 @@ class TestEdge(TestDataType):
             msg='Wrong exception message returned for max flow < min flow on edge'
         )
         # check incorrect commodities
-        with self.assertRaises(AssertionError, msg="Empty destination commodity should raise exception") as e:
-            SingleEdge(
-                _source=MACHINE,
-                _destination=SUPPLIER,
-                commodity='out_com_1',
-                min_flow=0.0,
-                max_flow=100.0,
-                _plant=PLANT
-            )
-        self.assertEqual(
-            str(e.exception),
-            EMPTY_DESTINATION_EXCEPTION('s'),
-            msg='Wrong exception message returned for empty destination commodity on edge'
-        )
         with self.assertRaises(AssertionError, msg="Wrong source commodity should raise exception") as e:
             SingleEdge(
                 _source=STORAGE_1,

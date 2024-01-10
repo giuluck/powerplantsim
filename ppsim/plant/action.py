@@ -65,7 +65,8 @@ class DefaultRecourseAction(RecourseAction):
                  decimals: int = 9,
                  cost_weight: Optional[float] = 1.0,
                  storage_weight: Union[None, float, Dict[str, float]] = 1.0,
-                 machine_weight: Union[None, MachineWeight, Dict[str, MachineWeight]] = (1.0, 1.0, 0.0)):
+                 machine_weight: Union[None, MachineWeight, Dict[str, MachineWeight]] = (1.0, 1.0, 0.0),
+                 **solver_options: Any):
         """
         :param solver:
             The underlying MIP solver to use in Pyomo.
@@ -86,10 +87,14 @@ class DefaultRecourseAction(RecourseAction):
             produced plan in terms of machine states, or a dictionary {machine : (switch_on, switch_off, state)}
             containing the objective coefficients of the switch_on, switch_off and state difference for individual
             machines.
+
+        :param solver_options:
+            Additional options of the underlying solver.
         """
         super(DefaultRecourseAction, self).__init__()
 
         self._solver: str = solver
+        self._solver_options: Dict[str, Any] = solver_options
         self._decimals: int = decimals
         self._cost_weight: Optional[float] = cost_weight
         self._storage_weight: Union[None, float, Dict[str, float]] = storage_weight
@@ -158,7 +163,10 @@ class DefaultRecourseAction(RecourseAction):
                 objective += on_weight * cmp.on_diff + off_weight * cmp.off_diff + state_weight * cmp.state_diff
         # add the objective function to the model, solve it using the defined solver, and eventually return the plan
         model.objective = pyo.Objective(expr=objective, sense=pyo.minimize)
-        pyo.SolverFactory(self._solver).solve(model)
+        solver = pyo.SolverFactory(self._solver)
+        for option, value in self._solver_options.items():
+            solver.options[option] = value
+        solver.solve(model)
         plan = {}
         for edge in self._plant.edges().values():
             cmp = model.component(edge.name)

@@ -114,14 +114,14 @@ class Storage(Node):
         assert in_flow == 0.0 or out_flow == 0.0, \
             f"Storage node '{self.name}' can have either input or output flows in a single time step, got both"
         # check that the input and output flows are compatible with the charge rates
-        assert in_flow <= self.charge_rate, \
+        assert in_flow <= self.charge_rate + self.eps, \
             f"Storage node '{self.name}' should have maximal input flow {self.charge_rate}, got {in_flow}"
-        assert out_flow <= self.discharge_rate, \
+        assert out_flow <= self.discharge_rate + self.eps, \
             f"Storage node '{self.name}' should have maximal output flow {self.discharge_rate}, got {out_flow}"
         # compute and check new storage from previous one (discounted by 1 - dissipation) and difference between flows
         storage = self._info['current_storage'] + in_flow - out_flow
-        assert storage >= 0.0, f"Storage node '{self.name}' cannot contain negative amount, got {storage}"
-        assert storage <= self.capacity, \
+        assert storage >= -self.eps, f"Storage node '{self.name}' cannot contain negative amount, got {storage}"
+        assert storage <= self.capacity + self.eps, \
             f"Storage node '{self.name}' cannot contain more than {self.capacity} amount, got {storage}"
-        self._storage.append(storage)
+        self._storage.append(np.clip(storage, a_min=0, a_max=self.capacity))
         self._info['current_storage'] = None
