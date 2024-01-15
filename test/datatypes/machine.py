@@ -29,7 +29,8 @@ TIMESTEP_STARTING_EXCEPTION = \
     lambda n, t: f"The number of starting must be strictly less than the number of time steps, got {n} >= {t}"
 SETPOINT_INDEX_EXCEPTION = lambda v: f"Setpoints should be non-negative, got {v}"
 SETPOINT_FLOWS_EXCEPTION = lambda c, v: f"Setpoint flows should be non-negative, got {c}: {v}"
-NONZERO_OFF_FLOWS_EXCEPTION = lambda k, c, n: f"Got non-zero {k} flow for '{c}' despite null setpoint for machine '{n}'"
+NONZERO_OFF_FLOWS_EXCEPTION = \
+    lambda k, v, c, n: f"Got non-zero {k} flow {v} for '{c}' despite null setpoint for machine '{n}'"
 UNSUPPORTED_STATE_EXCEPTION = lambda s, m: f"Unsupported state {s} for machine '{m}'"
 WRONG_FLOW_EXCEPTION = lambda e, m, s, f: f"Flow {e} expected for machine '{m}' with state {s}, got {f}"
 TOO_MANY_STARTING_EXCEPTION = lambda m, n, t: f"Machine '{m}' cannot be started for more than {n} times in {t} steps"
@@ -261,7 +262,7 @@ class TestMachine(TestDataType):
             })
         self.assertEqual(
             str(e.exception),
-            NONZERO_OFF_FLOWS_EXCEPTION('input', 'in_com', 'm'),
+            NONZERO_OFF_FLOWS_EXCEPTION('input', 10.0, 'in_com', 'm'),
             msg='Wrong exception message returned for on-zero flows after null state on machine'
         )
         m = CONTINUOUS_MACHINE.copy()
@@ -273,7 +274,7 @@ class TestMachine(TestDataType):
             })
         self.assertEqual(
             str(e.exception),
-            NONZERO_OFF_FLOWS_EXCEPTION('output', 'out_com_1', 'm'),
+            NONZERO_OFF_FLOWS_EXCEPTION('output', 10.0, 'out_com_1', 'm'),
             msg='Wrong exception message returned for on-zero flows after null state on machine'
         )
         # test discrete setpoint
