@@ -26,7 +26,9 @@ with open('README.md', 'r') as readme:
             'networkx~=3.2.1',
             'numpy~=1.26.2',
             'pandas~=2.1.3',
-            'scikit-learn~=1.3.2'
+            'pyomo~=6.7.0',
+            'scikit-learn~=1.3.2',
+            'tqdm~=4.66.1'
         ],
         test_suite='test'
     )
