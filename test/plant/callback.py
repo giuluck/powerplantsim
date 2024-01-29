@@ -3,10 +3,10 @@ from typing import Dict, List, Union
 
 import pandas as pd
 
-from ppsim.datatypes import Node, Edge
-from ppsim.datatypes.datatype import DataType
-from ppsim.plant import Callback
-from ppsim.utils.typing import State, Flow
+from powerplantsim.datatypes import Node, Edge
+from powerplantsim.datatypes.datatype import DataType
+from powerplantsim.plant import Callback
+from powerplantsim.utils.typing import State, Flow
 from test.utils import PLANT, PLAN
 
 

@@ -4,7 +4,7 @@ from typing import Dict, Tuple, Union, Optional, Callable, Any
 import numpy as np
 import pyomo.environ as pyo
 
-from ppsim.utils.typing import Plan
+from powerplantsim.utils.typing import Plan
 
 
 class RecourseAction:

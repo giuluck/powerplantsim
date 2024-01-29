@@ -5,9 +5,9 @@ import matplotlib.pyplot as plt
 import networkx as nx
 from matplotlib.lines import Line2D
 
-from ppsim import utils
-from ppsim.utils import NamedTuple
-from ppsim.utils.typing import SingleEdgeID
+from powerplantsim import utils
+from powerplantsim.utils import NamedTuple
+from powerplantsim.utils.typing import SingleEdgeID
 
 
 @dataclass(frozen=True, unsafe_hash=True, slots=True, kw_only=True)

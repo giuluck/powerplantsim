@@ -3,9 +3,9 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from ppsim import Plant
-from ppsim.plant import RecourseAction
-from ppsim.utils.typing import Plan
+from powerplantsim import Plant
+from powerplantsim.plant import RecourseAction
+from powerplantsim.utils.typing import Plan
 from test.utils import PLANT, PLAN, IMPLEMENTATION, SETPOINT
 
 INVALID_PLANT_EXCEPTION = lambda k, e, c, n: f"{k} commodity {c} has no valid {e} edge in node {n}"
@@ -77,7 +77,7 @@ class TestPlantRun(unittest.TestCase):
             INVALID_PLANT_EXCEPTION('Output', 'outgoing', 'in', 'sup'),
             msg='Wrong exception message returned for running an invalid plant'
         )
-        p.add_machine(name='mac', setpoint=SETPOINT, parents='sup')
+        p.add_machine(name='mac', parents='sup', **SETPOINT)
         with self.assertRaises(AssertionError, msg="Running an invalid plant should raise an exception") as e:
             p.run(plan={'mac': np.nan, ('sup', 'mac'): 0.0}, action=DummyAction(), progress=False)
         self.assertEqual(

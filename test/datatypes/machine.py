@@ -1,7 +1,7 @@
 import numpy as np
 import pyomo.environ as pyo
 
-from ppsim.datatypes import Machine
+from powerplantsim.datatypes import Machine
 from test.datatypes.datatype import TestDataType, SETPOINT, PLANT, dummy_edge
 from test.utils import SOLVER
 

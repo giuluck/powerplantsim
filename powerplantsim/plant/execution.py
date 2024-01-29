@@ -3,9 +3,9 @@ from typing import Union, Sized, Dict, List, Tuple, Iterable
 
 import pandas as pd
 
-from ppsim import utils
-from ppsim.datatypes import Machine, Storage, Customer, Purchaser, Supplier, Edge, Node
-from ppsim.utils.typing import NodeID, Plan, StepPlan, State, Flow, EdgeID, NamedTuple
+from powerplantsim import utils
+from powerplantsim.datatypes import Machine, Storage, Customer, Purchaser, Supplier, Edge, Node
+from powerplantsim.utils.typing import NodeID, Plan, StepPlan, State, Flow, EdgeID, NamedTuple
 
 States = Dict[Machine, Union[State, pd.Series]]
 """Datatype for states."""

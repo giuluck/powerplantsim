@@ -1,6 +1,6 @@
 import pyomo.environ as pyo
 
-from ppsim.datatypes import Supplier, Storage, Machine, SingleEdge, MultiEdge
+from powerplantsim.datatypes import Supplier, Storage, Machine, SingleEdge, MultiEdge
 from test.datatypes.datatype import TestDataType, SETPOINT, SERIES_1, VARIANCE_1, PLANT
 
 MACHINE = Machine(

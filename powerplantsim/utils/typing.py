@@ -19,10 +19,6 @@ State = float
 Flow = float
 """Datatype for a single edge flow specification."""
 
-Setpoint = Dict[str, Iterable[float] | Dict[str, Iterable[float]]]
-"""Datatype for machine setpoint specification, i.e., a dictionary of type:
- {'setpoint': setpoint, 'input': {commodity: input_flows}, 'output': {commodity: output_flows}"""
-
 StepPlan = Dict[Union[NodeID, EdgeID], Union[State, Flow]]
 """Datatype for the specification of the plan of a single step, i.e., a dictionary <machine | edge: state | flow>."""
 

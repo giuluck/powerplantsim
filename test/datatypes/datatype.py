@@ -5,7 +5,7 @@ from typing import Union
 import numpy as np
 import pandas as pd
 
-from ppsim.datatypes import MultiEdge, Storage, Node
+from powerplantsim.datatypes import MultiEdge, Storage, Node
 from test.utils import TestPlant
 
 PLANT = TestPlant(horizon=3)

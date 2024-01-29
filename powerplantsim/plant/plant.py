@@ -8,19 +8,20 @@ import pandas as pd
 import pyomo.environ as pyo
 from tqdm import tqdm
 
-from ppsim import utils
-from ppsim.datatypes import Node, Machine, Supplier, SingleEdge, Storage, Purchaser, Customer, ExtremityNode, Edge
-from ppsim.plant import drawing, execution
-from ppsim.plant.action import DefaultRecourseAction, CallableRecourseAction, RecourseAction
-from ppsim.plant.callback import Callback
-from ppsim.plant.execution import check_plan
-from ppsim.utils.typing import Setpoint, Plan, EdgeID
+from powerplantsim import utils
+from powerplantsim.datatypes import Node, Machine, Supplier, SingleEdge, Storage, Purchaser, Customer, ExtremityNode, \
+    Edge
+from powerplantsim.plant import drawing, execution
+from powerplantsim.plant.action import DefaultRecourseAction, CallableRecourseAction, RecourseAction
+from powerplantsim.plant.callback import Callback
+from powerplantsim.plant.execution import check_plan
+from powerplantsim.utils.typing import Plan, EdgeID
 
 
 class Plant:
     """Defines a power plant based on its topology, involved commodities, and predicted prices and demands."""
 
-    def __init__(self, horizon: Union[int, Iterable[float]], seed: int = 0):
+    def __init__(self, horizon: Union[int, Iterable[float]], seed: int = 0, name: Optional[str] = None):
         """
         :param horizon:
             The time horizon of the simulation.
@@ -29,6 +30,9 @@ class Plant:
 
         :param seed:
             The seed used for random number operations.
+
+        :param name:
+            The name of the plant.
         """
         # convert horizon to a standard format (pd.Index)
         if isinstance(horizon, int):
@@ -36,12 +40,18 @@ class Plant:
             horizon = np.arange(horizon)
         horizon = pd.Index(horizon)
 
+        self._name: str = hex(id(self)).upper() if name is None else name
         self._rng: np.random.Generator = np.random.default_rng(seed=seed)
         self._horizon: pd.Index = horizon
         self._commodities: Set[str] = set()
         self._nodes: Dict[str, Set[Node]] = dict()
         self._edges: Set[SingleEdge] = set()
         self._step: int = -1
+
+    @property
+    def name(self) -> str:
+        """The name of the plant."""
+        return self._name
 
     @property
     def step(self) -> Optional[int]:
@@ -135,6 +145,13 @@ class Plant:
             if check_sour(e.source) and check_dest(e.destination) and check_edge(e.commodity)
         }
 
+    def __repr__(self) -> str:
+        output = f"Plant('{self._name}'):\n"
+        output += f"  > Horiz: {[step for step in self._horizon.values]}\n"
+        output += f"  > Nodes: {[node for node in self.nodes().values()]}\n"
+        output += f"  > Edges: {[edge for edge in self.edges().keys()]}"
+        return output
+
     def graph(self, attributes: bool = False) -> nx.DiGraph:
         """Builds the graph representing the power plant.
 
@@ -183,14 +200,18 @@ class Plant:
         in_flows = {(destination, commodity): 0.0 for _, destination, commodity in edges.keys()}
         out_flows = {(source, commodity): 0.0 for source, _, commodity in edges.keys()}
         for (source, destination, commodity), edge in edges.items():
+            # noinspection PyUnresolvedReferences
             in_flows[(destination, commodity)] += edge.flow
+            # noinspection PyUnresolvedReferences
             out_flows[(source, commodity)] += edge.flow
 
+        # noinspection PyUnresolvedReferences
         @model.Constraint(model.nodes * model.commodities)
         def in_constraints(_, destination, commodity):
             flows = in_flows.get((destination, commodity))
             return pyo.Constraint.Skip if flows is None else flows == nodes[destination].in_flows[commodity]
 
+        # noinspection PyUnresolvedReferences
         @model.Constraint(model.nodes * model.commodities)
         def out_constraints(_, source, commodity):
             flows = out_flows.get((source, commodity))
@@ -213,32 +234,37 @@ class Plant:
                           commodity: Optional[str],
                           min_flow: Optional[float],
                           max_flow: Optional[float]):
-        # add the new commodities to the set
-        self._commodities.update(node.commodities_in)
-        self._commodities.update(node.commodities_out)
         # check that the node has a unique identifier and append it to the designed internal data structure
         for kind, nodes in self._nodes.items():
             assert node not in nodes, f"There is already a {kind} node '{node.name}', please use another identifier"
+        # if the node is not a source (supplier), retrieve the node parent and check that is exists
+        edges = []
+        if parents is not None:
+            parents = [parents] if isinstance(parents, str) else parents
+            assert len(parents) > 0, f"{node.kind.title()} node must have at least one parent"
+            for name in parents:
+                parent = self.nodes().get(name)
+                assert parent is not None, f"Parent node '{name}' has not been added yet"
+                # create an edge instance using the parent as source and the new node as destination
+                edge = SingleEdge(
+                    _plant=self,
+                    _source=parent,
+                    _destination=node,
+                    commodity=commodity,
+                    min_flow=min_flow,
+                    max_flow=max_flow
+                )
+                edges.append(edge)
+        # once all the checks have been passed, add the information to the plant
+        # add the new commodities to the set
+        self._commodities.update(node.commodities_in)
+        self._commodities.update(node.commodities_out)
+        # add the node to its respective set
         node_set = self._nodes.get(node.kind, set())
         node_set.add(node)
         self._nodes[node.kind] = node_set
-        # if the node is not a source (supplier), retrieve the node parent and check that is exists
-        if parents is None:
-            return
-        parents = [parents] if isinstance(parents, str) else parents
-        assert len(parents) > 0, f"{node.kind.title()} node must have at least one parent"
-        for name in parents:
-            parent = self.nodes().get(name)
-            assert parent is not None, f"Parent node '{name}' has not been added yet"
-            # create an edge instance using the parent as source and the new node as destination
-            edge = SingleEdge(
-                _plant=self,
-                _source=parent,
-                _destination=node,
-                commodity=commodity,
-                min_flow=min_flow,
-                max_flow=max_flow
-            )
+        # add the edges
+        for edge in edges:
             self._edges.add(edge)
 
     def add_extremity(self,
@@ -328,8 +354,11 @@ class Plant:
     def add_machine(self,
                     name: str,
                     parents: Union[str, Iterable[str]],
-                    setpoint: Union[Setpoint, pd.DataFrame],
-                    discrete_setpoint: bool = False,
+                    commodity: str,
+                    setpoint: Iterable[float],
+                    inputs: Iterable[float],
+                    outputs: Dict[str, Iterable[float]],
+                    discrete: bool = False,
                     max_starting: Optional[Tuple[int, int]] = None,
                     cost: float = 0.0,
                     min_flow: float = 0.0,
@@ -342,14 +371,20 @@ class Plant:
         :param parents:
             The identifier of the parent nodes that are connected with the input of this machine node.
 
-        :param setpoint:
-            Either a dictionary of type {'setpoint': [...], <output_commodity_i>: [...], ...} where 'setpoint'
-            represent the data index and <output_commodity_i> is the name of each output commodity generated by the
-            machine with the list of respective flows, or a pandas dataframe where the index is a series of floating
-            point values that indicate the input commodity flow, while the columns should be named after the output
-            commodity and contain the respective output flows.
+        :param commodity:
+            The input commodity of the machine.
 
-        :param discrete_setpoint:
+        :param setpoint:
+            The setpoint of the machine.
+
+        :param inputs:
+            The amount of input commodity flow paired with the setpoint.
+
+        :param outputs:
+            A dictionary {<output_commodity_i>: <output_flow_i>} where <output_commodity_i> is the name of each output
+            commodity generated by the machine and <output_flow_i> is the list of respective flows.
+
+        :param discrete:
             Whether the setpoint is discrete or continuous.
 
         :param max_starting:
@@ -368,28 +403,23 @@ class Plant:
             The added machine node.
         """
         # convert setpoint to a standard format (pd.Series)
-        if isinstance(setpoint, dict):
-            assert set(setpoint.keys()) == {'setpoint', 'input', 'output'}, \
-                f"Setpoint dictionary expects three keys ('setpoint', 'input', 'output'), got {set(setpoint)}"
-            assert len(setpoint['input']) == 1, \
-                f"Machines taking multiple input commodities are not supported, got inputs {set(setpoint['input'])}"
-            index = pd.Index(setpoint['setpoint'], dtype=float, name='setpoint')
-            input_flows = pd.DataFrame({c: f for c, f in setpoint['input'].items()}, dtype=float, index=index)
-            output_flows = pd.DataFrame({c: f for c, f in setpoint['output'].items()}, dtype=float, index=index)
-            setpoint = pd.concat((input_flows, output_flows), keys=['input', 'output'], axis=1)
+        index = pd.Index(setpoint, dtype=float, name='setpoint')
+        input_flows = pd.DataFrame({commodity: inputs}, dtype=float, index=index)
+        output_flows = pd.DataFrame({c: f for c, f in outputs.items()}, dtype=float, index=index)
+        setpoint = pd.concat((input_flows, output_flows), keys=['input', 'output'], axis=1)
         # create an internal machine node and add it to the internal data structure and the graph
         machine = Machine(
             _plant=self,
             name=name,
             _setpoint=setpoint,
-            discrete_setpoint=discrete_setpoint,
+            discrete_setpoint=discrete,
             max_starting=max_starting,
             cost=cost
         )
         self._check_and_update(
             node=machine,
             parents=parents,
-            commodity=setpoint['input'].columns[0],
+            commodity=commodity,
             min_flow=min_flow,
             max_flow=max_flow
         )
@@ -438,7 +468,7 @@ class Plant:
         # handle rates
         if rates is None:
             charge_rate, discharge_rate = capacity, capacity
-        elif isinstance(rates, tuple):
+        elif isinstance(rates, float):
             charge_rate, discharge_rate = rates, rates
         else:
             charge_rate, discharge_rate = rates
@@ -470,7 +500,7 @@ class Plant:
              edge_styles: Union[str, Dict[str, str]] = 'solid',
              node_size: float = 30,
              edge_width: float = 2,
-             legend: bool = True):
+             legend: Optional[int] = 20):
         """Draws the plant topology.
 
         :param figsize:
@@ -506,7 +536,7 @@ class Plant:
             The width of the edges and of the node's borders.
 
         :param legend:
-            Whether to plot a legend or not.
+            The size of the legend, or None for no legend.
         """
         # retrieve plant info, build the figure, and compute node positions
         nodes = self.nodes(indexed=True)
@@ -545,8 +575,11 @@ class Plant:
             handler = drawing.build_edge_label(commodity=commodity, style=styles[commodity])
             labels.append(handler)
         # plot the legend if necessary, and eventually show the result
-        if legend:
-            plt.legend(handles=labels, prop={'size': 20})
+        if legend is not None:
+            ax = plt.legend(handles=labels, prop={'size': legend})
+            for handle in ax.legend_handles:
+                # noinspection PyUnresolvedReferences
+                handle.set_markersize(legend)
         plt.show()
 
     def run(self,

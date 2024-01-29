@@ -3,16 +3,12 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from ppsim import Plant
-from ppsim.datatypes import Purchaser, Customer
+from powerplantsim import Plant
+from powerplantsim.datatypes import Purchaser, Customer
 
 PLANT = Plant(horizon=3)
 PLANT.add_extremity(kind='supplier', name='sup', commodity='in', predictions=1.)
-PLANT.add_machine(name='mac', parents='sup', setpoint={
-    'setpoint': [1.],
-    'input': {'in': [1.]},
-    'output': {'out': [1.]}
-})
+PLANT.add_machine(name='mac', parents='sup', commodity='in', setpoint=[1.], inputs=[1.], outputs={'out': [1.]})
 PLANT.add_storage(name='sto', parents='mac', commodity='out', capacity=100)
 PLANT.add_extremity(kind='customer', name='cli', parents=['mac', 'sto'], commodity='out', predictions=1.)
 
@@ -21,8 +17,6 @@ PARENT_UNKNOWN_EXCEPTION = lambda n: f"Parent node '{n}' has not been added yet"
 EMPTY_PARENTS_EXCEPTION = lambda k: f"{k} node must have at least one parent"
 HAS_PARENTS_SUPPLIER = lambda n: f"Supplier node {n} cannot accept parents"
 NONE_PARENTS_CLIENT = lambda k, n: f"{k} node {n} must have parents"
-WRONG_SETPOINT_KEYS = lambda k: f"Setpoint dictionary expects three keys ('setpoint', 'input', 'output'), got {k}"
-MULTIPLE_INPUT_COMMODITIES = lambda c: f"Machines taking multiple input commodities are not supported, got inputs {c}"
 
 
 class TestPlantBuilding(unittest.TestCase):
@@ -194,11 +188,14 @@ class TestPlantBuilding(unittest.TestCase):
         # test node name conflicts
         for kind, name in {(k, n) for k, node in p.nodes(indexed=True).items() for n in node.keys()}:
             with self.assertRaises(AssertionError, msg="Name conflict for new machine should raise exception") as e:
-                p.add_machine(name=name, parents='sup', setpoint={
-                    'setpoint': [1.],
-                    'input': {'in': [1.]},
-                    'output': {'out': [1.]}
-                })
+                p.add_machine(
+                    name=name,
+                    parents='sup',
+                    commodity='in',
+                    setpoint=[1.],
+                    inputs=[1.],
+                    outputs={'out': [1.]}
+                )
             self.assertEqual(
                 str(e.exception),
                 NAME_CONFLICT_EXCEPTION(kind, name),
@@ -206,39 +203,51 @@ class TestPlantBuilding(unittest.TestCase):
             )
         # test parents
         with self.assertRaises(AssertionError, msg="Unknown parent for machine should raise exception") as e:
-            p.add_machine(name='parent_unk', parents='unk', setpoint={
-                'setpoint': [1.],
-                'input': {'in': [1.]},
-                'output': {'out': [1.]}
-            })
+            p.add_machine(
+                name='parent_unk',
+                parents='unk',
+                commodity='in',
+                setpoint=[1.],
+                inputs=[1.],
+                outputs={'out': [1.]}
+            )
         self.assertEqual(
             str(e.exception),
             PARENT_UNKNOWN_EXCEPTION('unk'),
             msg='Wrong exception message returned for unknown parent'
         )
         with self.assertRaises(AssertionError, msg="Empty parent list for machine should raise exception") as e:
-            p.add_machine(name='parent_emp', parents=[], setpoint={
-                'setpoint': [1.],
-                'input': {'in': [1.]},
-                'output': {'out': [1.]}
-            })
+            p.add_machine(
+                name='parent_emp',
+                parents=[],
+                commodity='in',
+                setpoint=[1.],
+                inputs=[1.],
+                outputs={'out': [1.]}
+            )
         self.assertEqual(
             str(e.exception),
             EMPTY_PARENTS_EXCEPTION('Machine'),
             msg='Wrong exception message returned for empty parent list'
         )
-        p.add_machine(name='single', parents='sup', setpoint={
-            'setpoint': [1.],
-            'input': {'in': [1.]},
-            'output': {'out': [1.]}
-        })
+        p.add_machine(
+            name='single',
+            parents='sup',
+            commodity='in',
+            setpoint=[1.],
+            inputs=[1.],
+            outputs={'out': [1.]}
+        )
         edges = {e.source: e.commodity for e in p.edges(destinations='single').values()}
         self.assertDictEqual(edges, {'sup': 'in'}, msg='Wrong edges stored for machine with single parent')
-        p.add_machine(name='multiple', parents=['mac', 'sto'], setpoint={
-            'setpoint': [1.],
-            'input': {'out': [1.]},
-            'output': {'in': [1.]}
-        })
+        p.add_machine(
+            name='multiple',
+            parents=['mac', 'sto'],
+            commodity='out',
+            setpoint=[1.],
+            inputs=[1.],
+            outputs={'in': [1.]}
+        )
         edges = {e.source: e.commodity for e in p.edges(destinations='multiple').values()}
         self.assertDictEqual(
             edges,
@@ -249,8 +258,11 @@ class TestPlantBuilding(unittest.TestCase):
         m1 = p.add_machine(
             name='m1',
             parents='sup',
-            setpoint={'setpoint': [0., 1.], 'input': {'in': [3., 5.]}, 'output': {'out': [5., 9.]}},
-            discrete_setpoint=False,
+            commodity='in',
+            setpoint=[0., 1.],
+            inputs=[3., 5.],
+            outputs={'out': [5., 9.]},
+            discrete=False,
             max_starting=None,
             cost=0.0
         )
@@ -262,49 +274,14 @@ class TestPlantBuilding(unittest.TestCase):
         self.assertFalse(m1.discrete_setpoint, msg="Wrong discrete setpoint flag stored for machine")
         self.assertIsNone(m1.max_starting, msg="Wrong max starting stored for machine")
         self.assertEqual(m1.cost, 0.0, msg="Wrong cost stored for machine")
-        m2 = p.add_machine(
-            name='m2',
-            parents='sup',
-            setpoint=pd.DataFrame(
-                [[3., 5.], [5., 9.]],
-                columns=pd.MultiIndex.from_tuples([('input', 'in'), ('output', 'out')]),
-                index=[0., 1.]
-            ),
-            discrete_setpoint=True,
-            max_starting=(3, 24),
-            cost=50.0
-        )
-        self.assertEqual(m2.setpoint.index.name, 'setpoint', msg="Wrong setpoint name stored for machine")
-        self.assertDictEqual(m2.setpoint.to_dict(), {
-            ('input', 'in'): {0.0: 3.0, 1.0: 5.0},
-            ('output', 'out'): {0.0: 5.0, 1.0: 9.0}
-        }, msg="Wrong setpoint stored for machine")
-        self.assertTrue(m2.discrete_setpoint, msg="Wrong discrete setpoint flag stored for machine")
-        self.assertTupleEqual(m2.max_starting, (3, 24), msg="Wrong max starting stored for machine")
-        self.assertEqual(m2.cost, 50.0, msg="Wrong cost stored for machine")
-        with self.assertRaises(AssertionError, msg="Wrong setpoint keys passed") as e:
-            p.add_machine(name='wrong_keys', parents='sup', setpoint={'setpoint': [1.]})
-        self.assertEqual(
-            str(e.exception),
-            WRONG_SETPOINT_KEYS({'setpoint'}),
-            msg='Wrong exception message returned for empty parent list'
-        )
-        with self.assertRaises(AssertionError, msg="Multiple input commodities passed") as e:
-            p.add_machine(name='wrong_keys', parents='sup', setpoint={
-                'setpoint': [1.],
-                'input': {'in': [1.], 'out': [1.]},
-                'output': {}
-            })
-        self.assertEqual(
-            str(e.exception),
-            MULTIPLE_INPUT_COMMODITIES({'in', 'out'}),
-            msg='Wrong exception message returned for empty parent list'
-        )
         # test edge properties
         p.add_machine(
             name='m3',
             parents='sup',
-            setpoint={'setpoint': [1.], 'input': {'in': [1.]}, 'output': {'out': [1.]}},
+            commodity='in',
+            setpoint=[1.],
+            inputs=[1.],
+            outputs={'out': [1.]},
             min_flow=30.0,
             max_flow=50.0
         )

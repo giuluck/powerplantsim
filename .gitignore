@@ -8,4 +8,4 @@ venv
 temp
 dist
 build
-ppsim.egg-info
+powerplantsim.egg-info

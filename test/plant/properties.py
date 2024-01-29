@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pyomo.environ as pyo
 
-from ppsim.datatypes import Supplier, Machine, Storage, SingleEdge, Customer, Purchaser
+from powerplantsim.datatypes import Supplier, Machine, Storage, SingleEdge, Customer, Purchaser
 from test.datatypes.datatype import VARIANCE_1
 from test.utils import TestPlant, SOLVER
 
@@ -13,11 +13,14 @@ PLANT_1.add_extremity(kind='supplier', name='sup', commodity='in', predictions=1
 
 PLANT_2 = TestPlant(horizon=24)
 PLANT_2.add_extremity(kind='supplier', name='sup', commodity='in', predictions=1.)
-PLANT_2.add_machine(name='mac', parents='sup', setpoint={
-    'setpoint': [1.],
-    'input': {'in': [1.]},
-    'output': {'out': [1.]}
-})
+PLANT_2.add_machine(
+    name='mac',
+    parents='sup',
+    commodity='in',
+    setpoint=[1.],
+    inputs=[1.],
+    outputs={'out': [1.]}
+)
 PLANT_2.add_storage(name='sto', parents=['mac'], commodity='out', capacity=100)
 PLANT_2.add_extremity(kind='customer', name='cus', parents=['mac', 'sto'], commodity='out', predictions=1.)
 PLANT_2.add_extremity(kind='purchaser', name='pur', parents='mac', commodity='out', predictions=1.)

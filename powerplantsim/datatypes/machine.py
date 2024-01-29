@@ -8,9 +8,9 @@ import pyomo.environ as pyo
 from descriptors import classproperty
 from pyomo.core import Piecewise
 
-from ppsim import utils
-from ppsim.datatypes.node import Node
-from ppsim.utils.typing import State, Flow
+from powerplantsim import utils
+from powerplantsim.datatypes.node import Node
+from powerplantsim.utils.typing import State, Flow
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True)

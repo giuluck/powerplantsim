@@ -6,8 +6,8 @@ import pyomo.environ as pyo
 # noinspection PyPackageRequirements
 from descriptors import classproperty
 
-from ppsim.datatypes.datatype import DataType
-from ppsim.utils.typing import NodeID
+from powerplantsim.datatypes.datatype import DataType
+from powerplantsim.utils.typing import NodeID
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True, slots=True)

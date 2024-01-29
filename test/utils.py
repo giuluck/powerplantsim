@@ -3,7 +3,7 @@ from typing import Optional
 
 import numpy as np
 
-from ppsim import Plant
+from powerplantsim import Plant
 
 
 class TestPlant(Plant):
@@ -14,12 +14,12 @@ class TestPlant(Plant):
 
 SOLVER = 'gurobi'
 
-SETPOINT = {'setpoint': [1., 3.], 'input': {'in': [1., 3.]}, 'output': {'out': [1., 3.]}}
+SETPOINT = dict(commodity='in', setpoint=[1., 3.], inputs=[1., 3.], outputs={'out': [1., 3.]})
 
 PLANT = Plant(horizon=3)
 PLANT.add_extremity(kind='supplier', name='sup', commodity='in', predictions=[1., 2., 3.])
-PLANT.add_machine(name='mac_1', parents='sup', discrete_setpoint=False, setpoint=SETPOINT)
-PLANT.add_machine(name='mac_2', parents='sup', discrete_setpoint=True, setpoint=SETPOINT)
+PLANT.add_machine(name='mac_1', parents='sup', discrete=False, **SETPOINT)
+PLANT.add_machine(name='mac_2', parents='sup', discrete=True, **SETPOINT)
 PLANT.add_storage(name='sto', parents='mac_1', commodity='out', capacity=100)
 PLANT.add_extremity(kind='customer', name='cus', parents=['sto', 'mac_1'], commodity='out', predictions=[1., 2., 3.])
 PLANT.add_extremity(kind='purchaser', name='pur', parents=['sto', 'mac_2'], commodity='out', predictions=[1., 2., 3.])

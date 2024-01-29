@@ -9,8 +9,8 @@ import pyomo.environ as pyo
 # noinspection PyPackageRequirements
 from descriptors import classproperty
 
-from ppsim import utils
-from ppsim.utils.typing import Flow, State
+from powerplantsim import utils
+from powerplantsim.utils.typing import Flow, State
 
 
 @dataclass(frozen=True, repr=False, eq=False, unsafe_hash=False, kw_only=True)

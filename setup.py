@@ -11,15 +11,15 @@ from setuptools import find_packages, setup
 # set up the library metadata and make the build
 with open('README.md', 'r') as readme:
     setup(
-        name='ppsim',
+        name='powerplantsim',
         version='0.1.0',
         maintainer='Luca Giuliani',
         maintainer_email='luca.giuliani13@unibo.it',
         author='University of Bologna - DISI',
-        description='PP-Sim: a power plant simulator',
+        description='PowerPlantSim: a power plant simulator',
         long_description=readme.read(),
         long_description_content_type='text/markdown',
-        packages=find_packages(include=['ppsim*']),
+        packages=find_packages(include=['powerplantsim*']),
         python_requires='~=3.10',
         install_requires=[
             'matplotlib~=3.8.2',

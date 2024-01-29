@@ -2,22 +2,30 @@ import unittest
 
 import numpy as np
 
-from ppsim import Plant
-from ppsim.plant import DefaultRecourseAction
+from powerplantsim import Plant
+from powerplantsim.plant import DefaultRecourseAction
 from test.utils import SOLVER
 
 PLANT = Plant(horizon=1)
 PLANT.add_extremity(kind='supplier', name='sup', commodity='in_com', predictions=1.)
-PLANT.add_machine(name='d_mac', parents='sup', discrete_setpoint=True, setpoint={
-    'setpoint': [0.2, 0.5, 1.0],
-    'input': {'in_com': [0.1, 1.0, 2.0]},
-    'output': {'out_com_1': [0.2, 0.5, 0.9], 'out_com_2': [2.0, 5.0, 9.0]}
-})
-PLANT.add_machine(name='c_mac', parents='sup', discrete_setpoint=False, setpoint={
-    'setpoint': [0.2, 0.5, 1.0],
-    'input': {'in_com': [0.2, 2.0, 4.0]},
-    'output': {'out_com_1': [2.0, 5.0, 9.0], 'out_com_2': [0.2, 0.5, 0.9]}
-})
+PLANT.add_machine(
+    name='d_mac',
+    parents='sup',
+    commodity='in_com',
+    setpoint=[0.2, 0.5, 1.0],
+    inputs=[0.1, 1.0, 2.0],
+    outputs={'out_com_1': [0.2, 0.5, 0.9], 'out_com_2': [2.0, 5.0, 9.0]},
+    discrete=True
+)
+PLANT.add_machine(
+    name='c_mac',
+    parents='sup',
+    commodity='in_com',
+    setpoint=[0.2, 0.5, 1.0],
+    inputs=[0.2, 2.0, 4.0],
+    outputs={'out_com_1': [2.0, 5.0, 9.0], 'out_com_2': [0.2, 0.5, 0.9]},
+    discrete=False
+)
 PLANT.add_storage(name='sto', parents=['d_mac', 'c_mac'], commodity='out_com_2', capacity=100)
 PLANT.add_extremity(kind='customer', name='cus', commodity='out_com_1', parents=['d_mac', 'c_mac'], predictions=6.)
 PLANT.add_extremity(kind='purchaser', name='pur', commodity='out_com_2', parents=['sto'], predictions=3.)

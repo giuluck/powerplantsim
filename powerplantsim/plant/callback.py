@@ -3,8 +3,8 @@ from typing import Dict
 
 import pandas as pd
 
-from ppsim.datatypes import Edge, Node
-from ppsim.utils.typing import State, Flow
+from powerplantsim.datatypes import Edge, Node
+from powerplantsim.utils.typing import State, Flow
 
 
 class Callback:
