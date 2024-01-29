@@ -66,7 +66,7 @@ intrinsic uncertainty of the problem, which usually relies on historical data to
 power plant.
 
 More specifically, the actual value $v_t$ is computed as:
-$$\begin{align}v_t = p_t + \sigma_t, & & \sigma_t \sim \Sigma \mid v_{\{1:t-1\}}\end{align}$$
+$$v_t = p_t + \sigma_t, \sigma_t \sim \Sigma \mid v_{\{1:t-1\}}$$
 namely, the distribution $\Sigma$ can be conditioned on the actual values computed in previous time steps.
 
 > Note: from a programming perspective, the variance model is a function `f(rng, values)`, of which the actual values
