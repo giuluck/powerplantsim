@@ -70,8 +70,10 @@ $$v_t = p_t + \sigma_t, \sigma_t \sim \Sigma \mid v_{\{1:t-1\}}$$
 namely, the distribution $\Sigma$ can be conditioned on the actual values computed in previous time steps.
 
 > Note: from a programming perspective, the variance model is a function `f(rng, values)`, of which the actual values
-> are the second parameter. The first parameter, instead, is a reference to the random number generator which is stored in
-> the plant itself. It is advisable to use that random number generator instance to perform any random operation, in order
+> are the second parameter. The first parameter, instead, is a reference to the random number generator which is stored
+> in
+> the plant itself. It is advisable to use that random number generator instance to perform any random operation, in
+> order
 > to have completely reproducible results.
 
 ```python
@@ -159,8 +161,8 @@ Additionally, storage nodes have:
 * a `dissipation`, i.e., a parameter defining the amount of commodity units that gets dissipated every time step.
   Namely, given a storage amount $s_t$ and a dissipation $\delta$, the amount in the following time step will be $s_{t +
   1} = (1 - \delta) * s_t$;
-* an optional tuple of `rates`, i.e., a pair (_charge rate_, _discharge rate_) which defines the maximal charge and
-  discharge rate in a single time step.
+* two optional floats of `charge_rate` and `discharge_rate` which defines the maximal charge and discharge rate in a
+  single time step.
 
 ```python
 plant.add_storage(
@@ -169,7 +171,8 @@ plant.add_storage(
     commodity='heat',
     capacity=45,
     dissipation=0.02,
-    rates=(10.0, 5.0)
+    charge_rate=10.0,
+    discharge_rate=5.0
 )
 ```
 

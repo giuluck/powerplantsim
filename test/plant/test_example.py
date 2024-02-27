@@ -4,7 +4,7 @@ import numpy as np
 
 from powerplantsim import Plant
 from powerplantsim.plant import DefaultRecourseAction
-from test.utils import SOLVER
+from test.test_utils import SOLVER
 
 PLANT = Plant(horizon=1)
 PLANT.add_extremity(kind='supplier', name='sup', commodity='in_com', predictions=1.)

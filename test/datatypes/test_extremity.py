@@ -2,8 +2,8 @@ import numpy as np
 import pyomo.environ as pyo
 
 from powerplantsim.datatypes import Customer, Purchaser, Supplier
-from test.datatypes.datatype import TestDataType, SERIES_1, SERIES_2, VARIANCE_1, VARIANCE_2, PLANT, dummy_edge
-from test.utils import SOLVER
+from test.datatypes.test_datatype import TestDataType, SERIES_1, SERIES_2, VARIANCE_1, VARIANCE_2, PLANT, dummy_edge
+from test.test_utils import SOLVER
 
 CUSTOMER = Customer(
     name='c',

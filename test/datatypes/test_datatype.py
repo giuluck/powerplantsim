@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from powerplantsim.datatypes import MultiEdge, Storage, Node
-from test.utils import TestPlant
+from test.test_utils import TestPlant
 
 PLANT = TestPlant(horizon=3)
 

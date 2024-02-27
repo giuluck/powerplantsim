@@ -2,8 +2,8 @@ import numpy as np
 import pyomo.environ as pyo
 
 from powerplantsim.datatypes import Machine
-from test.datatypes.datatype import TestDataType, SETPOINT, PLANT, dummy_edge
-from test.utils import SOLVER
+from test.datatypes.test_datatype import TestDataType, SETPOINT, PLANT, dummy_edge
+from test.test_utils import SOLVER
 
 DISCRETE_MACHINE = Machine(
     name='m',

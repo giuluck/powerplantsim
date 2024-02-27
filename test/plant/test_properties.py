@@ -5,8 +5,8 @@ import pandas as pd
 import pyomo.environ as pyo
 
 from powerplantsim.datatypes import Supplier, Machine, Storage, SingleEdge, Customer, Purchaser
-from test.datatypes.datatype import VARIANCE_1
-from test.utils import TestPlant, SOLVER
+from test.datatypes.test_datatype import VARIANCE_1
+from test.test_utils import TestPlant, SOLVER
 
 PLANT_1 = TestPlant(horizon=24)
 PLANT_1.add_extremity(kind='supplier', name='sup', commodity='in', predictions=1.)

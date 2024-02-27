@@ -431,7 +431,8 @@ class Plant:
                     capacity: float,
                     parents: Union[str, List[str]],
                     dissipation: float = 0.0,
-                    rates: Union[None, float, Tuple[float, float]] = None,
+                    charge_rate: Optional[float] = None,
+                    discharge_rate: Optional[float] = None,
                     min_flow: float = 0.0,
                     max_flow: float = float('inf')) -> Storage:
         """Adds a storage node to the topology.
@@ -451,10 +452,11 @@ class Plant:
         :param dissipation:
             The dissipation rate of the storage at every time unit, which must be a float in [0, 1].
 
-        :param rates:
-            Either a tuple (charge_rate, discharge_rate) containing the maximal charge rate (input flow) and discharge
-            rate (output flow) in a time unit, or a single float value in case charge_rate == discharge_rate. If None
-            is passed, the charge and discharge rates are set to capacity.
+        :param charge_rate:
+            The maximal charge rate (input flow) in a time unit. If None, it is set to capacity.
+
+        :param discharge_rate:
+            The maximal discharge rate (output flow) in a time unit. If None, it is set to capacity.
 
         :param min_flow:
             The minimal flow of commodity that can pass in the edge.
@@ -465,13 +467,6 @@ class Plant:
         :return:
             The added storage node.
         """
-        # handle rates
-        if rates is None:
-            charge_rate, discharge_rate = capacity, capacity
-        elif isinstance(rates, float):
-            charge_rate, discharge_rate = rates, rates
-        else:
-            charge_rate, discharge_rate = rates
         # create an internal machine node and add it to the internal data structure and the graph
         storage = Storage(
             _plant=self,
@@ -479,8 +474,8 @@ class Plant:
             commodity=commodity,
             capacity=capacity,
             dissipation=dissipation,
-            charge_rate=charge_rate,
-            discharge_rate=discharge_rate
+            charge_rate=capacity if charge_rate is None else charge_rate,
+            discharge_rate=capacity if discharge_rate is None else discharge_rate
         )
         self._check_and_update(
             node=storage,

@@ -1,8 +1,8 @@
 import pyomo.environ as pyo
 
 from powerplantsim.datatypes import Storage
-from test.datatypes.datatype import TestDataType, PLANT, dummy_edge
-from test.utils import SOLVER
+from test.datatypes.test_datatype import TestDataType, PLANT, dummy_edge
+from test.test_utils import SOLVER
 
 STORAGE = Storage(
     name='s',

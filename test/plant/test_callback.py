@@ -7,7 +7,7 @@ from powerplantsim.datatypes import Node, Edge
 from powerplantsim.datatypes.datatype import DataType
 from powerplantsim.plant import Callback
 from powerplantsim.utils.typing import State, Flow
-from test.utils import PLANT, PLAN
+from test.test_utils import PLANT, PLAN
 
 
 class DummyCallback(Callback):

@@ -6,7 +6,7 @@ import pandas as pd
 from powerplantsim import Plant
 from powerplantsim.plant import RecourseAction
 from powerplantsim.utils.typing import Plan
-from test.utils import PLANT, PLAN, IMPLEMENTATION, SETPOINT
+from test.test_utils import PLANT, PLAN, IMPLEMENTATION, SETPOINT
 
 INVALID_PLANT_EXCEPTION = lambda k, e, c, n: f"{k} commodity {c} has no valid {e} edge in node {n}"
 SECOND_RUN_EXCEPTION = lambda: "Simulation for this plant was already run, create a new instance to run another one"
