@@ -1,6 +1,10 @@
+# test using "python -m unittest"
+# build using "hatch build"
+# publish using "hatch publish"
+
 [build-system]
-requires = ["flit_core >=3.2,<4"]
-build-backend = "flit_core.buildapi"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.setuptools.packages.find]
 include = ["powrplantsim*"]
@@ -30,8 +34,8 @@ maintainers = [
 ]
 license = { file = "LICENSE" }
 
-[tool.flit.sdist]
-exclude = ["test/*", "tutorial.ipynb", ".gitignore", ".gitattributes"]
+[tool.hatch.build.targets.wheel]
+packages = ["powerplantsim"]
 
 [project.urls]
 Repository = "https://github.com/giuluck/powerplantsim/"
