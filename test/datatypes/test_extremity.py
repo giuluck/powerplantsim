@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 import pyomo.environ as pyo
 
@@ -162,6 +164,8 @@ class TestExtremityNodes(TestDataType):
         self.assertIsNone(s.current_price, msg=f"Supplier current price should be None outside of the simulation")
 
     def test_pyomo(self):
+        logging.getLogger('pyomo.core').setLevel(logging.CRITICAL)
+        logging.getLogger('pyomo.common.numeric_types').setLevel(logging.CRITICAL)
         # test customer
         c = CUSTOMER.copy()
         rng = np.random.default_rng(0)

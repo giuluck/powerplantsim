@@ -1,3 +1,5 @@
+import logging
+
 import pyomo.environ as pyo
 
 from powerplantsim.datatypes import Storage
@@ -259,6 +261,8 @@ class TestStorage(TestDataType):
         )
 
     def test_pyomo(self):
+        logging.getLogger('pyomo.core').setLevel(logging.CRITICAL)
+        logging.getLogger('pyomo.common.numeric_types').setLevel(logging.CRITICAL)
         s = STORAGE.copy()
         s.update(rng=None, flows={}, states={})
         s.step(flows={dummy_edge(destination=s, commodity='s_com'): 2.0}, states={})

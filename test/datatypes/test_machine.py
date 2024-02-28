@@ -1,4 +1,9 @@
+import io
+import logging
+from contextlib import redirect_stdout
+
 import numpy as np
+import pandas as pd
 import pyomo.environ as pyo
 
 from powerplantsim.datatypes import Machine
@@ -193,7 +198,8 @@ class TestMachine(TestDataType):
 
     def test_immutability(self):
         DISCRETE_MACHINE.states[0] = 5.0
-        DISCRETE_MACHINE.setpoint.iloc[0, 0] = 5.0
+        sp = DISCRETE_MACHINE.setpoint
+        sp.iloc[0, 0] = 5.0
         self.assertEqual(len(DISCRETE_MACHINE.states), 0, msg="Machine states should be immutable")
         self.assertAlmostEqual(
             DISCRETE_MACHINE.setpoint.iloc[0, 0],
@@ -386,6 +392,7 @@ class TestMachine(TestDataType):
         )
 
     def test_pyomo(self):
+        logging.getLogger('pyomo.core').setLevel(logging.CRITICAL)
         # test continuous/discrete machine & feasible/infeasible state values
         tests = {
             ('discrete', True): (DISCRETE_MACHINE, [None, 0.5, 0.75, 1.0]),
@@ -397,7 +404,8 @@ class TestMachine(TestDataType):
             # test model
             m = machine.copy()
             m.update(rng=None, flows={}, states={m: 0.75})
-            model = m.to_pyomo(mutable=False)
+            with redirect_stdout(io.StringIO()):
+                model = m.to_pyomo(mutable=False)
             # in/out flows
             self.assertSetEqual(set(model.in_flows.keys()), {'in_com'}, msg=f"Wrong in_flows for {kind} machine block")
             self.assertSetEqual(
@@ -417,8 +425,10 @@ class TestMachine(TestDataType):
                 0.75,
                 msg=f"{kind.title()} machine state should be initialized to current state"
             )
+            with redirect_stdout(io.StringIO()):
+                model = m.to_pyomo(mutable=True)
             self.assertIsNone(
-                m.to_pyomo(mutable=True).state.value,
+                model.state.value,
                 msg=f"{kind.title()} machine switch should not be initialized"
             )
             # switch
@@ -433,8 +443,10 @@ class TestMachine(TestDataType):
                 0,
                 msg=f"{kind.title()} machine switch should be initialized to off"
             )
+            with redirect_stdout(io.StringIO()):
+                model = m.to_pyomo(mutable=True)
             self.assertEqual(
-                m.to_pyomo(mutable=True).switch.value,
+                model.switch.value,
                 0,
                 msg=f"{kind.title()} machine switch should be initialized to off when mutable=True as well"
             )
@@ -442,7 +454,8 @@ class TestMachine(TestDataType):
             for value in values:
                 m = machine.copy()
                 m.update(rng=None, flows={}, states={m: 0.75})
-                model = m.to_pyomo(mutable=False)
+                with redirect_stdout(io.StringIO()):
+                    model = m.to_pyomo(mutable=False)
                 if value is None:
                     switch, state = 0, None
                     model.switch_value = pyo.Constraint(rule=model.switch == 0)
@@ -500,7 +513,8 @@ class TestMachine(TestDataType):
         })
         m.step(states={m: np.nan}, flows={})
         m.update(rng=None, flows={}, states={m: 0.75})
-        model = m.to_pyomo(mutable=False)
+        with redirect_stdout(io.StringIO()):
+            model = m.to_pyomo(mutable=False)
         model.state_value = pyo.Constraint(rule=model.switch == 1)
         results = pyo.SolverFactory(SOLVER).solve(model)
         self.assertEqual(
