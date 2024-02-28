@@ -21,4 +21,4 @@ jobs:
             - name: Print Versions
               run: python --version; pip freeze
             - name: Run Tests
-              run: python test.py
+              run: python -m unittestgit stat
