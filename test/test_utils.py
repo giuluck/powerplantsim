@@ -6,13 +6,13 @@ import numpy as np
 from powerplantsim import Plant
 
 
-class TestPlant(Plant):
+class DummyPlant(Plant):
     @property
     def step(self) -> Optional[int]:
         return 0
 
 
-SOLVER = 'gurobi'
+SOLVER = 'glpk'
 
 SETPOINT = dict(commodity='in', setpoint=[1., 3.], inputs=[1., 3.], outputs={'out': [1., 3.]})
 

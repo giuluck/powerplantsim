@@ -6,12 +6,12 @@ import pyomo.environ as pyo
 
 from powerplantsim.datatypes import Supplier, Machine, Storage, SingleEdge, Customer, Purchaser
 from test.datatypes.test_datatype import VARIANCE_1
-from test.test_utils import TestPlant, SOLVER
+from test.test_utils import DummyPlant, SOLVER
 
-PLANT_1 = TestPlant(horizon=24)
+PLANT_1 = DummyPlant(horizon=24)
 PLANT_1.add_extremity(kind='supplier', name='sup', commodity='in', predictions=1.)
 
-PLANT_2 = TestPlant(horizon=24)
+PLANT_2 = DummyPlant(horizon=24)
 PLANT_2.add_extremity(kind='supplier', name='sup', commodity='in', predictions=1.)
 PLANT_2.add_machine(
     name='mac',
@@ -123,19 +123,19 @@ class TestPlantProperties(unittest.TestCase):
         # build five different plants with different input types and check that the horizon is like the reference
         tests = [24, horizon, np.array(horizon), pd.Series(horizon), pd.Index(horizon)]
         for hrz in tests:
-            p = TestPlant(horizon=hrz)
+            p = DummyPlant(horizon=hrz)
             self.assertIsInstance(p.horizon, pd.Index, msg=f"Horizon should be of type pd.index, got {type(p.horizon)}")
             self.assertListEqual(list(p.horizon), horizon, msg=f"Horizon should be [0, ..., 23], got {list(p.horizon)}")
         # test sanity check for negative integer
         with self.assertRaises(AssertionError, msg="Null time horizon should raise exception") as e:
-            TestPlant(horizon=0)
+            DummyPlant(horizon=0)
         self.assertEqual(
             str(e.exception),
             NEGATIVE_HORIZON_EXCEPTION(0),
             msg='Wrong exception message returned for null time horizon'
         )
         with self.assertRaises(AssertionError, msg="Null time horizon should raise exception") as e:
-            TestPlant(horizon=-1)
+            DummyPlant(horizon=-1)
         self.assertEqual(
             str(e.exception),
             NEGATIVE_HORIZON_EXCEPTION(-1),

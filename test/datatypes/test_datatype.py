@@ -6,9 +6,9 @@ import numpy as np
 import pandas as pd
 
 from powerplantsim.datatypes import MultiEdge, Storage, Node
-from test.test_utils import TestPlant
+from test.test_utils import DummyPlant
 
-PLANT = TestPlant(horizon=3)
+PLANT = DummyPlant(horizon=3)
 
 HORIZON = pd.Index(np.arange(3))
 
