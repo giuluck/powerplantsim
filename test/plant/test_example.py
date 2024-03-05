@@ -5,7 +5,7 @@ import pytest
 
 from powerplantsim import Plant
 from powerplantsim.plant import DefaultRecourseAction
-from test.test_utils import SOLVER, IN_GITHUB_ACTIONS
+from test.test_utils import SOLVER, SOLVER_NOT_AVAILABLE
 
 PLANT = Plant(horizon=1)
 PLANT.add_extremity(kind='supplier', name='sup', commodity='in_com', predictions=1.)
@@ -64,7 +64,7 @@ SELL_PRICES = {
 
 
 class TestExample(unittest.TestCase):
-    @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Solver is absent in Github Actions")
+    @pytest.mark.skipif(SOLVER_NOT_AVAILABLE, reason="Solver is absent")
     def test_example(self):
         p = PLANT.copy()
         output = p.run(

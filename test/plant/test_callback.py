@@ -8,7 +8,7 @@ from powerplantsim.datatypes import Node, Edge
 from powerplantsim.datatypes.datatype import DataType
 from powerplantsim.plant import Callback
 from powerplantsim.utils.typing import State, Flow
-from test.test_utils import PLANT, PLAN, SOLVER, IN_GITHUB_ACTIONS
+from test.test_utils import PLANT, PLAN, SOLVER, SOLVER_NOT_AVAILABLE
 
 
 class DummyCallback(Callback):
@@ -37,7 +37,7 @@ class DummyCallback(Callback):
 
 
 class TestCallback(unittest.TestCase):
-    @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Solver is absent in Github Actions")
+    @pytest.mark.skipif(SOLVER_NOT_AVAILABLE, reason="Solver is absent")
     def test_callback(self):
         p = PLANT.copy()
         c = DummyCallback()

@@ -8,7 +8,7 @@ import pytest
 
 from powerplantsim.datatypes import Machine
 from test.datatypes.test_datatype import TestDataType, SETPOINT, PLANT, dummy_edge
-from test.test_utils import SOLVER, IN_GITHUB_ACTIONS
+from test.test_utils import SOLVER, SOLVER_NOT_AVAILABLE
 
 DISCRETE_MACHINE = Machine(
     name='m',
@@ -225,7 +225,7 @@ class TestMachine(TestDataType):
         self.assertDictEqual(m_states.to_dict(), {}, msg='Wrong dictionary returned for machine')
         self.assertDictEqual(m_setpoint.to_dict(), SETPOINT.to_dict(), msg='Wrong dictionary returned for machine')
 
-    @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Solver is absent in Github Actions")
+    @pytest.mark.skipif(SOLVER_NOT_AVAILABLE, reason="Solver is absent")
     def test_operation(self):
         # test basics
         m = DISCRETE_MACHINE.copy()
@@ -392,6 +392,7 @@ class TestMachine(TestDataType):
             msg='Wrong exception message returned for continuous setpoint operation on machine'
         )
 
+    @pytest.mark.skipif(SOLVER_NOT_AVAILABLE, reason="Solver is absent")
     def test_pyomo(self):
         logging.getLogger('pyomo.core').setLevel(logging.CRITICAL)
         # test continuous/discrete machine & feasible/infeasible state values

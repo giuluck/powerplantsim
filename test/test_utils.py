@@ -1,8 +1,8 @@
 # test plant with step = 0 to simulate first time step
-import os
 from typing import Optional
 
 import numpy as np
+import pyomo.environ as pyo
 
 from powerplantsim import Plant
 
@@ -13,9 +13,8 @@ class DummyPlant(Plant):
         return 0
 
 
-IN_GITHUB_ACTIONS = os.getenv('GITHUB_ACTIONS') == 'true'
-
 SOLVER = 'gurobi'
+SOLVER_NOT_AVAILABLE = not pyo.SolverFactory(SOLVER).available()
 
 SETPOINT = dict(commodity='in', setpoint=[1., 3.], inputs=[1., 3.], outputs={'out': [1., 3.]})
 

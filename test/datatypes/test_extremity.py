@@ -6,7 +6,7 @@ import pytest
 
 from powerplantsim.datatypes import Customer, Purchaser, Supplier
 from test.datatypes.test_datatype import TestDataType, SERIES_1, SERIES_2, VARIANCE_1, VARIANCE_2, PLANT, dummy_edge
-from test.test_utils import SOLVER, IN_GITHUB_ACTIONS
+from test.test_utils import SOLVER, SOLVER_NOT_AVAILABLE
 
 CUSTOMER = Customer(
     name='c',
@@ -164,7 +164,7 @@ class TestExtremityNodes(TestDataType):
         self.assertDictEqual(s.prices.to_dict(), {0: val}, msg=f"Supplier prices should be filled after step")
         self.assertIsNone(s.current_price, msg=f"Supplier current price should be None outside of the simulation")
 
-    @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Solver is absent in Github Actions")
+    @pytest.mark.skipif(SOLVER_NOT_AVAILABLE, reason="Solver is absent")
     def test_pyomo(self):
         logging.getLogger('pyomo.core').setLevel(logging.CRITICAL)
         logging.getLogger('pyomo.common.numeric_types').setLevel(logging.CRITICAL)

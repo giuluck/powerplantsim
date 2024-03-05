@@ -5,7 +5,7 @@ import pytest
 
 from powerplantsim.datatypes import Storage
 from test.datatypes.test_datatype import TestDataType, PLANT, dummy_edge
-from test.test_utils import SOLVER, IN_GITHUB_ACTIONS
+from test.test_utils import SOLVER, SOLVER_NOT_AVAILABLE
 
 STORAGE = Storage(
     name='s',
@@ -261,7 +261,7 @@ class TestStorage(TestDataType):
             msg='Wrong exception message returned for exceeded capacity on storage'
         )
 
-    @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Solver is absent in Github Actions")
+    @pytest.mark.skipif(SOLVER_NOT_AVAILABLE, reason="Solver is absent")
     def test_pyomo(self):
         logging.getLogger('pyomo.core').setLevel(logging.CRITICAL)
         logging.getLogger('pyomo.common.numeric_types').setLevel(logging.CRITICAL)

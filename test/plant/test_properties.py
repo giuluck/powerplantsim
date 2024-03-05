@@ -7,7 +7,7 @@ import pytest
 
 from powerplantsim.datatypes import Supplier, Machine, Storage, SingleEdge, Customer, Purchaser
 from test.datatypes.test_datatype import VARIANCE_1
-from test.test_utils import DummyPlant, SOLVER, IN_GITHUB_ACTIONS
+from test.test_utils import DummyPlant, SOLVER, SOLVER_NOT_AVAILABLE
 
 PLANT_1 = DummyPlant(horizon=24)
 PLANT_1.add_extremity(kind='supplier', name='sup', commodity='in', predictions=1.)
@@ -286,7 +286,7 @@ class TestPlantProperties(unittest.TestCase):
         self.assertNotIn('sto_2', PLANT_2.nodes(), msg='New node must not be added to the original plant')
         self.assertNotIn(('mac', 'sto_2'), PLANT_2.edges(), msg='New edge must not be added to the original plant')
 
-    @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Solver is absent in Github Actions")
+    @pytest.mark.skipif(SOLVER_NOT_AVAILABLE, reason="Solver is absent")
     def test_pyomo(self):
         p = PLANT_2.copy()
         p._step += 1
