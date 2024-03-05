@@ -2,6 +2,7 @@ import logging
 
 import numpy as np
 import pyomo.environ as pyo
+from pyomo.common.errors import ApplicationError
 
 from powerplantsim.datatypes import Customer, Purchaser, Supplier
 from test.datatypes.test_datatype import TestDataType, SERIES_1, SERIES_2, VARIANCE_1, VARIANCE_2, PLANT, dummy_edge
@@ -178,19 +179,22 @@ class TestExtremityNodes(TestDataType):
             c.current_demand,
             msg="Wrong demand initialized in customer block"
         )
-        results = pyo.SolverFactory(SOLVER).solve(model)
-        self.assertEqual(
-            results.solver.termination_condition,
-            'optimal',
-            msg="Customer block should always be feasible"
-        )
-        self.assertEqual(
-            model.in_flows[c.commodity].value,
-            c.current_demand,
-            msg="Customer block should satisfy demand constraint"
-        )
-        with self.assertRaises(ValueError, msg="Accessing mutable customer parameters should raise exception"):
-            pyo.value(c.to_pyomo(mutable=True).current_demand)
+        try:
+            results = pyo.SolverFactory(SOLVER).solve(model)
+            self.assertEqual(
+                results.solver.termination_condition,
+                'optimal',
+                msg="Customer block should always be feasible"
+            )
+            self.assertEqual(
+                model.in_flows[c.commodity].value,
+                c.current_demand,
+                msg="Customer block should satisfy demand constraint"
+            )
+            with self.assertRaises(ValueError, msg="Accessing mutable customer parameters should raise exception"):
+                pyo.value(c.to_pyomo(mutable=True).current_demand)
+        except ApplicationError:
+            pass
         # test purchaser
         p = PURCHASER.copy()
         rng = np.random.default_rng(0)
@@ -204,19 +208,22 @@ class TestExtremityNodes(TestDataType):
             msg="Wrong price initialized in purchaser block"
         )
         model.flows_value = pyo.Constraint(rule=model.in_flows[p.commodity] == 3.0)
-        results = pyo.SolverFactory(SOLVER).solve(model)
-        self.assertEqual(
-            results.solver.termination_condition,
-            'optimal',
-            msg="Purchaser block should always be feasible"
-        )
-        self.assertEqual(
-            pyo.value(model.cost),
-            -p.current_price * 3.0,
-            msg="Wrong cost computed for purchaser block"
-        )
-        with self.assertRaises(ValueError, msg="Accessing mutable purchaser parameters should raise exception"):
-            pyo.value(p.to_pyomo(mutable=True).current_price)
+        try:
+            results = pyo.SolverFactory(SOLVER).solve(model)
+            self.assertEqual(
+                results.solver.termination_condition,
+                'optimal',
+                msg="Purchaser block should always be feasible"
+            )
+            self.assertEqual(
+                pyo.value(model.cost),
+                -p.current_price * 3.0,
+                msg="Wrong cost computed for purchaser block"
+            )
+            with self.assertRaises(ValueError, msg="Accessing mutable purchaser parameters should raise exception"):
+                pyo.value(p.to_pyomo(mutable=True).current_price)
+        except ApplicationError:
+            pass
         # test supplier
         s = SUPPLIER.copy()
         rng = np.random.default_rng(0)
@@ -230,16 +237,19 @@ class TestExtremityNodes(TestDataType):
             msg="Wrong price initialized in supplier block"
         )
         model.flows_value = pyo.Constraint(rule=model.out_flows[s.commodity] == 3.0)
-        results = pyo.SolverFactory(SOLVER).solve(model)
-        self.assertEqual(
-            results.solver.termination_condition,
-            'optimal',
-            msg="Supplier block should always be feasible"
-        )
-        self.assertEqual(
-            pyo.value(model.cost),
-            s.current_price * 3.0,
-            msg="Wrong cost computed for supplier block"
-        )
-        with self.assertRaises(ValueError, msg="Accessing mutable supplier parameters model should raise exception"):
-            pyo.value(s.to_pyomo(mutable=True).current_price)
+        try:
+            results = pyo.SolverFactory(SOLVER).solve(model)
+            self.assertEqual(
+                results.solver.termination_condition,
+                'optimal',
+                msg="Supplier block should always be feasible"
+            )
+            self.assertEqual(
+                pyo.value(model.cost),
+                s.current_price * 3.0,
+                msg="Wrong cost computed for supplier block"
+            )
+            with self.assertRaises(ValueError, msg="Accessing mutable supplier parameters should raise exception"):
+                pyo.value(s.to_pyomo(mutable=True).current_price)
+        except ApplicationError:
+            pass

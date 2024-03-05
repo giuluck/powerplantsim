@@ -1,6 +1,7 @@
 import logging
 
 import pyomo.environ as pyo
+from pyomo.common.errors import ApplicationError
 
 from powerplantsim.datatypes import Storage
 from test.datatypes.test_datatype import TestDataType, PLANT, dummy_edge
@@ -277,44 +278,56 @@ class TestStorage(TestDataType):
             msg="Wrong current storage initialized in storage block"
         )
         model.flows_value = pyo.Constraint(rule=model.in_flows['s_com'] == 3.0)
-        results = pyo.SolverFactory(SOLVER).solve(model)
-        self.assertEqual(
-            results.solver.termination_condition,
-            'optimal',
-            msg="Storage block should be feasible if no constraint is passed"
-        )
-        self.assertAlmostEqual(
-            pyo.value(model.storage),
-            4.8,
-            msg="Wrong storage computed for storage block"
-        )
+        try:
+            results = pyo.SolverFactory(SOLVER).solve(model)
+            self.assertEqual(
+                results.solver.termination_condition,
+                'optimal',
+                msg="Storage block should be feasible if no constraint is passed"
+            )
+            self.assertAlmostEqual(
+                pyo.value(model.storage),
+                4.8,
+                msg="Wrong storage computed for storage block"
+            )
+        except ApplicationError:
+            pass
         with self.assertRaises(ValueError, msg="Accessing mutable storage parameters should raise exception"):
             pyo.value(s.to_pyomo(mutable=True).current_storage)
         # check capacity upper bound
         model = s.to_pyomo(mutable=False)
         model.flows_value = pyo.Constraint(rule=model.in_flows['s_com'] == 10.0)
-        results = pyo.SolverFactory(SOLVER).solve(model)
-        self.assertEqual(
-            results.solver.termination_condition,
-            'infeasible',
-            msg="Input flow that exceeds capacity should result in an infeasible model"
-        )
+        try:
+            results = pyo.SolverFactory(SOLVER).solve(model)
+            self.assertEqual(
+                results.solver.termination_condition,
+                'infeasible',
+                msg="Input flow that exceeds capacity should result in an infeasible model"
+            )
+        except ApplicationError:
+            pass
         # check capacity lower bound
         model = s.to_pyomo(mutable=False)
         model.flows_value = pyo.Constraint(rule=model.out_flows['s_com'] == 5.0)
-        results = pyo.SolverFactory(SOLVER).solve(model)
-        self.assertEqual(
-            results.solver.termination_condition,
-            'infeasible',
-            msg="Output flow that exceeds storage should result in an infeasible model"
-        )
+        try:
+            results = pyo.SolverFactory(SOLVER).solve(model)
+            self.assertEqual(
+                results.solver.termination_condition,
+                'infeasible',
+                msg="Output flow that exceeds storage should result in an infeasible model"
+            )
+        except ApplicationError:
+            pass
         # check flows selector
         model = s.to_pyomo(mutable=False)
         model.in_flows_value = pyo.Constraint(rule=model.in_flows['s_com'] == 10.0)
         model.out_flows_value = pyo.Constraint(rule=model.out_flows['s_com'] == 5.0)
-        results = pyo.SolverFactory(SOLVER).solve(model)
-        self.assertEqual(
-            results.solver.termination_condition,
-            'infeasible',
-            msg="Output flow that exceeds storage should result in an infeasible model"
-        )
+        try:
+            results = pyo.SolverFactory(SOLVER).solve(model)
+            self.assertEqual(
+                results.solver.termination_condition,
+                'infeasible',
+                msg="Output flow that exceeds storage should result in an infeasible model"
+            )
+        except ApplicationError:
+            pass

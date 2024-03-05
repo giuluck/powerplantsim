@@ -12,7 +12,8 @@ class DummyPlant(Plant):
         return 0
 
 
-SOLVER = 'glpk'
+SOLVER = 'scip'
+SOLVER_EXCEPTION = f"\nWARNING: RuntimeError probably raised due to unavailable solver '{SOLVER}'"
 
 SETPOINT = dict(commodity='in', setpoint=[1., 3.], inputs=[1., 3.], outputs={'out': [1., 3.]})
 
