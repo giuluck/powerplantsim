@@ -4,10 +4,11 @@ from contextlib import redirect_stdout
 
 import numpy as np
 import pyomo.environ as pyo
+import pytest
 
 from powerplantsim.datatypes import Machine
 from test.datatypes.test_datatype import TestDataType, SETPOINT, PLANT, dummy_edge
-from test.test_utils import SOLVER
+from test.test_utils import SOLVER, IN_GITHUB_ACTIONS
 
 DISCRETE_MACHINE = Machine(
     name='m',
@@ -224,6 +225,7 @@ class TestMachine(TestDataType):
         self.assertDictEqual(m_states.to_dict(), {}, msg='Wrong dictionary returned for machine')
         self.assertDictEqual(m_setpoint.to_dict(), SETPOINT.to_dict(), msg='Wrong dictionary returned for machine')
 
+    @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Solver is absent in Github Actions")
     def test_operation(self):
         # test basics
         m = DISCRETE_MACHINE.copy()
@@ -462,51 +464,47 @@ class TestMachine(TestDataType):
                     switch, state = 1, value
                     model.switch_value = pyo.Constraint(rule=model.switch == 1)
                     model.state_value = pyo.Constraint(rule=model.state == value)
-                from pyomo.common.errors import ApplicationError
-                try:
-                    results = pyo.SolverFactory(SOLVER).solve(model)
-                    if feasible:
+                results = pyo.SolverFactory(SOLVER).solve(model)
+                if feasible:
+                    self.assertEqual(
+                        results.solver.termination_condition,
+                        'optimal',
+                        msg=f"{kind.title()} machine should be feasible when value is {value}"
+                    )
+                    self.assertEqual(
+                        model.switch.value,
+                        switch,
+                        msg=f"Wrong switch computed for {kind} machine when value is {value}"
+                    )
+                    if state is not None:
                         self.assertEqual(
-                            results.solver.termination_condition,
-                            'optimal',
-                            msg=f"{kind.title()} machine should be feasible when value is {value}"
+                            model.state.value,
+                            state,
+                            msg=f"Wrong state computed for {kind} machine when value is {value}"
                         )
-                        self.assertEqual(
-                            model.switch.value,
-                            switch,
-                            msg=f"Wrong switch computed for {kind} machine when value is {value}"
-                        )
-                        if state is not None:
-                            self.assertEqual(
-                                model.state.value,
-                                state,
-                                msg=f"Wrong state computed for {kind} machine when value is {value}"
+                        state = np.nan if np.isclose(model.switch.value, 0.0) else model.state.value
+                        for key, com in [('input', 'in_com'), ('output', 'out_com_1'), ('output', 'out_com_2')]:
+                            expected = np.interp(state, xp=m.setpoint.index, fp=m.setpoint[(key, com)])
+                            variables = model.in_flows if key == 'input' else model.out_flows
+                            self.assertAlmostEqual(
+                                variables[com].value,
+                                expected,
+                                msg=f"Wrong {key} flows computed for commodity {com} in {kind} machine block"
                             )
-                            state = np.nan if np.isclose(model.switch.value, 0.0) else model.state.value
-                            for key, com in [('input', 'in_com'), ('output', 'out_com_1'), ('output', 'out_com_2')]:
-                                expected = np.interp(state, xp=m.setpoint.index, fp=m.setpoint[(key, com)])
-                                variables = model.in_flows if key == 'input' else model.out_flows
-                                self.assertAlmostEqual(
-                                    variables[com].value,
-                                    expected,
-                                    msg=f"Wrong {key} flows computed for commodity {com} in {kind} machine block"
-                                )
-                        else:
-                            for key, com in [('input', 'in_com'), ('output', 'out_com_1'), ('output', 'out_com_2')]:
-                                variables = model.in_flows if key == 'input' else model.out_flows
-                                self.assertAlmostEqual(
-                                    variables[com].value,
-                                    0.0,
-                                    msg=f"Wrong {key} flows computed for commodity {com} in {kind} machine block"
-                                )
                     else:
-                        self.assertEqual(
-                            results.solver.termination_condition,
-                            'infeasible',
-                            msg=f"{kind.title()} machine should be infeasible when value is {value}"
-                        )
-                except ApplicationError:
-                    pass
+                        for key, com in [('input', 'in_com'), ('output', 'out_com_1'), ('output', 'out_com_2')]:
+                            variables = model.in_flows if key == 'input' else model.out_flows
+                            self.assertAlmostEqual(
+                                variables[com].value,
+                                0.0,
+                                msg=f"Wrong {key} flows computed for commodity {com} in {kind} machine block"
+                            )
+                else:
+                    self.assertEqual(
+                        results.solver.termination_condition,
+                        'infeasible',
+                        msg=f"{kind.title()} machine should be infeasible when value is {value}"
+                    )
         # test max starting
         m = CONTINUOUS_MACHINE.copy()
         m.step(states={m: 1.0}, flows={
@@ -519,12 +517,9 @@ class TestMachine(TestDataType):
         with redirect_stdout(io.StringIO()):
             model = m.to_pyomo(mutable=False)
         model.state_value = pyo.Constraint(rule=model.switch == 1)
-        try:
-            results = pyo.SolverFactory(SOLVER).solve(model)
-            self.assertEqual(
-                results.solver.termination_condition,
-                'infeasible',
-                msg=f"Machine should be infeasible when max starting is exceeded and switch is set to on"
-            )
-        except ApplicationError:
-            pass
+        results = pyo.SolverFactory(SOLVER).solve(model)
+        self.assertEqual(
+            results.solver.termination_condition,
+            'infeasible',
+            msg=f"Machine should be infeasible when max starting is exceeded and switch is set to on"
+        )

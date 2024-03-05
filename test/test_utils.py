@@ -1,4 +1,5 @@
 # test plant with step = 0 to simulate first time step
+import os
 from typing import Optional
 
 import numpy as np
@@ -12,8 +13,9 @@ class DummyPlant(Plant):
         return 0
 
 
+IN_GITHUB_ACTIONS = os.getenv('GITHUB_ACTIONS') == 'true'
+
 SOLVER = 'gurobi'
-SOLVER_EXCEPTION = f"\nWARNING: RuntimeError probably raised due to unavailable solver '{SOLVER}'"
 
 SETPOINT = dict(commodity='in', setpoint=[1., 3.], inputs=[1., 3.], outputs={'out': [1., 3.]})
 
